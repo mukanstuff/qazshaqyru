@@ -1,0 +1,273 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Language {
+  kz
+  ru
+}
+
+enum EventType {
+  wedding
+  toy
+  betashar
+  kyz_uzatu
+  birthday
+  anniversary
+  corporate
+  other
+}
+
+enum InvitationStatus {
+  draft
+  published
+  archived
+}
+
+enum GuestResponseStatus {
+  pending
+  attending
+  not_attending
+  attending_plus_one
+}
+
+enum GuestSide {
+  bride
+  groom
+}
+
+enum OrderStatus {
+  pending
+  paid
+  cancelled
+  refunded
+}
+
+enum TemplateCategory {
+  wedding
+  toy
+  betashar
+  kyz_uzatu
+  birthday
+  anniversary
+  corporate
+  other
+}
+
+model User {
+  id          String   @id @default(uuid())
+  phone       String   @unique
+  name        String?
+  language    Language @default(ru)
+  isAdmin     Boolean  @default(false)
+  sessions    Session[]
+  invitations Invitation[]
+  orders      Order[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([phone])
+  @@index([isAdmin])
+}
+
+model Session {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash   String   @unique
+  expiresAt   DateTime
+  deviceInfo  String?
+  ipAddress   String?
+  revokedAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([tokenHash])
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([userId, expiresAt])
+}
+
+model OTPToken {
+  id        String   @id @default(uuid())
+  phone     String
+  code      String
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@index([phone])
+  @@index([expiresAt])
+  @@index([phone, usedAt])
+}
+
+model RateLimitEntry {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  count     Int      @default(0)
+  resetAt   DateTime
+  blocked   Boolean  @default(false)
+  blockedUntil DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([key])
+  @@index([resetAt])
+}
+
+model Template {
+  id              String          @id @default(uuid())
+  slug            String          @unique
+  nameRu          String
+  nameKz          String
+  descriptionRu   String?
+  descriptionKz   String?
+  category        TemplateCategory
+  previewImageUrl String
+  demoUrl         String?
+  priceKzt        Int             @default(0)
+  config          Json            @default("{}")
+  isActive        Boolean         @default(true)
+  isFeatured      Boolean         @default(false)
+  sortOrder       Int             @default(0)
+  invitations     Invitation[]
+  orders          Order[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([slug])
+  @@index([category])
+  @@index([isActive])
+  @@index([isFeatured])
+}
+
+model Invitation {
+  id           String           @id @default(uuid())
+  userId       String
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  templateId   String?
+  template     Template?        @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  slug         String           @unique
+  title        String
+  eventType    EventType
+  eventDate    DateTime
+  eventTime    String?
+  eventPlace   String?
+  eventTimezone String          @default("Asia/Almaty")
+
+  templateKey  String           @default("classic")
+  templateData Json             @default("{}")
+  musicUrl     String?
+
+  mapUrl       String?
+  address      String?
+
+  customText   Json             @default("{}")
+
+  status       InvitationStatus @default(draft)
+  publishedAt  DateTime?
+  archivedAt   DateTime?
+
+  guests       Guest[]
+  orders       Order[]
+
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([userId])
+  @@index([slug])
+  @@index([status])
+  @@index([eventDate])
+  @@index([templateId])
+  @@index([userId, status])
+  @@index([userId, createdAt])
+  @@index([userId, status, createdAt(sort: Desc)])
+}
+
+model Guest {
+  id            String           @id @default(uuid())
+  invitationId  String
+  invitation    Invitation       @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+
+  name          String
+  phone         String?
+  side          GuestSide?
+  hasPlusOne    Boolean          @default(false)
+  plusOneName   String?
+  /// HMAC-SHA256 of the random token we give to the guest. We never store
+  /// the token itself, so leaking server logs / WhatsApp URLs / Referer
+  /// headers does not let an attacker impersonate a guest.
+  /// Lookup: compute hash(token) -> find by tokenHash.
+  tokenHash     String           @unique
+
+  response      GuestResponse?
+  sentAt        DateTime?
+  sentVia       String?
+  lastError     String?
+
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([invitationId, phone])
+  @@index([invitationId])
+  @@index([phone])
+  @@index([tokenHash])
+}
+
+model GuestResponse {
+  id                   String              @id @default(uuid())
+  guestId              String              @unique
+  guest                Guest               @relation(fields: [guestId], references: [id], onDelete: Cascade)
+
+  status               GuestResponseStatus @default(pending)
+  dietaryRestrictions  String?
+  message              String?
+
+  respondedAt          DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  @@index([guestId])
+  @@index([status])
+}
+
+model Order {
+  id              String      @id @default(uuid())
+  userId          String
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  templateId      String
+  template        Template    @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  invitationId    String?
+  invitation      Invitation? @relation(fields: [invitationId], references: [id], onDelete: SetNull)
+
+  amountKzt       Int
+  currency        String      @default("KZT")
+  status          OrderStatus @default(pending)
+  paymentProvider String?
+  paymentId       String?
+  paidAt          DateTime?
+  cancelledAt     DateTime?
+  refundedAt      DateTime?
+
+  customerPhone   String
+  customerName    String?
+  notes           String?
+  eventDate       DateTime?
+  eventType       EventType?
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@unique([paymentProvider, paymentId])
+  @@index([userId])
+  @@index([templateId])
+  @@index([invitationId])
+  @@index([status])
+  @@index([createdAt])
+}

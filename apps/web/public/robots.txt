@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /invitations
+Disallow: /verify
+Disallow: /admin
+Disallow: /i/*
+
+Sitemap: /sitemap.xml

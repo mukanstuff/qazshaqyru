@@ -1,0 +1,25 @@
+{
+  "name": "invitation-platform",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm --filter web build",
+    "start": "pnpm --filter web start",
+    "db:generate": "pnpm --filter web prisma generate",
+    "db:push": "pnpm --filter web prisma db push",
+    "db:migrate": "pnpm --filter web prisma migrate dev",
+    "db:studio": "pnpm --filter web prisma studio"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.0.0"
+}
