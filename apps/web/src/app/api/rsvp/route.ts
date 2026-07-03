@@ -7,14 +7,21 @@ import {
   applyRateLimit,
   rateLimitResponse,
   RATE_LIMITS,
+  checkSameOrigin,
+  getClientIp,
 } from '@/lib/api';
 import { hashToken } from '@/lib/auth';
+import { verifyCaptchaToken } from '@/lib/captcha';
+import { isEventPast } from '@/lib/event-datetime';
+import { validateRsvpStatus, RSVP_STATUSES } from '@/lib/rsvp-status';
 
 const rsvpSchema = z.object({
   guestToken: z.string().min(16).max(128),
-  status: z.enum(['attending', 'not_attending', 'attending_plus_one']),
+  status: z.enum(RSVP_STATUSES),
   dietaryRestrictions: z.string().max(500).optional(),
   message: z.string().max(1000).optional(),
+  website: z.string().max(200).optional(),
+  captchaToken: z.string().max(2048).optional(),
 });
 
 const rsvpGetSchema = z.object({
@@ -23,6 +30,10 @@ const rsvpGetSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    if (!checkSameOrigin(request)) {
+      throw new ApiError('forbidden', 'Неверный origin', 403);
+    }
+
     const data = await request.json().catch(() => {
       throw new ApiError('invalid_json', 'Некорректный JSON', 400);
     });
@@ -31,7 +42,18 @@ export async function POST(request: NextRequest) {
       throw new ApiError('validation_error', 'Ошибка валидации', 400, validation.error.flatten());
     }
 
-    const { guestToken, status, dietaryRestrictions, message } = validation.data;
+    const { guestToken, status, dietaryRestrictions, message, website, captchaToken } = validation.data;
+    if (website && website.trim().length > 0) {
+      return NextResponse.json({ success: true, response: null });
+    }
+
+    const captcha = await verifyCaptchaToken({
+      token: captchaToken,
+      remoteIp: getClientIp(request),
+    });
+    if (!captcha.ok) {
+      throw new ApiError('captcha_failed', 'Не удалось пройти проверку captcha', 400);
+    }
 
     // Rate-limit on the *hash* so a leaked URL doesn't burn the bucket.
     const rate = await applyRateLimit(request, hashToken(guestToken), RATE_LIMITS.API_RSVP);
@@ -45,6 +67,8 @@ export async function POST(request: NextRequest) {
           select: {
             status: true,
             eventDate: true,
+            eventTime: true,
+            eventTimezone: true,
             id: true,
             title: true,
             slug: true,
@@ -61,8 +85,18 @@ export async function POST(request: NextRequest) {
       throw new ApiError('invitation_not_available', 'Приглашение недоступно', 403);
     }
 
-    if (new Date(guest.invitation.eventDate) < new Date()) {
+    if (
+      isEventPast(
+        guest.invitation.eventDate,
+        guest.invitation.eventTime,
+        guest.invitation.eventTimezone
+      )
+    ) {
       throw new ApiError('event_passed', 'Мероприятие уже прошло', 410);
+    }
+
+    if (!validateRsvpStatus(status, guest.hasPlusOne)) {
+      throw new ApiError('invalid_status', 'Недопустимый статус ответа', 400);
     }
 
     const result = await prisma.$transaction(async (tx) => {
@@ -105,6 +139,13 @@ export async function GET(request: NextRequest) {
       throw new ApiError('validation_error', 'guestToken обязателен', 400);
     }
 
+    const rate = await applyRateLimit(
+      request,
+      `rsvp_get:${hashToken(parsed.data.guestToken)}`,
+      RATE_LIMITS.API_RSVP,
+    );
+    if (!rate.allowed) return rateLimitResponse(rate);
+
     const tokenHash = hashToken(parsed.data.guestToken);
     const guest = await prisma.guest.findUnique({
       where: { tokenHash },
@@ -129,6 +170,20 @@ export async function GET(request: NextRequest) {
 
     if (!guest) {
       throw new ApiError('not_found', 'Гость не найден', 404);
+    }
+
+    if (guest.invitation.status !== 'published') {
+      throw new ApiError('invitation_not_available', 'Приглашение недоступно', 403);
+    }
+
+    if (
+      isEventPast(
+        guest.invitation.eventDate,
+        guest.invitation.eventTime,
+        guest.invitation.eventTimezone
+      )
+    ) {
+      throw new ApiError('event_passed', 'Мероприятие уже прошло', 410);
     }
 
     return NextResponse.json({

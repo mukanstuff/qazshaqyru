@@ -5,6 +5,7 @@ services:
     image: postgres:16-alpine
     container_name: ${POSTGRES_CONTAINER_NAME:-invitation_db}
     restart: unless-stopped
+    # Do not expose Postgres to the host in production — app connects via app_net
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
@@ -23,6 +24,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_WHATSAPP_NUMBER: ${NEXT_PUBLIC_WHATSAPP_NUMBER:-}
     container_name: ${APP_CONTAINER_NAME:-invitation_app}
     restart: unless-stopped
     environment:
@@ -31,11 +34,39 @@ services:
       SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required (min 32 chars)}
       APP_URL: ${APP_URL:?APP_URL is required}
       SMS_PROVIDER: ${SMS_PROVIDER:-mock}
+      KZ_SMS_API_KEY: ${KZ_SMS_API_KEY:-}
+      KZ_SMS_API_URL: ${KZ_SMS_API_URL:-}
+      KZ_SMS_SENDER: ${KZ_SMS_SENDER:-}
       TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
       TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER:-}
       OTP_EXPIRY_MINUTES: ${OTP_EXPIRY_MINUTES:-5}
       OTP_MAX_ATTEMPTS: ${OTP_MAX_ATTEMPTS:-3}
+      KASPI_API_KEY: ${KASPI_API_KEY:-}
+      KASPI_API_URL: ${KASPI_API_URL:-https://pay.kaspi.kz/api/v1}
+      KASPI_WEBHOOK_SECRET: ${KASPI_WEBHOOK_SECRET:-}
+      PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-}
+      FREEDOM_API_KEY: ${FREEDOM_API_KEY:-}
+      FREEDOM_API_URL: ${FREEDOM_API_URL:-}
+      FREEDOM_WEBHOOK_SECRET: ${FREEDOM_WEBHOOK_SECRET:-}
+      FREEDOM_PAY_ENABLED: ${FREEDOM_PAY_ENABLED:-false}
+      TRUST_PROXY: ${TRUST_PROXY:-true}
+      ADMIN_PHONE: ${ADMIN_PHONE:-}
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-}
+      WHATSAPP_NUMBER: ${WHATSAPP_NUMBER:-}
+      NEXT_PUBLIC_WHATSAPP_NUMBER: ${NEXT_PUBLIC_WHATSAPP_NUMBER:-}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+      S3_REGION: ${S3_REGION:-auto}
+      S3_PUBLIC_URL: ${S3_PUBLIC_URL:-}
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
+      RUN_SEED: ${RUN_SEED:-false}
+      ALLOW_MOCK_PAYMENT: ${ALLOW_MOCK_PAYMENT:-false}
+      UPLOAD_DISK_QUOTA_MB: ${UPLOAD_DISK_QUOTA_MB:-5120}
+    volumes:
+      - uploads_data:/app/apps/web/public/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -45,11 +76,12 @@ services:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
       timeout: 5s
-      start_period: 20s
+      start_period: 40s
       retries: 3
 
   caddy:
     image: caddy:2-alpine
+    # Reverse proxy — see Caddyfile (domain) or Caddyfile.example Option B (IP-only HTTP)
     container_name: ${CADDY_CONTAINER_NAME:-invitation_caddy}
     restart: unless-stopped
     ports:
@@ -67,8 +99,46 @@ services:
     networks:
       - app_net
 
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ${SCHEDULER_CONTAINER_NAME:-invitation_scheduler}
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/docker-scheduler.sh"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-invitation_db}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required (min 32 chars)}
+      RECONCILE_INTERVAL_SEC: ${RECONCILE_INTERVAL_SEC:-900}
+      CLEANUP_INTERVAL_SEC: ${CLEANUP_INTERVAL_SEC:-86400}
+      RECONCILE_BATCH_LIMIT: ${RECONCILE_BATCH_LIMIT:-100}
+      KASPI_API_KEY: ${KASPI_API_KEY:-}
+      KASPI_API_URL: ${KASPI_API_URL:-https://pay.kaspi.kz/api/v1}
+      FREEDOM_PAY_ENABLED: ${FREEDOM_PAY_ENABLED:-false}
+      FREEDOM_API_KEY: ${FREEDOM_API_KEY:-}
+      FREEDOM_API_URL: ${FREEDOM_API_URL:-}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+      S3_REGION: ${S3_REGION:-auto}
+      S3_PUBLIC_URL: ${S3_PUBLIC_URL:-}
+      UPLOAD_DISK_QUOTA_MB: ${UPLOAD_DISK_QUOTA_MB:-5120}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      app:
+        condition: service_healthy
+    volumes:
+      - uploads_data:/app/apps/web/public/uploads
+    networks:
+      - app_net
+
 volumes:
   postgres_data:
+    driver: local
+  uploads_data:
     driver: local
   caddy_data:
     driver: local

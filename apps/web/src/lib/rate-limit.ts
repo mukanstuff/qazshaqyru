@@ -17,12 +17,31 @@ export const RATE_LIMITS = {
   OTP_REQUEST_PER_PHONE: { windowMs: 60 * 60 * 1000, maxRequests: 5, blockDurationMs: 60 * 60 * 1000 },
   OTP_REQUEST_PER_IP: { windowMs: 60 * 1000, maxRequests: 10, blockDurationMs: 60 * 1000 },
   OTP_VERIFY_PER_PHONE: { windowMs: 60 * 1000, maxRequests: 10, blockDurationMs: 5 * 60 * 1000 },
+  OTP_VERIFY_PER_IP: { windowMs: 60 * 1000, maxRequests: 20, blockDurationMs: 5 * 60 * 1000 },
   API_GENERAL: { windowMs: 60 * 1000, maxRequests: 60 },
   API_INVITATION_CREATE: { windowMs: 60 * 60 * 1000, maxRequests: 20 },
+  API_INVITATION_SEND: { windowMs: 60 * 60 * 1000, maxRequests: 30 },
   API_GUEST_CREATE: { windowMs: 60 * 60 * 1000, maxRequests: 200 },
+  API_GUEST_EXPORT: { windowMs: 60 * 60 * 1000, maxRequests: 30 },
   API_RSVP: { windowMs: 60 * 1000, maxRequests: 5 },
+  API_WEBHOOK: { windowMs: 60 * 1000, maxRequests: 120 },
+  API_TEMPLATES: { windowMs: 60 * 60 * 1000, maxRequests: 120 },
+  PUBLIC_INVITATION: { windowMs: 60 * 1000, maxRequests: 120 },
+  PUBLIC_DEMO: { windowMs: 60 * 1000, maxRequests: 60 },
+  GUEST_UPLOAD: { windowMs: 60 * 60 * 1000, maxRequests: 120 },
+  ANON_UPLOAD_TOKEN: { windowMs: 60 * 60 * 1000, maxRequests: 30 },
+  /** Authenticated read endpoints — prevents session-scrape abuse. */
+  API_AUTH_READ: { windowMs: 60 * 1000, maxRequests: 120 },
+  /** Anonymous draft uploads — stricter than authenticated. */
+  ANON_UPLOAD: { windowMs: 60 * 60 * 1000, maxRequests: 40 },
   /** Public OG image generation - cheap to generate, expensive to abuse for scraping. */
   OG_IMAGE: { windowMs: 60 * 1000, maxRequests: 30 },
+  /** Guest wishes wall — create wish. */
+  API_WISH_CREATE: { windowMs: 60 * 60 * 1000, maxRequests: 20 },
+  /** Guest wishes wall — like a wish. */
+  API_WISH_LIKE: { windowMs: 60 * 1000, maxRequests: 30 },
+  /** Guest wishes wall — read wishes. */
+  API_WISH_READ: { windowMs: 60 * 1000, maxRequests: 60 },
 } as const satisfies Record<string, RateLimitConfig>;
 
 /**

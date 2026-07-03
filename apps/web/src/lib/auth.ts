@@ -1,7 +1,8 @@
 import { randomBytes, createHmac, timingSafeEqual } from 'crypto';
+import bcrypt from 'bcryptjs';
 
 const SESSION_TOKEN_LENGTH = 32;
-const SESSION_EXPIRY_DAYS = 7;
+const SESSION_EXPIRY_DAYS = 30;
 const OTP_LENGTH = 6;
 const SESSION_SECRET_MIN_LENGTH = 32;
 
@@ -47,6 +48,16 @@ export function safeEqualHex(a: string, b: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Constant-time comparison of plain strings.
+ */
+export function safeEqualStr(a: string, b: string): boolean {
+  const aBuf = Buffer.from(a, 'utf8');
+  const bBuf = Buffer.from(b, 'utf8');
+  if (aBuf.length !== bBuf.length) return false;
+  return timingSafeEqual(aBuf, bBuf);
 }
 
 export function verifyTokenHash(token: string, hash: string): boolean {
@@ -103,7 +114,7 @@ export function normalizePhone(phone: string): string {
 export function validatePhone(phone: string): boolean {
   const cleaned = normalizePhone(phone);
   if (/^\+77\d{9}$/.test(cleaned)) return true;
-  if (/^\+79\d{9}$/.test(cleaned)) return true;
+  if (process.env.NODE_ENV !== 'production' && /^\+79\d{9}$/.test(cleaned)) return true;
   return false;
 }
 
@@ -123,13 +134,42 @@ export function formatPhoneForDisplay(phone: string): string {
   return phone;
 }
 
+/**
+ * Client IP for rate limiting.
+ * X-Forwarded-For is trusted only when TRUST_PROXY=true (behind Caddy/nginx).
+ * Otherwise spoofed headers are ignored.
+ */
 export function getClientIpFromHeaders(headers: Headers): string {
-  const forwarded = headers.get('x-forwarded-for');
-  if (forwarded) {
-    const first = forwarded.split(',')[0]?.trim();
-    if (first) return first;
+  const trustProxy = process.env.TRUST_PROXY === 'true';
+
+  if (trustProxy) {
+    const forwarded = headers.get('x-forwarded-for');
+    if (forwarded) {
+      const first = forwarded.split(',')[0]?.trim();
+      if (first) return first;
+    }
+    const realIp = headers.get('x-real-ip');
+    if (realIp) return realIp.trim();
   }
-  const realIp = headers.get('x-real-ip');
-  if (realIp) return realIp;
+
+  if (process.env.NODE_ENV !== 'production') {
+    return '127.0.0.1';
+  }
+
   return 'unknown';
+}
+
+/**
+ * Hash an OTP code using bcrypt.
+ * We store the hash, never the plaintext code.
+ */
+export async function hashOTP(code: string): Promise<string> {
+  return bcrypt.hash(code, 12);
+}
+
+/**
+ * Verify an OTP code against a stored hash.
+ */
+export async function verifyOTP(code: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(code, hash);
 }

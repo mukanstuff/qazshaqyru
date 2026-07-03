@@ -1,20 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { ApiError, apiErrorResponse, applyRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/api';
+import {
+  ApiError,
+  apiErrorResponse,
+  applyRateLimit,
+  rateLimitResponse,
+  RATE_LIMITS,
+} from '@/lib/api';
 import { isEventPast } from '@/lib/event-datetime';
-import { isOpenRsvpEnabled } from '@/lib/open-rsvp-config';
 import { verifyPreviewToken } from '@/lib/preview-token';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ slug: string }> }
-) {
+interface RouteParams {
+  params: Promise<{ slug: string }>;
+}
+
+/** Read-only draft preview for family (before payment). Requires ?preview= */
+export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { slug } = await params;
     const previewToken = request.nextUrl.searchParams.get('preview');
 
-    const rate = await applyRateLimit(request, `public_inv:${slug}`, RATE_LIMITS.PUBLIC_INVITATION);
+    const rate = await applyRateLimit(request, `family_preview_read:${slug}`, RATE_LIMITS.PUBLIC_INVITATION);
     if (!rate.allowed) return rateLimitResponse(rate);
+
+    if (!previewToken) {
+      throw new ApiError('forbidden', 'Требуется токен предпросмотра', 403);
+    }
 
     const invitation = await prisma.invitation.findUnique({
       where: { slug },
@@ -25,21 +36,20 @@ export async function GET(
       },
     });
 
-    if (!invitation) {
+    if (!invitation || invitation.status === 'archived') {
       throw new ApiError('not_found', 'Приглашение не найдено', 404);
     }
 
-    const isFamilyPreview =
-      invitation.status === 'draft' &&
-      previewToken &&
-      verifyPreviewToken(previewToken, invitation.previewTokenHash);
+    if (invitation.status === 'published') {
+      throw new ApiError('invalid_state', 'Используйте публичную ссылку', 400);
+    }
 
-    if (invitation.status !== 'published' && !isFamilyPreview) {
-      throw new ApiError('not_found', 'Приглашение не найдено', 404);
+    if (!verifyPreviewToken(previewToken, invitation.previewTokenHash)) {
+      throw new ApiError('forbidden', 'Недействительная ссылка предпросмотра', 403);
     }
 
     const customText = invitation.customText as Record<string, unknown> | null;
-    const openRsvp = isOpenRsvpEnabled(customText, invitation.eventType);
+    const openRsvp = false;
     const localeFromCustom = customText?.invitationLocale;
     const invitationLanguage =
       localeFromCustom === 'kz' || localeFromCustom === 'ru'
@@ -66,14 +76,14 @@ export async function GET(
       isPast: isEventPast(
         invitation.eventDate,
         invitation.eventTime,
-        invitation.eventTimezone
+        invitation.eventTimezone,
       ),
       guestCount: invitation._count.guests,
-      isFamilyPreview,
+      familyPreview: true,
     };
 
     return NextResponse.json({ invitation: safeInvitation });
   } catch (error) {
-    return apiErrorResponse(error as Error, 'Get public invitation');
+    return apiErrorResponse(error as Error, 'Family preview invitation');
   }
 }
