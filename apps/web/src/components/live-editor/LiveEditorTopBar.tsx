@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { ArrowLeft, Eye, MoreHorizontal, Rocket, Save, Share2 } from 'lucide-react';
 import { useState } from 'react';
 import { useI18n } from '@/i18n';
+import { LanguageSwitcher } from '@/components/auth/LanguageSwitcher';
 
 interface Props {
   title: string;
@@ -121,47 +122,7 @@ export function LiveEditorTopBar({
           <MoreHorizontal className="h-4 w-4" aria-hidden />
         </button>
 
-        {menuOpen ? (
-          <div className="live-editor-topbar__menu" role="menu">
-            <button
-              type="button"
-              className="live-editor-topbar__menu-item"
-              onClick={() => {
-                onSave();
-                setMenuOpen(false);
-              }}
-              disabled={isSaving}
-            >
-              <Save className="h-4 w-4" aria-hidden />
-              {isSaving ? '…' : t('liveEditor.save')}
-            </button>
-            {previewHref ? (
-              <a
-                href={previewHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="live-editor-topbar__menu-item"
-                onClick={() => setMenuOpen(false)}
-              >
-                <Eye className="h-4 w-4" aria-hidden />
-                {t('liveEditor.preview')}
-              </a>
-            ) : null}
-            {isPublished && onShare ? (
-              <button
-                type="button"
-                className="live-editor-topbar__menu-item"
-                onClick={() => {
-                  onShare();
-                  setMenuOpen(false);
-                }}
-              >
-                <Share2 className="h-4 w-4" aria-hidden />
-                {t('liveEditor.share')}
-              </button>
-            ) : null}
-          </div>
-        ) : null}
+        <LanguageSwitcher compact />
 
         <button
           type="button"

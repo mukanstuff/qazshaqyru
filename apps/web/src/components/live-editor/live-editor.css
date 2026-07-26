@@ -7,39 +7,34 @@
  */
 
 .live-editor-shell {
-  --le-bg: #faf6f0;
-  --le-bg-elevated: #fffdf9;
-  --le-surface: #fff9f2;
-  --le-surface-2: #f3ebe1;
-  --le-border: rgba(92, 58, 33, 0.12);
-  --le-border-strong: rgba(92, 58, 33, 0.2);
+  --le-bg: #fdfaf7;
+  --le-bg-elevated: rgba(255, 253, 249, 0.85);
+  --le-surface: rgba(255, 249, 242, 0.75);
+  --le-surface-2: rgba(243, 235, 225, 0.8);
+  --le-border: rgba(154, 77, 50, 0.12);
+  --le-border-strong: rgba(154, 77, 50, 0.25);
   --le-ink: #3d2618;
-  --le-ink-muted: rgba(61, 38, 24, 0.68);
-  --le-ink-faint: rgba(61, 38, 24, 0.44);
-  --le-accent: #9a4d32;
-  --le-accent-hover: #7f3f29;
-  --le-gold: #c49a5c;
-  --le-peach: #f0d5bf;
+  --le-ink-muted: rgba(61, 38, 24, 0.72);
+  --le-ink-faint: rgba(61, 38, 24, 0.48);
+  --le-accent: #821c2c; /* Deep Burgundy (matching site) */
+  --le-accent-hover: #6a1323;
+  --le-gold: #b28a5d;
+  --le-peach: #f5e3d6;
   --le-danger: #b42318;
   --le-ok: #3f7a55;
-  --le-shadow: 0 16px 40px rgba(61, 38, 24, 0.08);
+  --le-shadow: 0 16px 48px rgba(130, 28, 44, 0.08);
   --le-radius-pill: 999px;
-  --le-radius-panel: 20px;
-  --le-motion: 220ms cubic-bezier(0.22, 1, 0.36, 1);
-  --le-scroll-rail-width: 10px;
+  --le-radius-panel: 24px;
+  --le-motion: 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  --le-scroll-rail-width: 8px;
   --le-bottom-nav-h: 5.75rem;
 
-  /* Paper aliases (legacy class names still reference these) */
-  --le-glass-bg: var(--le-surface);
-  --le-glass-bg-tint: var(--le-bg-elevated);
-  --le-glass-bg-strong: var(--le-bg-elevated);
-  --le-glass-bg-soft: var(--le-surface);
-  --le-glass-border: var(--le-border);
-  --le-glass-border-strong: var(--le-border-strong);
-  --le-glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.65);
-  --le-glass-shadow: var(--le-shadow);
-  --le-glass-blur: 0px;
-  --le-glass-blur-strong: 0px;
+  /* Glass Effects */
+  --le-glass-bg: rgba(255, 255, 255, 0.7);
+  --le-glass-border: rgba(130, 28, 44, 0.1);
+  --le-glass-shadow: 0 8px 32px rgba(130, 28, 44, 0.05);
+  --le-glass-blur: 16px;
+  --le-glass-blur-strong: 24px;
 
   /* Chrome fixed; workspace (stage) scrolls — native scrollbar on tab edge */
   position: fixed;

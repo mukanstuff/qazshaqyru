@@ -675,7 +675,9 @@ export function LiveEditorPage({
                 onClick={() => setShowPublish(true)}
                 disabled={isPublishing}
               >
-                {readiness.readinessScore >= 100 ? 'Готово к публикации' : 'Проверить перед публикацией'}
+                {readiness.readinessScore >= 100 
+                  ? t('liveEditor.publishModal.titleReady') 
+                  : t('liveEditor.publishModal.blocked')}
               </button>
             </aside>
         </div>

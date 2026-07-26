@@ -24,7 +24,7 @@ export const kz: Translations = {
     copy: 'Көшіру',
     copied: 'Көшірілді!',
     optional: 'міндетті емес',
-    bride: 'Келин',
+    bride: 'Келін',
     groom: 'Күйеу',
     sideLabel: 'Жағы',
     backToInvitations: 'Шақыруларға',
@@ -1194,6 +1194,19 @@ export const kz: Translations = {
     sectionReady: 'Бөлім дайын',
     sectionOpen: 'Ашып баптаңыз',
     readinessReady: '{done}/{total} дайын',
+    inspector: {
+      title: 'Блок баптаулары',
+      empty: 'Превьюдегі блокты басыңыз — баптаулар ашылады',
+      noFields: 'Бұл секцияда өрістер жоқ — оны тізімде жасыруға немесе орнын ауыстыруға болады.',
+      photoUploaded: 'Фото жүктелді',
+      photoEmpty: 'Әзірше бос',
+      replacePhoto: 'Фотоны ауыстыру',
+      uploadPhoto: 'Фото жүктеу',
+    },
+    steps: {
+      title: 'СІЗДІҢ ҚАДАМЫҢЫЗ',
+      next: 'Келесі',
+    },
     publishModal: {
       titleReady: 'Жариялауға дайынсыз ба?',
       titleDone: 'Шақыру жарияланды',

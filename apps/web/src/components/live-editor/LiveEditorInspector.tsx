@@ -29,14 +29,16 @@ function FieldControl({
   onFieldChange: (path: string, value: string) => void;
   onPhotoPick: (path: string) => void;
 }) {
+  const { t } = useI18n();
+
   if (field.kind === 'photo') {
     return (
       <div className="live-editor-field">
         <span className="live-editor-field__label">{field.label}</span>
         {value ? (
-          <p className="live-editor-field__hint">Фото загружено</p>
+          <p className="live-editor-field__hint">{t('liveEditor.inspector.photoUploaded')}</p>
         ) : (
-          <p className="live-editor-field__hint">Пока пусто</p>
+          <p className="live-editor-field__hint">{t('liveEditor.inspector.photoEmpty')}</p>
         )}
         <button
           type="button"
@@ -45,7 +47,7 @@ function FieldControl({
           data-testid={`live-editor-inspector-photo-${field.path}`}
         >
           <ImagePlus className="h-4 w-4" aria-hidden />
-          {value ? 'Заменить фото' : 'Загрузить фото'}
+          {value ? t('liveEditor.inspector.replacePhoto') : t('liveEditor.inspector.uploadPhoto')}
         </button>
       </div>
     );
@@ -90,21 +92,24 @@ export function LiveEditorInspector({
   document,
   onFieldChange,
   onPhotoPick,
-  emptyHint = 'Кликните блок в превью — откроются его настройки',
+  emptyHint,
 }: Props) {
+  const { t } = useI18n();
   const fields = sectionType ? fieldsForSectionType(sectionType) : [];
   const title = sectionType
-    ? getSectionLabel(sectionType, sectionId ?? sectionType)
-    : 'Настройки';
+    ? getSectionLabel(sectionType, sectionId ?? sectionType, t)
+    : t('liveEditor.inspector.title');
+
+  const resolvedEmptyHint = emptyHint || t('liveEditor.inspector.empty');
 
   return (
     <div className="live-editor-inspector" data-testid="live-editor-inspector">
       <h2 className="live-editor-inspector__title">{title}</h2>
       {!sectionType ? (
-        <p className="live-editor-inspector__empty">{emptyHint}</p>
+        <p className="live-editor-inspector__empty">{resolvedEmptyHint}</p>
       ) : fields.length === 0 ? (
         <p className="live-editor-inspector__empty">
-          У этой секции нет полей — можно скрыть или переставить её в списке секций.
+          {t('liveEditor.inspector.noFields')}
         </p>
       ) : (
         fields.map((field) => (

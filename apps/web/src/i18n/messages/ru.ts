@@ -1,4 +1,4 @@
-﻿import { landingV2 } from './landing-v2.ru';
+import { landingV2 } from './landing-v2.ru';
 
 export const ru = {
   common: {
@@ -1191,6 +1191,19 @@ export const ru = {
     sectionReady: 'Секция готова',
     sectionOpen: 'Откройте и настройте',
     readinessReady: '{done}/{total} готово',
+    inspector: {
+      title: 'Настройки блока',
+      empty: 'Нажмите на блок в превью — откроются его настройки',
+      noFields: 'У этой секции нет полей — можно скрыть или переставить её в списке.',
+      photoUploaded: 'Фото загружено',
+      photoEmpty: 'Пока пусто',
+      replacePhoto: 'Заменить фото',
+      uploadPhoto: 'Загрузить фото',
+    },
+    steps: {
+      title: 'ВАШ ПУТЬ',
+      next: 'Дальше',
+    },
     publishModal: {
       titleReady: 'Готовы опубликовать?',
       titleDone: 'Приглашение опубликовано',

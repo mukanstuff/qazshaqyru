@@ -27,7 +27,7 @@ export function LiveEditorStepRail({
   return (
     <aside className="live-editor-steps" data-testid="live-editor-steps" aria-label={t('liveEditor.stepsNav')}>
       <div className="live-editor-steps__progress">
-        <div className="live-editor-steps__progress-label">Ваш путь</div>
+        <div className="live-editor-steps__progress-label">{t('liveEditor.steps.title')}</div>
         <div
           className="live-editor-steps__bar"
           role="progressbar"
@@ -41,7 +41,7 @@ export function LiveEditorStepRail({
           />
         </div>
         {nextHint ? (
-          <p className="live-editor-steps__hint">Дальше: {nextHint}</p>
+          <p className="live-editor-steps__hint">{t('liveEditor.steps.next')}: {nextHint}</p>
         ) : null}
       </div>
 
@@ -67,7 +67,7 @@ export function LiveEditorStepRail({
                   {step.required ? <span className="live-editor-steps__req">*</span> : null}
                 </span>
                 <span className="live-editor-steps__sub">
-                  {step.completed ? 'Готово' : 'Заполнить'}
+                  {step.completed ? t('liveEditor.sectionReady') : t('liveEditor.sectionOpen')}
                 </span>
               </span>
             </button>
