@@ -9,6 +9,7 @@ import { LocaleLink } from '@/components/seo/LocaleLink';
 import { useI18n } from '@/i18n';
 import { internalToSeoPath } from '@/lib/seo/hreflang';
 import { pathnameForSeoLocale } from '@/lib/seo/locale-path';
+import { LanguageSwitcher } from '@/components/auth/LanguageSwitcher';
 
 const NAV_PROBE_Y = 44;
 const NAV_WIDTH_WIDE = 920;
@@ -61,12 +62,6 @@ export function SiteMarketingHeader({ isLoggedIn = false }: SiteMarketingHeaderP
       document.removeEventListener('scroll', scheduleMeasure, { capture: true });
     };
   }, [pathname]);
-
-  const switchLocale = (next: 'ru' | 'kz') => {
-    setLocale(next);
-    const nextPath = pathnameForSeoLocale(pathname || '/', internalToSeoPath(next));
-    router.push(nextPath);
-  };
 
   const navLinks = [
     { href: '/templates', label: t('landing.v2.nav.templates') },
@@ -132,18 +127,7 @@ export function SiteMarketingHeader({ isLoggedIn = false }: SiteMarketingHeaderP
           </nav>
 
           <div className={`flex shrink-0 items-center ${navCompact ? 'gap-1.5 md:gap-2' : 'gap-2 md:gap-3'}`}>
-            <button
-              type="button"
-              onClick={() => switchLocale(locale === 'ru' ? 'kz' : 'ru')}
-              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border text-[11px] leading-none tracking-[0.12em] transition-all duration-300 ${
-                navLightText
-                  ? 'border-white/40 text-white hover:border-white hover:bg-white/10'
-                  : 'border-us-accent/20 text-us-ink-muted hover:border-us-accent/50 hover:text-us-accent'
-              }`}
-              aria-label="Language"
-            >
-              {locale === 'ru' ? 'KZ' : 'RU'}
-            </button>
+            <LanguageSwitcher compact inverted={navLightText} />
             <LocaleLink
               href={isLoggedIn ? '/dashboard' : '/login'}
               className={`hidden h-9 shrink-0 items-center whitespace-nowrap rounded-full px-2.5 text-sm leading-none transition-colors duration-300 sm:flex ${

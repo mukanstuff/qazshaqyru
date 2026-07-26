@@ -48,50 +48,55 @@ export function LanguageSwitcher({ compact = false, inverted = false }: Language
         type="button"
         onClick={() => setOpen(!open)}
         className={cn(
-          'flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-md px-2.5 py-2 font-body text-sm transition-colors',
+          'flex h-11 min-w-[3.5rem] items-center justify-center gap-1.5 rounded-full border px-3 font-body text-[11px] font-medium leading-none tracking-wider transition-all duration-300',
           inverted
-            ? 'text-white/80 hover:bg-white/10 hover:text-white'
-            : 'text-us-ink-muted hover:bg-us-accent/6 hover:text-us-accent'
+            ? 'border-white/20 text-white hover:border-white hover:bg-white/10'
+            : 'border-us-accent/20 text-us-ink-muted hover:border-us-accent/50 hover:text-us-accent'
         )}
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-          <circle cx="12" cy="12" r="10" />
-          <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-        </svg>
-        <span>{compact ? current?.code.toUpperCase() : current?.label}</span>
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <span>{current?.code.toUpperCase()}</span>
+        <svg
+          className={cn('transition-transform duration-200', open && 'rotate-180')}
+          width="10"
+          height="10"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+        >
           <path d="M6 9l6 6 6-6" />
         </svg>
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-1 min-w-[140px] rounded-md border border-us-border bg-us-surface py-1 shadow-us-md">
+        <div className="absolute right-0 top-full z-50 mt-2 min-w-[160px] overflow-hidden rounded-2xl border border-us-border bg-white/95 p-1.5 shadow-us-lg ring-1 ring-black/[0.04] backdrop-blur-xl">
           {languages.map((lang) => (
             <button
               key={lang.code}
               type="button"
               onClick={() => switchTo(lang.code)}
               className={cn(
-                'flex w-full items-center gap-2 px-3 py-2 text-left font-body text-sm transition-colors',
+                'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left font-body text-sm transition-all duration-200',
                 locale === lang.code
-                  ? 'bg-us-accent/8 font-medium text-us-accent'
-                  : 'text-us-ink hover:bg-us-accent/5'
+                  ? 'bg-us-accent/10 font-semibold text-us-accent'
+                  : 'text-us-ink-muted hover:bg-us-accent/5 hover:text-us-ink'
               )}
             >
-              <span>{lang.code === 'ru' ? '🇷🇺' : '🇰🇿'}</span>
-              <span>{lang.label}</span>
+              <span className="text-base">{lang.code === 'ru' ? '🇷🇺' : '🇰🇿'}</span>
+              <span className="flex-1">{lang.label}</span>
               {locale === lang.code && (
-                <svg
-                  className="ml-auto shrink-0"
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M20 6L9 17l-5-5" />
-                </svg>
+                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-us-accent text-white">
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                  >
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                </div>
               )}
             </button>
           ))}
