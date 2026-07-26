@@ -1,0 +1,27 @@
+﻿
+=== temp_shaqyru24_v2.html (2225912 bytes) ===
+pageProps keys: ['pageData', 'error']
+builderPageId: 5b78d64a-665e-41fe-8973-036a63df6172
+blocks: 1
+components: 52
+types: {'image': 16, 'lottie': 8, 'video': 1, 'audio-fixed': 1, 'text': 12, 'button': 1, 'form2': 1, 'fixed-wishes': 1, 'wishes-list': 1, 'shape': 8, 'calendar': 1, 'timer': 1}
+  text[0]: ръ 
+  text[1]: ръ
+py : Traceback (most recent call last):
+C:\Users\muham\AppData\Local\Temp\ps-script-6252c161-00e1-4321-bd58-2f9c7b46b571.ps1:79 знак:16
++ cd c:\shaqyru; py scripts\parse_shaqyru24_full.py 2>&1 | Out-File -En ...
++                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "C:\shaqyru\scripts\parse_shaqyru24_full.py", line 76, in <module>
+    parse_file(p)
+    ~~~~~~~~~~^^^
+  File "C:\shaqyru\scripts\parse_shaqyru24_full.py", line 46, in parse_file
+    print(f"  text[{i}]:", t.replace("\n", " ")[:100])
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\muham\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1251.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u0493' in position 3: character maps to <undefined>
+  text[2]: 

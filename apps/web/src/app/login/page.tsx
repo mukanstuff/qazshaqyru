@@ -1,16 +1,20 @@
 import { redirect } from 'next/navigation';
 import LoginForm from './login-form';
+import { sanitizeRedirectPath } from '@/lib/shared/redirect';
 
 export const dynamic = 'force-dynamic';
 
 interface Props {
-  searchParams: { redirect?: string };
+  searchParams: Promise<{ redirect?: string }>;
 }
 
 export default async function LoginPage({ searchParams }: Props) {
-  const { getCurrentSession } = await import('@/lib/api');
-  const ctx = await getCurrentSession();
-  if (ctx) redirect(searchParams.redirect || '/dashboard');
+  const { redirect: redirectParam } = await searchParams;
+  const redirectTo = sanitizeRedirectPath(redirectParam);
 
-  return <LoginForm redirectTo={searchParams.redirect || '/dashboard'} />;
+  const { getCurrentSession } = await import('@/lib/shared/api');
+  const ctx = await getCurrentSession();
+  if (ctx) redirect(redirectTo);
+
+  return <LoginForm redirectTo={redirectTo} />;
 }

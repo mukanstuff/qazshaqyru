@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   parseFreedomWebhookPayload,
   parseKaspiWebhookPayload,
-} from '../payment-webhook-status';
+} from '@/lib/payments/payment-webhook-status';
 
 describe('parseKaspiWebhookPayload', () => {
   it('completes on success with amount in tyiyn', () => {

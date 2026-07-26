@@ -8,34 +8,39 @@
 
 'use client';
 
+import '@/styles/kz-fonts.css';
 import '@/styles/invitation.css';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
-import { Kundelik } from '@/components/ornaments';
-import { CaptchaWidget } from '@/components/CaptchaWidget';
+import { CaptchaWidget } from '@/components/shared/CaptchaWidget';
 import { resolveTemplateKey, resolveTemplateMusicUrl } from '@/lib/templates';
+import { DEFAULT_TEMPLATE_SLUG } from '@/lib/templates/catalog';
 import type { TemplateConfig } from '@/lib/templates';
 import {
-  FullBleedLayout,
-  FrameLayout,
-  SplitLayout,
-  EditorialLayout,
-  DarkLuxLayout,
-  KazakhScrollLayout,
-  LuxuryEditorialLayout,
+  PlaceholderLayout,
   type InvitationData,
   type RSVPData,
 } from '@/components/invitation-layouts';
-import { getProgramPreset } from '@/lib/program-presets';
-import { isOpenRsvpEnabled } from '@/lib/open-rsvp-config';
-import { isCaptchaRequiredOnClient } from '@/lib/captcha-client';
+import { SectionRenderer } from '@/components/invitation-layouts/SectionRenderer';
+import { PublicPublishWatermark } from '@/components/invitation-layouts/PublicPublishWatermark';
+import { getTemplateManifest } from '@/lib/templates/manifests';
+import { resolveSuretManifest, readSuretSlots } from '@/lib/templates/suret-resolve';
+import { SuretPublicView } from '@/components/suret/SuretPublicView';
+import { manifestHasEnvelopeIntro } from '@/lib/templates/manifest-envelope';
+import { getCustomTextPersistenceActions } from '@/lib/invitations/custom-text-persistence';
+import { getProgramPreset } from '@/lib/templates/program-presets';
+import { isOpenRsvpEnabled } from '@/lib/guests/open-rsvp-config';
+import { isCaptchaRequiredOnClient } from '@/lib/shared/captcha-client';
+import type { InvitationDocumentSection } from '@/lib/invitations/document';
 import type { EventType } from '@prisma/client';
 import { useI18n } from '@/i18n';
-import { EditorToolbar } from './EditorToolbar';
+import { EditorToolbar } from '@/components/editor/EditorToolbar';
+import { shouldRenderEditorToolbar } from '@/components/live-editor/section-labels';
 import {
   GuestBottomSheet,
   GuestEnvelopeIntro,
   GuestRsvpStickyBar,
+  hasSeenEnvelope,
 } from './guest-mobile';
 
 interface Props {
@@ -71,11 +76,20 @@ interface Props {
   widePreview?: boolean;
   onToggleWidePreview?: () => void;
   wizardMode?: boolean;
+  /** Hide guest FAB / RSVP sticky chrome (wizard preview, embed) */
+  suppressGuestChrome?: boolean;
+  /** Editor preview: toolbar outside phone frame, invitation scrolls inside ArchFrame */
+  previewChrome?: 'framed' | 'wide';
+  /** Scrollable invitation inside an outer device frame (Quick Edit, no inner ArchFrame) */
+  previewEmbedFrame?: boolean;
+  /** Document sections override (Live Editor) — visibility/order from InvitationDocument. */
+  documentSections?: InvitationDocumentSection[];
 }
 
 export function InvitationLayoutRouter({
   slug,
   guestToken,
+  familyToken = null,
   demoLayout,
   isEditing = false,
   initialInvitation,
@@ -104,6 +118,10 @@ export function InvitationLayoutRouter({
   widePreview = false,
   onToggleWidePreview,
   wizardMode = false,
+  suppressGuestChrome = false,
+  previewChrome,
+  previewEmbedFrame = false,
+  documentSections,
 }: Props) {
   const { t, locale, setLocale } = useI18n();
   const [invitation, setInvitation] = useState<InvitationData | null>(initialInvitation ?? null);
@@ -134,11 +152,17 @@ export function InvitationLayoutRouter({
   const [copied, setCopied] = useState(false);
   const [canRSVP, setCanRSVP] = useState(false);
   const [showMusicPrompt, setShowMusicPrompt] = useState(false);
-  const templateConfig = invitation ? resolveTemplateKey(invitation.templateKey) : resolveTemplateKey(demoLayout || 'wedding-ivory-gold');
+  const [envelopeSeen, setEnvelopeSeen] = useState(() =>
+    typeof window === 'undefined' ? true : hasSeenEnvelope(slug),
+  );
+  const framedPreview = previewChrome === 'framed';
+  const hideGuestChrome = suppressGuestChrome || framedPreview;
+  const shouldDelayMusicPrompt = !isEditing && !hideGuestChrome && !envelopeSeen;
+  const templateConfig = invitation ? resolveTemplateKey(invitation.templateKey) : resolveTemplateKey(demoLayout || DEFAULT_TEMPLATE_SLUG);
   const effectiveMusicUrl = invitation ? resolveTemplateMusicUrl(invitation.musicUrl, templateConfig) : null;
 
-  const tokenStorageKey = useMemo(() => `invito:guestToken:${slug}`, [slug]);
-  const musicDecisionKey = useMemo(() => `invito:music:${slug}`, [slug]);
+  const tokenStorageKey = useMemo(() => `qazshaqyru:guestToken:${slug}`, [slug]);
+  const musicDecisionKey = useMemo(() => `qazshaqyru:music:${slug}`, [slug]);
 
   const openRsvpEnabled = useMemo(() => {
     if (slug === 'demo') return true;
@@ -164,34 +188,52 @@ export function InvitationLayoutRouter({
     setCanRSVP(!isEditing && (Boolean(getStoredToken()) || openRsvpEnabled));
   }, [isEditing, getStoredToken, guestToken, tokenStorageKey, openRsvpEnabled]);
 
-  useEffect(() => { if (!initialInvitation) loadInvitation(); }, [slug]); // eslint-disable-line
+  useEffect(() => {
+    setEnvelopeSeen(hasSeenEnvelope(slug));
+    const onEnvelopeOpen = () => setEnvelopeSeen(true);
+    window.addEventListener('qazshaqyru:envelope-open', onEnvelopeOpen);
+    window.addEventListener('storage', onEnvelopeOpen);
+    return () => {
+      window.removeEventListener('qazshaqyru:envelope-open', onEnvelopeOpen);
+      window.removeEventListener('storage', onEnvelopeOpen);
+    };
+  }, [slug]);
 
-  // Sync from parent only when switching to another invitation (not on every re-render).
+  useEffect(() => { if (!initialInvitation) loadInvitation(); }, [slug, demoLayout, locale, familyToken]); // eslint-disable-line
+
+  // Sync from parent when editing another invitation, or on every draft change in embed preview.
   const editSeedRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!isEditing || !initialInvitation) return;
+    if (!initialInvitation) return;
+    if (previewEmbedFrame) {
+      setInvitation(initialInvitation);
+      return;
+    }
+    if (!isEditing) return;
     if (editSeedRef.current === initialInvitation.id) return;
     editSeedRef.current = initialInvitation.id;
     setInvitation(initialInvitation);
-  }, [isEditing, initialInvitation]);
+  }, [isEditing, initialInvitation, previewEmbedFrame]);
 
-  // Auto-open RSVP for guests with personal link (not open RSVP mode)
+  // Auto-open RSVP for guests with personal link — only after envelope opens
   useEffect(() => {
-    if (!invitation || !canRSVP || openRsvpEnabled) return;
+    if (!invitation || !canRSVP || openRsvpEnabled || !envelopeSeen) return;
     if (!getStoredToken()) return;
     if (showRSVP) return;
     if (!rsvpStatus || rsvpStatus === 'pending') {
       const id = setTimeout(() => setShowRSVP(true), 1200);
       return () => clearTimeout(id);
     }
-  }, [invitation, canRSVP, showRSVP, rsvpStatus, openRsvpEnabled, getStoredToken]);
+  }, [invitation, canRSVP, showRSVP, rsvpStatus, openRsvpEnabled, getStoredToken, envelopeSeen]);
 
   const loadInvitation = async () => {
     try {
       const apiUrl =
         slug === 'demo'
-          ? `/api/invitations/public/demo?layout=${encodeURIComponent(demoLayout || 'wedding-ivory-gold')}&locale=${locale}`
-          : `/api/invitations/public/${slug}`;
+          ? `/api/invitations/public/demo?layout=${encodeURIComponent(demoLayout || DEFAULT_TEMPLATE_SLUG)}&locale=${locale}`
+          : familyToken
+            ? `/api/invitations/public/${slug}?preview=${encodeURIComponent(familyToken)}`
+            : `/api/invitations/public/${slug}`;
       const res = await fetch(apiUrl);
       const data = await res.json();
       if (!res.ok) {
@@ -332,11 +374,11 @@ export function InvitationLayoutRouter({
   }, [effectiveMusicUrl, hasInteracted, musicDecisionKey]);
 
   useEffect(() => {
-    if (isEditing || !effectiveMusicUrl) return;
+    if (isEditing || !effectiveMusicUrl || hideGuestChrome) return;
     let decision: string | null = null;
     try { decision = window.localStorage.getItem(musicDecisionKey); } catch {}
-    if (!decision) setShowMusicPrompt(true);
-  }, [effectiveMusicUrl, isEditing, musicDecisionKey]);
+    if (!decision && !shouldDelayMusicPrompt) setShowMusicPrompt(true);
+  }, [effectiveMusicUrl, isEditing, musicDecisionKey, shouldDelayMusicPrompt, hideGuestChrome]);
 
   const handleMusicDecision = useCallback((enable: boolean) => {
     try { window.localStorage.setItem(musicDecisionKey, enable ? 'on' : 'off'); } catch {}
@@ -449,7 +491,7 @@ export function InvitationLayoutRouter({
     return (
       <div className="guest-page guest-loading">
         <div className="guest-loading__inner">
-          <Kundelik size={48} />
+          <Loader2 className="h-10 w-10 animate-spin" />
           <p>{t('common.loading')}</p>
         </div>
       </div>
@@ -461,7 +503,7 @@ export function InvitationLayoutRouter({
     return (
       <div className="guest-page guest-error">
         <div className="guest-error__inner">
-          <Kundelik size={44} />
+          <span aria-hidden>!</span>
           <h2>{loadError || t('errors.generic')}</h2>
           <p>{t('public.errors.checkLink')}</p>
           <a href="/">{t('public.backHome')}</a>
@@ -472,15 +514,44 @@ export function InvitationLayoutRouter({
 
   const displayInvitation =
     !isEditing && rsvpData?.guest.name
-      ? { ...invitation, guestDisplayName: rsvpData.guest.name, musicUrl: effectiveMusicUrl }
+      ? {
+          ...invitation,
+          guestDisplayName: rsvpData.guest.name,
+          seatingTableName: rsvpData.guest.seatingTableName ?? invitation.seatingTableName,
+          musicUrl: effectiveMusicUrl,
+        }
       : { ...invitation, musicUrl: effectiveMusicUrl };
 
-  const showRsvpSticky = !isEditing && canRSVP && !rsvpStatus && !showRSVP;
+  const suretManifest = resolveSuretManifest(displayInvitation.templateKey);
+  if (suretManifest && !isEditing) {
+    const locale =
+      displayInvitation.language === 'kz' ? 'kz' : 'ru';
+    return (
+      <SuretPublicView
+        manifest={suretManifest}
+        slots={readSuretSlots(displayInvitation.templateData)}
+        locale={locale}
+        showWatermark={Boolean(displayInvitation.showWatermark)}
+        slug={displayInvitation.slug}
+      />
+    );
+  }
+
+  const showRsvpSticky =
+    !isEditing &&
+    !hideGuestChrome &&
+    envelopeSeen &&
+    canRSVP &&
+    !rsvpStatus &&
+    !showRSVP;
+  const envelopePending = !isEditing && !hideGuestChrome && !envelopeSeen;
   const guestPageClass = [
     'guest-page',
     templateConfig.animationClass ?? '',
     showRsvpSticky ? 'guest-page--has-rsvp-sticky' : '',
+    envelopePending ? 'guest-page--envelope-pending' : '',
     slug === 'demo' ? 'guest-page--demo' : '',
+    previewEmbedFrame ? 'guest-page--editor-frame' : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -503,7 +574,10 @@ export function InvitationLayoutRouter({
     invitation: displayInvitation,
     rsvpData,
     templateConfig,
-    onOpenRSVP: () => setShowRSVP(true),
+    onOpenRSVP: () => {
+      if (!envelopeSeen && !isEditing && !hideGuestChrome) return;
+      setShowRSVP(true);
+    },
     onShare: handleShare,
     showShareMenu,
     onToggleShare: () => setShowShareMenu((s) => !s),
@@ -514,78 +588,90 @@ export function InvitationLayoutRouter({
     rsvpStatus,
     showRSVP,
     canRSVP,
+    guestToken: getStoredToken(),
     isEditing,
     onFieldSave: handleFieldChange,
     onProgramChange: handleProgramChange,
     onPhotoSave: isEditing ? handlePhotoSave : undefined,
+    suppressGuestChrome: hideGuestChrome,
   };
 
-  return (
-    <div className={guestPageClass} onClick={handleMusicInteraction} style={{ '--inv-accent': templateConfig.accent } as React.CSSProperties}>
-      {!isEditing && invitation && (
+  const manifestForChrome = getTemplateManifest(displayInvitation.templateKey);
+  const skipGuestEnvelopeIntro =
+    Boolean(manifestForChrome) && manifestHasEnvelopeIntro(manifestForChrome!);
+
+  const showEditorToolbar = shouldRenderEditorToolbar({
+    isEditing,
+    previewEmbedFrame,
+  });
+
+  const editorToolbar = showEditorToolbar ? (
+    <EditorToolbar
+      invitation={invitation}
+      onUpdateInvitation={(patch, newTemplateData) => {
+        const prevCustomText = (invitation.customText ?? {}) as Record<string, unknown>;
+
+        setInvitation((prev) => {
+          if (!prev) return prev;
+          const next = { ...prev, ...patch } as InvitationData;
+          if (newTemplateData) {
+            next.templateData = newTemplateData;
+          }
+          return next;
+        });
+
+        if (patch.templateKey && onTemplateChange) {
+          void onTemplateChange(patch.templateKey);
+        }
+
+        if (patch.musicUrl !== undefined && onFieldChange) {
+          void onFieldChange('musicUrl', patch.musicUrl ?? '');
+        }
+
+        if (patch.customText && onFieldChange) {
+          const ct = patch.customText as Record<string, unknown>;
+          for (const action of getCustomTextPersistenceActions(prevCustomText, ct)) {
+            void onFieldChange(action.field, action.value);
+          }
+        }
+
+        if (newTemplateData && onSaveDesign) {
+          const templateKey = patch.templateKey ?? invitation.templateKey;
+          void onSaveDesign(templateKey, newTemplateData);
+        }
+      }}
+      onAddGuests={handleAddGuests}
+      onDeleteGuest={onDeleteGuest}
+      onUpdateGuest={onUpdateGuest}
+      onPublish={onPublish || (() => Promise.resolve())}
+      onUnpublish={onUnpublish}
+      onArchive={onArchive}
+      isPublished={isPublished}
+      isSaving={isSaving}
+      saveStatus={saveStatus}
+      backHref={backHref}
+      guestNames={guestNames}
+      guests={guests}
+      invitationId={invitationId}
+      guestCount={guestCount}
+      isDraft={isDraft}
+      publishPriceKzt={publishPriceKzt}
+      isLoggedIn={isLoggedIn}
+      paymentPending={paymentPending}
+      onApplyProgramPreset={handleApplyProgramPreset}
+      widePreview={widePreview}
+      onToggleWidePreview={onToggleWidePreview}
+      wizardMode={wizardMode}
+    />
+  ) : null;
+
+  const invitationSurface = (
+    <>
+      {!isEditing && invitation && !hideGuestChrome && !skipGuestEnvelopeIntro && (
         <GuestEnvelopeIntro slug={slug} title={invitation.title} accent={templateConfig.accent} />
       )}
-      {/* Editor toolbar — replaces the floating buttons when editing */}
-      {isEditing && (
-        <EditorToolbar
-          invitation={invitation}
-          onUpdateInvitation={(patch, newTemplateData) => {
-            setInvitation((prev) => {
-              if (!prev) return prev;
-              const next = { ...prev, ...patch } as InvitationData;
-              if (newTemplateData) {
-                next.templateData = newTemplateData;
-              }
-              return next;
-            });
-
-            if (patch.templateKey && onTemplateChange) {
-              void onTemplateChange(patch.templateKey);
-            }
-
-            if (patch.musicUrl !== undefined && onFieldChange) {
-              void onFieldChange('musicUrl', patch.musicUrl ?? '');
-            }
-
-            if (patch.customText && onFieldChange) {
-              const ct = patch.customText as Record<string, unknown>;
-              if ('openRsvp' in ct) {
-                void onFieldChange('customText.openRsvp', ct.openRsvp ? 'true' : 'false');
-              }
-            }
-
-            if (newTemplateData && onSaveDesign) {
-              const templateKey = patch.templateKey ?? invitation.templateKey;
-              void onSaveDesign(templateKey, newTemplateData);
-            }
-          }}
-          onAddGuests={handleAddGuests}
-          onDeleteGuest={onDeleteGuest}
-          onUpdateGuest={onUpdateGuest}
-          onPublish={onPublish || (() => Promise.resolve())}
-          onUnpublish={onUnpublish}
-          onArchive={onArchive}
-          isPublished={isPublished}
-          isSaving={isSaving}
-          saveStatus={saveStatus}
-          backHref={backHref}
-          guestNames={guestNames}
-          guests={guests}
-          invitationId={invitationId}
-          guestCount={guestCount}
-          isDraft={isDraft}
-          publishPriceKzt={publishPriceKzt}
-          isLoggedIn={isLoggedIn}
-          paymentPending={paymentPending}
-          onApplyProgramPreset={handleApplyProgramPreset}
-          widePreview={widePreview}
-          onToggleWidePreview={onToggleWidePreview}
-          wizardMode={wizardMode}
-        />
-      )}
-
-      {/* Push content below toolbar when editing */}
-      {isEditing && <div className="guest-editor-spacer" />}
+      {!framedPreview && editorToolbar}
+      {!framedPreview && showEditorToolbar && <div className="guest-editor-spacer" />}
 
       {effectiveMusicUrl && <audio ref={audioRef} src={effectiveMusicUrl} loop preload="none" />}
 
@@ -599,10 +685,10 @@ export function InvitationLayoutRouter({
       )}
 
       {/* Music consent */}
-      {showMusicPrompt && effectiveMusicUrl && (
+      {showMusicPrompt && effectiveMusicUrl && envelopeSeen && (
         <GuestBottomSheet open onClose={() => handleMusicDecision(false)} data-testid="guest-music-sheet">
           <div className="guest-music-prompt">
-            <Kundelik size={36} />
+            <span aria-hidden>♪</span>
             <h3>{t('public.music.title')}</h3>
             <p>{t('public.music.description')}</p>
           </div>
@@ -617,8 +703,8 @@ export function InvitationLayoutRouter({
         </GuestBottomSheet>
       )}
 
-      {/* RSVP Modal */}
-      {showRSVP && (
+      {/* RSVP Modal — never before envelope ritual */}
+      {showRSVP && (envelopeSeen || isEditing || hideGuestChrome) && (
         <RSVPModal
           rsvpData={rsvpData}
           openRsvpMode={openRsvpEnabled && !getStoredToken()}
@@ -655,14 +741,26 @@ export function InvitationLayoutRouter({
         </div>
       )}
 
-      {/* Route to correct layout */}
-      {templateConfig.layout === 'frame' && <FrameLayout {...sharedProps} />}
-      {templateConfig.layout === 'split' && <SplitLayout {...sharedProps} />}
-      {templateConfig.layout === 'editorial' && <EditorialLayout {...sharedProps} />}
-      {templateConfig.layout === 'luxury-editorial' && <LuxuryEditorialLayout {...sharedProps} />}
-      {templateConfig.layout === 'dark-lux' && <DarkLuxLayout {...sharedProps} />}
-      {templateConfig.layout === 'kazakh-scroll' && <KazakhScrollLayout {...sharedProps} />}
-      {(templateConfig.layout === 'fullbleed' || !templateConfig.layout) && <FullBleedLayout {...sharedProps} />}
+      {(() => {
+        const manifest = getTemplateManifest(displayInvitation.templateKey);
+        if (manifest) {
+          return (
+            <SectionRenderer
+              manifest={manifest}
+              documentSections={documentSections}
+              {...sharedProps}
+            />
+          );
+        }
+        return <PlaceholderLayout {...sharedProps} />;
+      })()}
+
+      {!isEditing && Boolean(displayInvitation.showWatermark) ? (
+        <PublicPublishWatermark
+          show
+          removeHref={`/dashboard?pay=${encodeURIComponent(displayInvitation.slug)}`}
+        />
+      ) : null}
 
       {!isEditing && (
         <GuestRsvpStickyBar
@@ -673,6 +771,31 @@ export function InvitationLayoutRouter({
           label={t('public.sections.rsvpCtaButton')}
         />
       )}
+    </>
+  );
+
+  const guestPageStyle = { '--inv-accent': templateConfig.accent } as React.CSSProperties;
+
+  if (framedPreview) {
+    return (
+      <div className="editor-phone-preview" data-testid="editor-phone-preview">
+        {editorToolbar}
+        <div className="mx-auto w-full max-w-sm overflow-hidden rounded-xl border border-us-border">
+          <div
+            className={guestPageClass}
+            onClick={handleMusicInteraction}
+            style={guestPageStyle}
+          >
+            {invitationSurface}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={guestPageClass} onClick={handleMusicInteraction} style={guestPageStyle}>
+      {invitationSurface}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import prisma from '@/lib/db';
-import { ApiError, apiErrorResponse, requireAuth, checkSameOrigin } from '@/lib/api';
+import prisma from '@/lib/shared/db';
+import { ApiError, apiErrorResponse, requireAuth, checkSameOrigin } from '@/lib/shared/api';
 
 const updateUserSchema = z.object({
   name: z.string().min(1).max(100).optional(),

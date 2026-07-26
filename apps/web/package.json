@@ -23,13 +23,11 @@
     "check:env": "tsx scripts/check-production-env.ts",
     "assets:expand": "node scripts/expand-templates.mjs",
     "assets:flagship": "node scripts/generate-flagship-assets.mjs",
-    "assets:brand": "node scripts/generate-brand-assets.mjs"
+    "assets:seed-wedding-luxury": "node scripts/seed-wedding-luxury-placeholders.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1077.0",
     "@prisma/client": "^5.22.0",
-    "@radix-ui/react-dialog": "^1.1.2",
-    "@radix-ui/react-dropdown-menu": "^2.1.2",
     "@radix-ui/react-label": "^2.0.2",
     "@radix-ui/react-slot": "^1.0.2",
     "@radix-ui/react-toast": "^1.2.0",
@@ -37,18 +35,19 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.378.0",
+    "motion": "^12.42.2",
     "nanoid": "^5.0.7",
     "next": "14.2.18",
     "qrcode": "^1.5.4",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
+    "server-only": "^0.0.1",
     "sharp": "^0.35.1",
     "tailwind-merge": "^2.3.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.0",
-    "@types/bcryptjs": "^3.0.0",
     "@types/node": "^20.12.0",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^18.3.0",

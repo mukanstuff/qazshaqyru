@@ -19,11 +19,5 @@ CREATE INDEX IF NOT EXISTS "Order_userId_status_idx"
 CREATE INDEX IF NOT EXISTS "Order_status_createdAt_idx"
   ON "Order"("status", "createdAt" DESC);
 
-CREATE INDEX IF NOT EXISTS "Session_userId_expiresAt_idx"
-  ON "Session"("userId", "expiresAt");
-
-CREATE INDEX IF NOT EXISTS "OTPToken_phone_usedAt_idx"
-  ON "OTPToken"("phone", "usedAt");
-
 CREATE INDEX IF NOT EXISTS "RateLimitEntry_resetAt_idx"
   ON "RateLimitEntry"("resetAt");

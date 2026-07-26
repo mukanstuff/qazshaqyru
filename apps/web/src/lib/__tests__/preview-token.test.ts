@@ -4,7 +4,7 @@ import {
   createPreviewToken,
   issuePreviewToken,
   verifyPreviewToken,
-} from '../preview-token';
+} from '@/lib/invitations/preview-token';
 
 describe('preview-token', () => {
   beforeAll(() => {
@@ -28,8 +28,8 @@ describe('preview-token', () => {
   });
 
   it('builds preview URL with encoded values', () => {
-    expect(buildFamilyPreviewUrl('https://invito.kz/', 'той 2026', 'abc+123')).toBe(
-      'https://invito.kz/i/%D1%82%D0%BE%D0%B9%202026?preview=abc%2B123'
+    expect(buildFamilyPreviewUrl('https://qazshaqyru.kz/', 'той 2026', 'abc+123')).toBe(
+      'https://qazshaqyru.kz/i/%D1%82%D0%BE%D0%B9%202026?preview=abc%2B123'
     );
   });
 

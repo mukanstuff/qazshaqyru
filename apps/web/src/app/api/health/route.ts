@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/db';
+import prisma from '@/lib/shared/db';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -30,12 +30,11 @@ export async function GET() {
         },
       }
     );
-  } catch (err) {
+  } catch {
     return NextResponse.json(
       {
         status: 'degraded',
         database: 'down',
-        error: err instanceof Error ? err.message : 'unknown',
         latencyMs: Date.now() - start,
       },
       { status: 503 }

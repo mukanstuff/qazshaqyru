@@ -3,7 +3,7 @@ import {
   getClientCaptchaProvider,
   getClientCaptchaSiteKey,
   isCaptchaRequiredOnClient,
-} from '../captcha-client';
+} from '@/lib/shared/captcha-client';
 
 describe('captcha-client', () => {
   const originalEnv = { ...process.env };

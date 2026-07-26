@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getCaptchaProvider, isCaptchaConfigured, verifyCaptchaToken, describeCaptchaConfig } from '../captcha';
+import { getCaptchaProvider, isCaptchaConfigured, verifyCaptchaToken, describeCaptchaConfig } from '@/lib/shared/captcha';
 
 describe('captcha stub', () => {
   it('defaults to stub provider', () => {

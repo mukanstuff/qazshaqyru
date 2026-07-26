@@ -18,12 +18,12 @@ const prismaMock = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('@/lib/db', () => ({ default: prismaMock }));
-vi.mock('@/lib/wish-fingerprint', () => ({
+vi.mock('@/lib/shared/db', () => ({ default: prismaMock }));
+vi.mock('@/lib/wishes/wish-fingerprint', () => ({
   buildWishLikerHash: vi.fn(() => 'visitor-hash'),
 }));
-vi.mock('@/lib/api', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/api')>();
+vi.mock('@/lib/shared/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/shared/api')>();
   return {
     ...actual,
     applyRateLimit: vi.fn().mockResolvedValue({

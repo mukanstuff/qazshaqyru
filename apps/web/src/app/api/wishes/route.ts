@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import prisma from '@/lib/db';
+import prisma from '@/lib/shared/db';
 import {
   ApiError,
   apiErrorResponse,
@@ -9,11 +9,11 @@ import {
   rateLimitResponse,
   RATE_LIMITS,
   checkSameOrigin,
-} from '@/lib/api';
-import { sanitizeWishAuthorName, sanitizeWishText } from '@/lib/wish-sanitize';
-import { verifyCaptchaToken } from '@/lib/captcha';
-import { buildWishLikerHash } from '@/lib/wish-fingerprint';
-import { aggregateReactionCounts, emptyReactionCounts, isWishReactionEmoji } from '@/lib/wish-reactions';
+} from '@/lib/shared/api';
+import { sanitizeWishAuthorName, sanitizeWishText } from '@/lib/wishes/wish-sanitize';
+import { verifyCaptchaToken } from '@/lib/shared/captcha';
+import { buildWishLikerHash } from '@/lib/wishes/wish-fingerprint';
+import { aggregateReactionCounts, emptyReactionCounts, isWishReactionEmoji } from '@/lib/wishes/wish-reactions';
 
 const WISHES_PER_INVITATION_MAX = 500;
 

@@ -7,16 +7,16 @@ const prismaMock = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('@/lib/db', () => ({ default: prismaMock }));
-vi.mock('@/lib/api', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/api')>();
+vi.mock('@/lib/shared/db', () => ({ default: prismaMock }));
+vi.mock('@/lib/shared/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/shared/api')>();
   return {
     ...actual,
     applyRateLimit: vi.fn().mockResolvedValue({ allowed: true, remaining: 99, resetIn: 60_000 }),
   };
 });
 
-import { createPreviewToken } from '@/lib/preview-token';
+import { createPreviewToken } from '@/lib/invitations/preview-token';
 import { GET } from '@/app/api/invitations/family-preview/[slug]/route';
 
 describe('family preview read API', () => {

@@ -1,40 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import prisma from '@/lib/db';
+import prisma from '@/lib/shared/db';
 import {
   ApiError,
   apiErrorResponse,
   requireAuth,
   checkSameOrigin,
-} from '@/lib/api';
-import { addGuests } from '@/services/guests';
+  applyRateLimit,
+  rateLimitResponse,
+  RATE_LIMITS,
+} from '@/lib/shared/api';
+import { issueGuestInviteLinks, buildWhatsAppLink } from '@/lib/guests/service';
 
 const sendInviteSchema = z.object({
-  guests: z
-    .array(
-      z.object({
-        name: z.string().min(1, 'Имя обязательно').max(100),
-        phone: z.string().max(20).optional(),
-        side: z.enum(['bride', 'groom']).optional(),
-        hasPlusOne: z.boolean().default(false),
-        plusOneName: z.string().max(100).optional(),
-      })
-    )
-    .min(1, 'Добавьте хотя бы одного гостя')
-    .max(500, 'Не более 500 гостей за раз'),
+  /** Optional subset of guest IDs; if omitted, all guests are included. */
+  guestIds: z.array(z.string().uuid()).max(500).optional(),
+  /** Rotate tokens for guests who were already sent links. */
+  reissue: z.boolean().optional(),
 });
 
 /**
- * "Send invites" endpoint.
- *
- * Important: this does NOT actually send anything via SMS/WhatsApp. We
- * generate per-guest personal links that the host can then share
- * themselves (we cannot legally or reliably send on their behalf
- * without Twilio/WhatsApp Business API credentials).
- *
- * The name of the endpoint is preserved for backward compatibility
- * with the dashboard UI, but the response explicitly tells the client
- * what we did so the user is not confused.
+ * Generate per-guest personal links for the host to share via WhatsApp/Telegram.
+ * Sets sentAt so reopening the editor does not invalidate existing links.
  */
 export async function POST(
   request: NextRequest,
@@ -48,9 +35,12 @@ export async function POST(
     const { id } = await params;
     const ctx = await requireAuth();
 
+    const sendRate = await applyRateLimit(request, `send:${ctx.user.id}`, RATE_LIMITS.API_INVITATION_SEND);
+    if (!sendRate.allowed) return rateLimitResponse(sendRate);
+
     const invitation = await prisma.invitation.findFirst({
       where: { id, userId: ctx.user.id },
-      select: { id: true, slug: true, status: true },
+      select: { id: true, slug: true, title: true, status: true, user: { select: { language: true } } },
     });
     if (!invitation) {
       throw new ApiError('not_found', 'Приглашение не найдено', 404);
@@ -59,43 +49,62 @@ export async function POST(
       throw new ApiError('not_published', 'Сначала опубликуйте приглашение', 400);
     }
 
-    const data = await request.json().catch(() => {
-      throw new ApiError('invalid_json', 'Некорректный JSON', 400);
-    });
+    const guestCount = await prisma.guest.count({ where: { invitationId: id } });
+    if (guestCount === 0) {
+      throw new ApiError('no_guests', 'Добавьте хотя бы одного гостя', 400);
+    }
+
+    const data = await request.json().catch(() => ({}));
     const validation = sendInviteSchema.safeParse(data);
     if (!validation.success) {
       throw new ApiError('validation_error', 'Ошибка валидации', 400, validation.error.flatten());
     }
 
-    const result = await addGuests(id, validation.data.guests);
+    const guestIds = validation.data.guestIds;
+    const issued = await issueGuestInviteLinks(
+      id,
+      guestIds?.length ? guestIds : undefined,
+      { reissue: validation.data.reissue ?? false }
+    );
 
     const appUrl = process.env.APP_URL || `${request.nextUrl.protocol}//${request.nextUrl.host}`;
     const baseUrl = appUrl.replace(/\/$/, '');
 
-    const links = result.guests.map((g) => ({
-      id: g.id,
-      name: g.name,
-      phone: g.phone,
-      inviteUrl: `${baseUrl}/i/${invitation.slug}?guest=${g.token}`,
-      whatsappLink: g.phone
-        ? `https://wa.me/${g.phone.replace(/[^\d]/g, '')}?text=${encodeURIComponent(
-            `Сәлеметсіз бе! Сізді тойға шақырамыз: ${baseUrl}/i/${invitation.slug}?guest=${g.token}`
-          )}`
-        : null,
-    }));
+    const guestLang = invitation.user.language === 'kz' ? 'kz' : 'ru';
+    const whatsappTexts: Record<string, string> = {
+      ru: `Вас приглашают: ${invitation.title}!\n`,
+      kz: `Сізді шақырамыз: ${invitation.title}!\n`,
+    };
+    const baseMsg = whatsappTexts[guestLang] ?? whatsappTexts.ru;
+
+    const links = issued.map((g) => {
+      const inviteUrl = g.token
+        ? `${baseUrl}/i/${invitation.slug}?guest=${g.token}`
+        : `${baseUrl}/i/${invitation.slug}`;
+      return {
+        id: g.id,
+        name: g.name,
+        phone: g.phone,
+        inviteUrl,
+        alreadySent: g.alreadySent,
+        whatsappLink:
+          g.phone && g.token
+            ? buildWhatsAppLink(g.phone, `${baseMsg}${inviteUrl}`)
+            : null,
+      };
+    });
+
+    const newlyIssued = links.filter((l) => !l.alreadySent).length;
 
     return NextResponse.json({
       success: true,
-      // Honest, but politely worded. Lets the UI show a useful message.
       deliveryNote:
-        'Ссылки сгенерированы. Отправьте их гостям через WhatsApp/Telegram самостоятельно — автоматическая рассылка пока не подключена.',
+        newlyIssued > 0
+          ? 'Ссылки готовы. Отправьте их гостям через WhatsApp или Telegram.'
+          : 'Все ссылки уже были отправлены ранее. Повторная отправка не меняет старые ссылки.',
       guests: links,
       invitationSlug: invitation.slug,
-      stats: {
-        created: result.created,
-        reused: result.reused,
-        skipped: result.skipped,
-      },
+      stats: { issued: newlyIssued, total: links.length },
     });
   } catch (error) {
     return apiErrorResponse(error as Error, 'Send invites');

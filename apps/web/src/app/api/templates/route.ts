@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/db';
-import { ApiError, apiErrorResponse } from '@/lib/api';
+import prisma from '@/lib/shared/db';
+import { ApiError, apiErrorResponse, applyRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/shared/api';
+import { CATALOG_TEMPLATE_SLUGS } from '@/lib/templates/catalog';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -11,10 +12,23 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category');
     const featured = searchParams.get('featured') === 'true';
 
-    const VALID_CATEGORIES = ['wedding', 'toy', 'betashar', 'kyz_uzatu', 'birthday', 'anniversary', 'corporate', 'other'] as const;
+    // Rate limit public template listing to prevent scraping
+    const rate = await applyRateLimit(request, 'public_templates', RATE_LIMITS.API_TEMPLATES);
+    if (!rate.allowed) return rateLimitResponse(rate);
+
+    const VALID_CATEGORIES = ['wedding', 'toy', 'betashar', 'kyz_uzatu', 'sundet_toy', 'tusau_keser', 'birthday', 'anniversary', 'corporate', 'other'] as const;
     type TemplateCategoryT = (typeof VALID_CATEGORIES)[number];
 
-    const where: { isActive: boolean; category?: TemplateCategoryT; isFeatured?: boolean } = { isActive: true };
+    // Only sales catalog slugs — wiring templates (e.g. Suret pilot) stay hidden until ready.
+    const where: {
+      isActive: boolean;
+      slug: { in: string[] };
+      category?: TemplateCategoryT;
+      isFeatured?: boolean;
+    } = {
+      isActive: true,
+      slug: { in: [...CATALOG_TEMPLATE_SLUGS] },
+    };
     if (category && (VALID_CATEGORIES as readonly string[]).includes(category)) {
       where.category = category as TemplateCategoryT;
     }

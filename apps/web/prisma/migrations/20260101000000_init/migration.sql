@@ -17,6 +17,9 @@ CREATE TYPE "GuestSide" AS ENUM ('bride', 'groom');
 CREATE TYPE "OrderStatus" AS ENUM ('pending', 'paid', 'cancelled', 'refunded');
 
 -- CreateEnum
+CREATE TYPE "ManagedOrderStatus" AS ENUM ('pending', 'contacted', 'in_progress', 'ready', 'delivered', 'cancelled');
+
+-- CreateEnum
 CREATE TYPE "TemplateCategory" AS ENUM ('wedding', 'toy', 'betashar', 'kyz_uzatu', 'birthday', 'anniversary', 'corporate', 'other');
 
 -- CreateTable
@@ -50,7 +53,7 @@ CREATE TABLE "Session" (
 CREATE TABLE "OTPToken" (
     "id" TEXT NOT NULL,
     "phone" TEXT NOT NULL,
-    "code" TEXT NOT NULL,
+    "codeHash" TEXT NOT NULL,
     "attempts" INTEGER NOT NULL DEFAULT 0,
     "expiresAt" TIMESTAMP(3) NOT NULL,
     "usedAt" TIMESTAMP(3),
@@ -132,7 +135,7 @@ CREATE TABLE "Guest" (
     "side" "GuestSide",
     "hasPlusOne" BOOLEAN NOT NULL DEFAULT false,
     "plusOneName" TEXT,
-    "guestToken" TEXT NOT NULL,
+    "tokenHash" TEXT NOT NULL,
     "sentAt" TIMESTAMP(3),
     "sentVia" TEXT,
     "lastError" TEXT,
@@ -158,7 +161,7 @@ CREATE TABLE "GuestResponse" (
 -- CreateTable
 CREATE TABLE "Order" (
     "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
+    "userId" TEXT,
     "templateId" TEXT NOT NULL,
     "invitationId" TEXT,
     "amountKzt" INTEGER NOT NULL,
@@ -172,6 +175,11 @@ CREATE TABLE "Order" (
     "customerPhone" TEXT NOT NULL,
     "customerName" TEXT,
     "notes" TEXT,
+    "eventDate" TIMESTAMP(3),
+    "eventType" "EventType",
+    "orderType" TEXT NOT NULL DEFAULT 'self',
+    "managedStatus" "ManagedOrderStatus",
+    "adminNotes" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -212,11 +220,11 @@ CREATE INDEX "Invitation_templateId_idx" ON "Invitation"("templateId");
 CREATE INDEX "Invitation_userId_status_idx" ON "Invitation"("userId", "status");
 CREATE INDEX "Invitation_userId_createdAt_idx" ON "Invitation"("userId", "createdAt");
 
-CREATE UNIQUE INDEX "Guest_guestToken_key" ON "Guest"("guestToken");
+CREATE UNIQUE INDEX "Guest_tokenHash_key" ON "Guest"("tokenHash");
 CREATE UNIQUE INDEX "Guest_invitationId_phone_key" ON "Guest"("invitationId", "phone");
 CREATE INDEX "Guest_invitationId_idx" ON "Guest"("invitationId");
 CREATE INDEX "Guest_phone_idx" ON "Guest"("phone");
-CREATE INDEX "Guest_guestToken_idx" ON "Guest"("guestToken");
+CREATE INDEX "Guest_tokenHash_idx" ON "Guest"("tokenHash");
 
 CREATE UNIQUE INDEX "GuestResponse_guestId_key" ON "GuestResponse"("guestId");
 CREATE INDEX "GuestResponse_guestId_idx" ON "GuestResponse"("guestId");
@@ -231,7 +239,6 @@ CREATE INDEX "Order_createdAt_idx" ON "Order"("createdAt");
 
 -- AddForeignKey
 ALTER TABLE "Session" ADD CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "Template" ADD CONSTRAINT "Template_pkey" PRIMARY KEY ("id");
 ALTER TABLE "Invitation" ADD CONSTRAINT "Invitation_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "Invitation" ADD CONSTRAINT "Invitation_templateId_fkey" FOREIGN KEY ("templateId") REFERENCES "Template"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "Guest" ADD CONSTRAINT "Guest_invitationId_fkey" FOREIGN KEY ("invitationId") REFERENCES "Invitation"("id") ON DELETE CASCADE ON UPDATE CASCADE;

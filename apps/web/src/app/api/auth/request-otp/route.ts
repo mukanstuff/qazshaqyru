@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import prisma from '@/lib/db';
+import prisma from '@/lib/shared/db';
 import {
   generateOTP,
   getOTPExpiry,
@@ -8,15 +8,18 @@ import {
   validatePhone,
   isKazakhPhone,
   getClientIpFromHeaders,
+  hashOTP,
 } from '@/lib/auth';
-import { sendOTP } from '@/lib/sms';
+import { sendOTP, isSmsProviderReady, formatSmsConfigError } from '@/lib/shared/sms';
 import {
   ApiError,
   apiErrorResponse,
   applyRateLimit,
+  applyGlobalRateLimit,
   rateLimitResponse,
   RATE_LIMITS,
-} from '@/lib/api';
+  checkSameOrigin,
+} from '@/lib/shared/api';
 
 const requestOTPSchema = z.object({
   phone: z.string().min(1, 'Введите номер телефона'),
@@ -24,6 +27,14 @@ const requestOTPSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    if (!checkSameOrigin(request)) {
+      throw new ApiError('forbidden', 'Неверный origin', 403);
+    }
+
+    if (process.env.NODE_ENV === 'production' && !isSmsProviderReady()) {
+      throw new ApiError('sms_not_configured', formatSmsConfigError(), 503);
+    }
+
     const body = await request.json().catch(() => {
       throw new ApiError('invalid_json', 'Некорректный JSON', 400);
     });
@@ -36,14 +47,15 @@ export async function POST(request: NextRequest) {
     if (!validatePhone(normalizedPhone)) {
       throw new ApiError(
         'invalid_phone',
-        'Номер телефона должен быть в формате +77XXXXXXXXX (Казахстан) или +79XXXXXXXXX (Россия)',
+        process.env.NODE_ENV === 'production'
+          ? 'Номер телефона должен быть в формате +77XXXXXXXXX (Казахстан)'
+          : 'Номер телефона должен быть в формате +77XXXXXXXXX (Казахстан) или +79XXXXXXXXX (Россия, только dev)',
         400
       );
     }
 
     const ip = getClientIpFromHeaders(request.headers);
-    const phoneRate = await applyRateLimit(
-      request,
+    const phoneRate = await applyGlobalRateLimit(
       `otp_phone:${normalizedPhone}`,
       RATE_LIMITS.OTP_REQUEST_PER_PHONE
     );
@@ -51,7 +63,7 @@ export async function POST(request: NextRequest) {
 
     const ipRate = await applyRateLimit(
       request,
-      `otp_ip:${normalizedPhone}`,
+      `otp_ip:${ip}`,
       RATE_LIMITS.OTP_REQUEST_PER_IP
     );
     if (!ipRate.allowed) return rateLimitResponse(ipRate);
@@ -71,18 +83,24 @@ export async function POST(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
     });
 
+    const OTP_RESEND_COOLDOWN_MS = 90_000;
     if (existingOTP) {
-      const timeLeft = Math.ceil((existingOTP.expiresAt.getTime() - Date.now()) / 1000);
-      if (timeLeft > 0) {
+      const ageMs = Date.now() - existingOTP.createdAt.getTime();
+      if (ageMs < OTP_RESEND_COOLDOWN_MS) {
         throw new ApiError(
           'otp_pending',
-          `Подождите ${timeLeft} секунд перед повторным запросом`,
+          'Подождите перед повторным запросом',
           429
         );
       }
+      await prisma.oTPToken.updateMany({
+        where: { phone: normalizedPhone, usedAt: null },
+        data: { usedAt: new Date() },
+      });
     }
 
     const code = generateOTP();
+    const codeHash = await hashOTP(code);
 
     await prisma.$transaction([
       prisma.oTPToken.updateMany({
@@ -92,7 +110,7 @@ export async function POST(request: NextRequest) {
       prisma.oTPToken.create({
         data: {
           phone: normalizedPhone,
-          code,
+          codeHash,
           expiresAt: otpExpiry,
           attempts: 0,
           ipAddress: ip,
@@ -102,11 +120,16 @@ export async function POST(request: NextRequest) {
 
     const sent = await sendOTP(normalizedPhone, code);
     if (!sent) {
-      throw new ApiError('sms_failed', 'Не удалось отправить SMS. Попробуйте позже.', 500);
-    }
-
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[DEV] OTP for ${normalizedPhone}: ${code}`);
+      // Roll back pending OTP so the user can request a new code immediately.
+      await prisma.oTPToken.updateMany({
+        where: { phone: normalizedPhone, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+      const smsHint =
+        process.env.NODE_ENV === 'production' && !isSmsProviderReady()
+          ? formatSmsConfigError()
+          : 'Не удалось отправить SMS. Попробуйте позже.';
+      throw new ApiError('sms_failed', smsHint, 500);
     }
 
     return NextResponse.json({
@@ -114,7 +137,9 @@ export async function POST(request: NextRequest) {
       message: 'Код отправлен',
       expiresIn: otpExpiryMinutes * 60,
       isKazakh: isKazakhPhone(normalizedPhone),
-      ...(process.env.NODE_ENV === 'development' ? { devCode: code } : {}),
+      ...(process.env.NODE_ENV === 'development' && process.env.ALLOW_DEV_OTP_CODE === 'true'
+        ? { devCode: code }
+        : {}),
     });
   } catch (error) {
     return apiErrorResponse(error as Error, 'Request OTP');

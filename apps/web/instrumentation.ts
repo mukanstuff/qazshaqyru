@@ -1,10 +1,10 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
-    const { validateEnv } = await import('./src/lib/env');
+    const { validateEnv } = await import('./src/lib/shared/env');
     validateEnv();
 
     if (process.env.NODE_ENV === 'production') {
-      const { logProductionStartupSummary } = await import('./src/lib/production-startup');
+      const { logProductionStartupSummary } = await import('./src/lib/shared/production-startup');
       logProductionStartupSummary();
     }
   }

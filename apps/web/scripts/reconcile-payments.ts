@@ -2,7 +2,7 @@
  * Poll Kaspi/Freedom for stale pending orders — run via scheduler or: pnpm reconcile-payments
  */
 import { PrismaClient } from '@prisma/client';
-import { reconcilePendingPayments } from '../src/lib/payment-sync';
+import { reconcilePendingPayments } from '../src/lib/payments/payment-sync';
 
 const prisma = new PrismaClient({
   datasources: { db: { url: process.env.DATABASE_URL } },

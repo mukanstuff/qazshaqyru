@@ -1,13 +1,16 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { SESSION_COOKIE, getCurrentSession, clearSessionCookie } from '@/lib/api';
-import { apiErrorResponse } from '@/lib/api';
+import { SESSION_COOKIE, getCurrentSession, clearSessionCookie, apiErrorResponse, checkSameOrigin, ApiError } from '@/lib/shared/api';
 
 export async function POST(request: NextRequest) {
   try {
+    if (!checkSameOrigin(request)) {
+      throw new ApiError('forbidden', 'Неверный origin', 403);
+    }
+
     const ctx = await getCurrentSession();
     if (ctx) {
-      await import('@/lib/db').then(({ default: prisma }) =>
+      await import('@/lib/shared/db').then(({ default: prisma }) =>
         prisma.session.update({
           where: { id: ctx.session.id },
           data: { revokedAt: new Date() },

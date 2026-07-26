@@ -20,6 +20,7 @@ enum EventType {
   betashar
   kyz_uzatu
   sundet_toy
+  tusau_keser
   birthday
   anniversary
   corporate
@@ -67,6 +68,18 @@ enum OrderType {
   managed
 }
 
+/// Paid ladder SKUs (free is implicit / null).
+enum PlanSku {
+  standard
+  premium
+  agency
+}
+
+enum PlanScope {
+  invitation
+  user
+}
+
 enum SentVia {
   whatsapp
   sms
@@ -80,6 +93,7 @@ enum TemplateCategory {
   betashar
   kyz_uzatu
   sundet_toy
+  tusau_keser
   birthday
   anniversary
   corporate
@@ -87,19 +101,24 @@ enum TemplateCategory {
 }
 
 model User {
-  id          String   @id @default(uuid())
-  phone       String   @unique
-  name        String?
-  language    Language @default(ru)
-  isAdmin     Boolean  @default(false)
-  sessions    Session[]
-  invitations Invitation[]
-  orders      Order[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String    @id @default(uuid())
+  phone           String    @unique
+  name            String?
+  language        Language  @default(ru)
+  isAdmin         Boolean   @default(false)
+  /// Active user-level plan (agency). Invitation unlocks live on Invitation.unlockedPlanSku.
+  planSku         PlanSku?
+  planExpiresAt   DateTime?
+  planActivatedAt DateTime?
+  sessions        Session[]
+  invitations     Invitation[]
+  orders          Order[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@index([phone])
   @@index([isAdmin])
+  @@index([planSku, planExpiresAt])
 }
 
 model Session {
@@ -208,9 +227,18 @@ model Invitation {
   /// Incremented when guests open the public page /i/[slug].
   viewCount    Int              @default(0)
 
-  guests       Guest[]
-  orders       Order[]
-  wishes       Wish[]
+  /// Highest invitation-level paid plan unlocked for this invite (null = free/watermark).
+  unlockedPlanSku PlanSku?
+  unlockedAt      DateTime?
+  /// Order that granted the unlock (traceability; not a formal FK to avoid dual relations).
+  unlockOrderId   String?
+
+  guests           Guest[]
+  orders           Order[]
+  wishes           Wish[]
+  giftTransfers    GiftTransfer[]
+  seatingTables    SeatingTable[]
+  restaurantShares RestaurantShareLink[]
 
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
@@ -223,6 +251,7 @@ model Invitation {
   @@index([userId, status])
   @@index([userId, createdAt])
   @@index([userId, status, createdAt(sort: Desc)])
+  @@index([unlockedPlanSku])
 }
 
 model Guest {
@@ -235,6 +264,8 @@ model Guest {
   side          GuestSide?
   hasPlusOne    Boolean          @default(false)
   plusOneName   String?
+  /// Optional household / family label for banquet headcount grouping.
+  householdLabel String?
   /// HMAC-SHA256 of the random token we give to the guest. We never store
   /// the token itself, so leaking server logs / WhatsApp URLs / Referer
   /// headers does not let an attacker impersonate a guest.
@@ -242,6 +273,10 @@ model Guest {
   tokenHash     String           @unique
 
   response      GuestResponse?
+  seating       SeatingAssignment?
+  giftTransfers GiftTransfer[]
+  /// First time the guest opened their personal invitation link.
+  openedAt      DateTime?
   sentAt        DateTime?
   sentVia       SentVia?
   lastError     String?
@@ -253,6 +288,7 @@ model Guest {
   @@index([invitationId])
   @@index([phone])
   @@index([tokenHash])
+  @@index([invitationId, householdLabel])
 }
 
 model GuestResponse {
@@ -302,6 +338,12 @@ model Order {
   managedStatus   ManagedOrderStatus?
   adminNotes      String?
 
+  /// Ladder SKU for this payment (null = legacy publication fee → treat as standard).
+  planSku          PlanSku?
+  planScope        PlanScope?
+  planDurationDays Int?
+  planExpiresAt    DateTime?
+
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
@@ -314,6 +356,26 @@ model Order {
   @@index([userId, status])
   @@index([status, createdAt])
   @@index([orderType, status])
+  @@index([planSku])
+}
+
+/// Magic-link read-only banquet portal for restaurant / тойхана managers.
+model RestaurantShareLink {
+  id             String     @id @default(uuid())
+  invitationId   String
+  invitation     Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  /// HMAC material — plaintext token never stored.
+  tokenHash      String     @unique
+  label          String?
+  expiresAt      DateTime?
+  revokedAt      DateTime?
+  lastAccessedAt DateTime?
+  accessCount    Int        @default(0)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@index([invitationId])
+  @@index([invitationId, revokedAt])
 }
 
 model PaymentWebhookEvent {
@@ -366,4 +428,57 @@ model WishReaction {
   @@unique([wishId, likerHash])
   @@index([wishId])
   @@index([wishId, emoji])
+}
+
+/// Guest self-reported Kaspi gift transfer (honor system — no money through us).
+model GiftTransfer {
+  id              String     @id @default(uuid())
+  invitationId    String
+  invitation      Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  guestId         String?
+  guest           Guest?     @relation(fields: [guestId], references: [id], onDelete: SetNull)
+  authorName      String
+  note            String?
+  /// Client fingerprint hash — one ack per visitor per invitation.
+  fingerprintHash String
+  createdAt       DateTime   @default(now())
+
+  @@unique([invitationId, fingerprintHash])
+  @@index([invitationId, createdAt(sort: Desc)])
+  @@index([guestId])
+}
+
+model SeatingTable {
+  id           String              @id @default(uuid())
+  invitationId String
+  invitation   Invitation          @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  name         String
+  capacity     Int                 @default(10)
+  sortOrder    Int                 @default(0)
+  assignments  SeatingAssignment[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@unique([invitationId, name])
+  @@index([invitationId, sortOrder])
+}
+
+model SeatingAssignment {
+  id        String       @id @default(uuid())
+  tableId   String
+  table     SeatingTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  guestId   String       @unique
+  guest     Guest        @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  createdAt DateTime     @default(now())
+
+  @@index([tableId])
+}
+
+model TemplateWaitlistSignup {
+  id        String   @id @default(uuid())
+  slug      String
+  phone     String
+  createdAt DateTime @default(now())
+
+  @@index([slug, createdAt])
 }

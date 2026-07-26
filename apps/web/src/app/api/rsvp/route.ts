@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import prisma from '@/lib/db';
+import prisma from '@/lib/shared/db';
 import {
   ApiError,
   apiErrorResponse,
@@ -9,11 +9,11 @@ import {
   RATE_LIMITS,
   checkSameOrigin,
   getClientIp,
-} from '@/lib/api';
+} from '@/lib/shared/api';
 import { hashToken } from '@/lib/auth';
-import { verifyCaptchaToken } from '@/lib/captcha';
-import { isEventPast } from '@/lib/event-datetime';
-import { validateRsvpStatus, RSVP_STATUSES } from '@/lib/rsvp-status';
+import { verifyCaptchaToken } from '@/lib/shared/captcha';
+import { isEventPast } from '@/lib/shared/event-datetime';
+import { validateRsvpStatus, RSVP_STATUSES } from '@/lib/guests/rsvp-status';
 
 const rsvpSchema = z.object({
   guestToken: z.string().min(16).max(128),
@@ -151,6 +151,7 @@ export async function GET(request: NextRequest) {
       where: { tokenHash },
       include: {
         response: true,
+        seating: { include: { table: { select: { name: true } } } },
         invitation: {
           select: {
             title: true,
@@ -186,12 +187,20 @@ export async function GET(request: NextRequest) {
       throw new ApiError('event_passed', 'Мероприятие уже прошло', 410);
     }
 
+    // Mark personal link opened (guest ops funnel) — fire-and-forget.
+    if (!guest.openedAt) {
+      void prisma.guest
+        .update({ where: { id: guest.id }, data: { openedAt: new Date() } })
+        .catch(() => undefined);
+    }
+
     return NextResponse.json({
       guest: {
         id: guest.id,
         name: guest.name,
         hasPlusOne: guest.hasPlusOne,
         plusOneName: guest.plusOneName,
+        seatingTableName: guest.seating?.table.name ?? null,
         // We deliberately do NOT echo the token back. The client got it
         // from the URL; re-sending it would be a copy-paste surface.
       },

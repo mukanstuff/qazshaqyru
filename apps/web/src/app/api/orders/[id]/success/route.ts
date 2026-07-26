@@ -1,42 +1,63 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { redirect } from 'next/navigation';
-import prisma from '@/lib/db';
-import { requireAuth } from '@/lib/api';
+import prisma from '@/lib/shared/db';
+import { requireSessionForPaymentRedirect } from '@/lib/payments/payment-route-auth';
+import { syncOrderPaymentStatus } from '@/lib/payments/payment-sync';
 
 export const dynamic = 'force-dynamic';
 
 interface Props {
   params: { id: string };
-  searchParams: { session_id?: string };
 }
 
 /**
- * Stripe (and Kaspi) return the user to this URL after payment. We do a
- * final check that the order belongs to the current user, then hand them
- * off to the editor.
+ * After payment the provider redirects the user here.
  *
- * Important: this endpoint must NOT be the source of truth for "did the
- * payment succeed". Always trust the webhook, not the redirect.
+ * Flow:
+ * 1. Verify the user owns this order (requireAuth).
+ * 2. If already paid → go to editor.
+ * 3. If pending → check via webhook or show "payment pending" page.
+ * 4. If cancelled → go back to templates.
+ *
+ * Security: requireAuth ensures only the order owner can see this page.
+ * We trust the webhook as source of truth for payment status.
  */
 export async function GET(_request: NextRequest, { params }: Props) {
   const { id } = params;
 
-  // requireAuth redirects to /login if there's no session, so it cannot
-  // be reached anonymously.
-  const ctx = await requireAuth();
+  const { user } = await requireSessionForPaymentRedirect(`/api/orders/${id}/success`);
 
   const order = await prisma.order.findUnique({
     where: { id },
-    include: { invitation: true },
+    include: { invitation: { select: { id: true, slug: true } } },
   });
 
-  if (!order || order.userId !== ctx.user.id) {
+  if (!order || order.userId !== user.id) {
     redirect('/dashboard?payment=not_found');
   }
 
+  // Already paid
   if (order.status === 'paid' && order.invitation) {
-    redirect(`/invitations/${order.invitation.id}?paid=1`);
+    redirect(`/invitations/${order.invitation.id}?published=1`);
   }
 
-  redirect('/templates?payment=pending');
+  // Payment cancelled
+  if (order.status === 'cancelled') {
+    redirect('/templates?payment=cancelled');
+  }
+
+  // Payment pending — try sync with provider before showing wait state.
+  if (order.status === 'pending') {
+    const sync = await syncOrderPaymentStatus(id, user.id);
+    if (sync.status === 'paid' && sync.invitationId) {
+      redirect(`/invitations/${sync.invitationId}?published=1`);
+    }
+    if (order.invitation) {
+      redirect(`/invitations/${order.invitation.id}?payment=pending`);
+    }
+    redirect('/dashboard?payment=pending');
+  }
+
+  // Fallback
+  redirect('/dashboard');
 }

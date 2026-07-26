@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/db';
-import { ApiError, apiErrorResponse, applyRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/api';
-import { isEventPast } from '@/lib/event-datetime';
-import { isOpenRsvpEnabled } from '@/lib/open-rsvp-config';
-import { verifyPreviewToken } from '@/lib/preview-token';
+import prisma from '@/lib/shared/db';
+import { ApiError, apiErrorResponse, applyRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/shared/api';
+import { isEventPast } from '@/lib/shared/event-datetime';
+import { isOpenRsvpEnabled } from '@/lib/guests/open-rsvp-config';
+import { verifyPreviewToken } from '@/lib/invitations/preview-token';
+import { shouldShowPublishWatermark } from '@/lib/invitations/publish-watermark';
+import { resolvePublicationPriceKzt } from '@/lib/invitations/invitation-pricing';
+import { resolveTemplateBySlug } from '@/lib/templates/template-resolve';
+import { isValidPaidOrder } from '@/lib/payments/pricing-integrity';
+import { resolveEntitlements, type PlanSku } from '@/lib/entitlements';
+
+function mapPlanSku(value: string | null | undefined): PlanSku | null {
+  if (value === 'standard' || value === 'premium' || value === 'agency') return value;
+  return null;
+}
 
 export async function GET(
   request: NextRequest,
@@ -19,8 +29,20 @@ export async function GET(
     const invitation = await prisma.invitation.findUnique({
       where: { slug },
       include: {
-        user: { select: { language: true, name: true } },
-        template: { select: { nameRu: true, nameKz: true, slug: true, config: true } },
+        user: {
+          select: {
+            language: true,
+            name: true,
+            planSku: true,
+            planExpiresAt: true,
+          },
+        },
+        template: { select: { id: true, nameRu: true, nameKz: true, slug: true, config: true, priceKzt: true } },
+        orders: {
+          where: { status: 'paid' },
+          select: { id: true, templateId: true, amountKzt: true, status: true },
+          orderBy: { paidAt: 'desc' },
+        },
         _count: { select: { guests: true } },
       },
     });
@@ -46,6 +68,31 @@ export async function GET(
         ? localeFromCustom
         : invitation.user.language;
 
+    const catalogTemplate = await resolveTemplateBySlug(invitation.templateKey);
+    const template = catalogTemplate ?? invitation.template;
+    const templateId = template?.id ?? invitation.templateId;
+    const priceKzt = resolvePublicationPriceKzt(template?.priceKzt ?? null);
+    const hasPaidOrder = invitation.orders.some((order) =>
+      isValidPaidOrder(order, templateId, priceKzt)
+    );
+    const entitlements = resolveEntitlements({
+      now: new Date(),
+      user: {
+        planSku: mapPlanSku(invitation.user.planSku),
+        planExpiresAt: invitation.user.planExpiresAt,
+      },
+      invitation: {
+        unlockedPlanSku: mapPlanSku(invitation.unlockedPlanSku),
+      },
+    });
+    const showWatermark =
+      invitation.status === 'published' &&
+      shouldShowPublishWatermark({
+        priceKzt,
+        hasPaidOrder,
+        entitlements,
+      });
+
     const safeInvitation = {
       slug: invitation.slug,
       title: invitation.title,
@@ -70,6 +117,7 @@ export async function GET(
       ),
       guestCount: invitation._count.guests,
       isFamilyPreview,
+      showWatermark,
     };
 
     return NextResponse.json({ invitation: safeInvitation });

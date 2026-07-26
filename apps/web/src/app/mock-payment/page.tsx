@@ -1,5 +1,12 @@
 import { redirect } from 'next/navigation';
-import prisma from '@/lib/db';
+import Link from 'next/link';
+import prisma from '@/lib/shared/db';
+import { getCurrentSession } from '@/lib/shared/api';
+import { isMockPaymentAllowed } from '@/lib/payments/mock-payment-guard';
+import { LogoMark } from '@/components/shared/ornaments';
+import { PublicShell } from '@/components/shared/PublicShell';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,6 +15,10 @@ interface Props {
 }
 
 export default async function MockPaymentPage({ searchParams }: Props) {
+  if (!isMockPaymentAllowed()) {
+    redirect('/dashboard?payment=invalid');
+  }
+
   const { orderId, token } = searchParams;
 
   if (!orderId || !token) {
@@ -21,49 +32,62 @@ export default async function MockPaymentPage({ searchParams }: Props) {
 
   if (!order) redirect('/dashboard?payment=not_found');
 
+  const session = await getCurrentSession();
+  if (!session || order.userId !== session.user.id) {
+    redirect('/dashboard?payment=invalid');
+  }
+
+  if (!order.paymentId || order.paymentId !== token) {
+    redirect('/dashboard?payment=invalid');
+  }
+
+  if (order.status !== 'pending') {
+    redirect('/dashboard?payment=invalid');
+  }
+
   return (
-    <main className="min-h-screen flex items-center justify-center bg-stone-50 p-6">
-      <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full">
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-3xl">💳</span>
-          </div>
-          <h1 className="font-serif text-2xl text-stone-800 mb-2">Тестовая оплата</h1>
-          <p className="text-sm text-stone-500">
-            Это режим разработки. Реальная оплата через Kaspi/Stripe в продакшене.
-          </p>
-        </div>
+    <PublicShell>
+      <div className="us-container flex min-h-[60vh] items-center justify-center py-12">
+        <Card className="w-full max-w-md shadow-us-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-us-accent/8">
+              <LogoMark size={32} />
+            </div>
+            <CardTitle className="font-display text-2xl">Тестовая оплата</CardTitle>
+            <CardDescription>
+              Режим разработки. После оплаты приглашение будет опубликовано автоматически.
+            </CardDescription>
+          </CardHeader>
 
-        <div className="bg-stone-50 rounded-2xl p-5 mb-6">
-          <p className="text-xs uppercase tracking-wider text-stone-400 mb-1">К оплате</p>
-          <p className="text-3xl font-serif text-stone-800">
-            {order.amountKzt.toLocaleString('ru-RU')} ₸
-          </p>
-          <p className="text-sm text-stone-600 mt-2">{order.template.nameRu}</p>
-        </div>
+          <CardContent className="space-y-6">
+            <div className="rounded-lg border border-us-border bg-us-ivory/80 p-6 text-center">
+              <p className="us-overline">К оплате</p>
+              <p className="mt-2 font-display text-3xl font-semibold text-us-accent">
+                {order.amountKzt.toLocaleString('ru-RU')} ₸
+              </p>
+              <p className="mt-2 font-body text-sm text-us-ink-muted">{order.template.nameRu}</p>
+            </div>
 
-        <div className="space-y-3">
-          <form action={`/api/orders/${order.id}/mock-pay`} method="POST">
-            <input type="hidden" name="token" value={token} />
-            <button
-              type="submit"
-              className="w-full h-12 rounded-xl text-white text-sm font-medium"
-              style={{ background: 'linear-gradient(135deg, #c9a96e 0%, #a78b4a 100%)' }}
-            >
-              ✓ Подтвердить оплату
-            </button>
-          </form>
-          <form action={`/api/orders/${order.id}/mock-fail`} method="POST">
-            <input type="hidden" name="token" value={token} />
-            <button
-              type="submit"
-              className="w-full h-12 rounded-xl bg-stone-100 text-stone-600 text-sm font-medium hover:bg-stone-200"
-            >
-              Отменить
-            </button>
-          </form>
-        </div>
+            <div className="space-y-3">
+              <form action={`/api/orders/${order.id}/mock-pay`} method="POST">
+                <input type="hidden" name="token" value={token} />
+                <Button type="submit" className="w-full" variant="default">
+                  ✓ Подтвердить оплату
+                </Button>
+              </form>
+              <form action={`/api/orders/${order.id}/mock-fail`} method="POST">
+                <input type="hidden" name="token" value={token} />
+                <Button type="submit" className="w-full" variant="outline">
+                  Отменить
+                </Button>
+              </form>
+              <Button variant="ghost" className="w-full" asChild>
+                <Link href="/dashboard">← В кабинет</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
-    </main>
+    </PublicShell>
   );
 }

@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/db';
+import prisma from '@/lib/shared/db';
 import {
   ApiError,
   apiErrorResponse,
   applyRateLimit,
   rateLimitResponse,
   RATE_LIMITS,
-} from '@/lib/api';
-import { isEventPast } from '@/lib/event-datetime';
-import { verifyPreviewToken } from '@/lib/preview-token';
+} from '@/lib/shared/api';
+import { isEventPast } from '@/lib/shared/event-datetime';
+import { verifyPreviewToken } from '@/lib/invitations/preview-token';
 
 interface RouteParams {
   params: Promise<{ slug: string }>;

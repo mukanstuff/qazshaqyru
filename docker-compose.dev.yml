@@ -1,0 +1,7 @@
+# Local development overlay — exposes Postgres to the host for `pnpm dev`.
+# Usage (from repo root):
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres
+services:
+  postgres:
+    ports:
+      - '5432:5432'

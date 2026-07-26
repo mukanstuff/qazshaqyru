@@ -21,6 +21,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   refreshSession: () => Promise<void>;
   setLocale: (lang: 'kz' | 'ru') => Promise<void>;
+  setName: (name: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -84,12 +85,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [user]
   );
 
+  const setName = useCallback(
+    async (name: string) => {
+      try {
+        const response = await fetch('/api/users/me', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ name }),
+        });
+        if (response.ok && user) {
+          setUser({ ...user, name });
+        }
+      } catch (error) {
+        console.error('Set name error:', error);
+      }
+    },
+    [user]
+  );
+
   useEffect(() => {
     refreshSession();
   }, [refreshSession]);
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, logout, refreshSession, setLocale }}>
+    <AuthContext.Provider value={{ user, session, loading, logout, refreshSession, setLocale, setName }}>
       {children}
     </AuthContext.Provider>
   );

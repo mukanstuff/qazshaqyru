@@ -1,6 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createJsonPostRequest } from '@/test/helpers/api-request';
-import { issuePreviewToken } from '@/lib/preview-token';
+import { issuePreviewToken } from '@/lib/invitations/preview-token';
 
 const prismaMock = vi.hoisted(() => ({
   invitation: {
@@ -11,9 +11,9 @@ const prismaMock = vi.hoisted(() => ({
 
 const requireAuthMock = vi.hoisted(() => vi.fn().mockResolvedValue({ user: { id: 'user-1' } }));
 
-vi.mock('@/lib/db', () => ({ default: prismaMock }));
-vi.mock('@/lib/api', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/api')>();
+vi.mock('@/lib/shared/db', () => ({ default: prismaMock }));
+vi.mock('@/lib/shared/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/shared/api')>();
   return {
     ...actual,
     requireAuth: requireAuthMock,

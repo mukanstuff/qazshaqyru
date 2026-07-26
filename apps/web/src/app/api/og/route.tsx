@@ -1,22 +1,41 @@
 import { ImageResponse } from 'next/og';
 import { NextRequest } from 'next/server';
-import prisma from '@/lib/db';
-import { applyRateLimit, RATE_LIMITS, rateLimitResponse, getClientIp } from '@/lib/api';
+import prisma from '@/lib/shared/db';
+import { applyRateLimit, RATE_LIMITS, rateLimitResponse, getClientIp } from '@/lib/shared/api';
+import { getTemplate } from '@/lib/templates';
+import { DEFAULT_TEMPLATE_SLUG } from '@/lib/templates/catalog';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+interface OgInvitationData {
+  title: string;
+  eventType: string;
+  eventDate: Date;
+  eventTime: string | null;
+  eventPlace: string | null;
+  templateKey: string;
+  updatedAt: Date;
+}
+
+const DEMO_OG: OgInvitationData = {
+  title: 'Асет & Айым',
+  eventType: 'Свадьба',
+  eventDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+  eventTime: '15:00',
+  eventPlace: 'Ресторан «Жарық»',
+  templateKey: DEFAULT_TEMPLATE_SLUG,
+  updatedAt: new Date(),
+};
+
+function resolveAbsoluteUrl(path: string, origin: string): string {
+  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  const base = (process.env.APP_URL || origin).replace(/\/$/, '');
+  return `${base}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
 /**
- * Open Graph image generator.
- *
- * Performance: OG images are expensive to render (satori + resvg). We
- * send long-lived Cache-Control + ETag headers so that social media
- * crawlers (and any browser preview) can serve from their own caches
- * instead of hitting the app on every share.
- *
- * Security: rate-limited per IP. Each /api/og render is ~500ms of CPU
- * and several MB of memory, so we don't want a script to be able to
- * flood us with image requests.
+ * Open Graph image generator — optimized for WhatsApp / Telegram link previews.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -32,98 +51,106 @@ export async function GET(request: NextRequest) {
       return new Response('Invalid slug', { status: 400 });
     }
 
-    const invitation = await prisma.invitation.findUnique({
-      where: { slug },
-      select: {
-        title: true,
-        eventType: true,
-        eventDate: true,
-        eventTime: true,
-        eventPlace: true,
-        updatedAt: true,
-      },
-    });
+    const origin = request.nextUrl.origin;
+    let data: OgInvitationData | null = null;
 
-    if (!invitation) return new Response('Not found', { status: 404 });
+    if (slug === 'demo') {
+      const layout = searchParams.get('layout');
+      data = {
+        ...DEMO_OG,
+        templateKey: layout && /^[a-zA-Z0-9_-]{1,80}$/.test(layout) ? layout : DEMO_OG.templateKey,
+      };
+    } else {
+      const invitation = await prisma.invitation.findFirst({
+        where: { slug, status: 'published' },
+        select: {
+          title: true,
+          eventType: true,
+          eventDate: true,
+          eventTime: true,
+          eventPlace: true,
+          templateKey: true,
+          updatedAt: true,
+        },
+      });
+      if (!invitation) return new Response('Not found', { status: 404 });
+      data = {
+        ...invitation,
+        templateKey: invitation.templateKey || DEFAULT_TEMPLATE_SLUG,
+      };
+    }
 
-    const eventDate = new Date(invitation.eventDate);
+    const cfg = getTemplate(data.templateKey);
+    const coverUrl = resolveAbsoluteUrl(cfg.coverUrl, origin);
     const dateStr = new Intl.DateTimeFormat('ru-RU', {
       day: 'numeric',
       month: 'long',
       year: 'numeric',
-    }).format(eventDate);
+    }).format(new Date(data.eventDate));
 
-    // ETag is the updatedAt timestamp - any edit invalidates the cache.
-    const etag = `"${invitation.updatedAt.getTime()}"`;
-
+    const etag = `"${data.updatedAt.getTime()}"`;
     const ifNoneMatch = request.headers.get('if-none-match');
     if (ifNoneMatch === etag) {
       return new Response(null, { status: 304 });
     }
 
+    const accent = cfg.accent || '#C5A368';
+    const isDark = cfg.layout === 'dark-lux';
+    const textColor = isDark ? '#F5F2ED' : '#3D3530';
+    const subColor = isDark ? 'rgba(245,242,237,0.75)' : 'rgba(61,53,48,0.7)';
+
     const response = new ImageResponse(
       (
         <div
-          style={{
-            height: '100%',
-            width: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)',
-            color: 'white',
-            fontFamily: 'system-ui',
-            padding: '60px',
-          }}
+          
         >
+          <img
+            src={coverUrl}
+            alt=""
+            width={1200}
+            height={630}
+            
+          />
           <div
-            style={{
-              fontSize: 18,
-              letterSpacing: 4,
-              textTransform: 'uppercase',
-              color: '#c9a96e',
-              marginBottom: 30,
-              display: 'flex',
-            }}
-          >
-            {invitation.eventType}
-          </div>
+            
+          />
           <div
-            style={{
-              fontSize: 84,
-              fontWeight: 300,
-              lineHeight: 1.1,
-              textAlign: 'center',
-              marginBottom: 40,
-              maxWidth: '90%',
-              display: 'flex',
-            }}
+            
           >
-            {invitation.title}
-          </div>
-          <div
-            style={{
-              fontSize: 24,
-              color: 'rgba(255,255,255,0.6)',
-              display: 'flex',
-            }}
-          >
-            {dateStr}
-            {invitation.eventTime ? ` · ${invitation.eventTime}` : ''}
-          </div>
-          {invitation.eventPlace && (
             <div
-              style={{
-                fontSize: 18,
-                color: 'rgba(255,255,255,0.4)',
-                marginTop: 12,
-                display: 'flex',
-              }}
+              
             >
-              {invitation.eventPlace}
+              {data.eventType}
             </div>
-          )}
+            <div
+              
+            >
+              {data.title}
+            </div>
+            <div
+              
+            >
+              <span>{dateStr}</span>
+              {data.eventTime ? (
+                <>
+                  <span >·</span>
+                  <span>{data.eventTime}</span>
+                </>
+              ) : null}
+            </div>
+            {data.eventPlace ? (
+              <div
+                
+              >
+                {data.eventPlace}
+              </div>
+            ) : null}
+            <div
+              
+            >
+              QazShaqyru
+            </div>
+          </div>
         </div>
       ),
       { width: 1200, height: 630 }

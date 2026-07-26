@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Invito production deploy
+# QazShaqyru production deploy
 # Requirements: docker, docker compose v2, openssl, curl
 
 set -euo pipefail
@@ -22,7 +22,7 @@ require curl
 docker compose version >/dev/null 2>&1 || { err "docker compose v2 not found"; exit 1; }
 
 if [[ ! -f .env ]]; then
-  err "No .env file found. Copy .env.example to .env and fill in required values."
+  err "No .env file found. Copy .env.example to .env in repo root and fill in required values."
   exit 1
 fi
 
@@ -30,7 +30,7 @@ set -a
 source .env
 set +a
 
-for var in SESSION_SECRET DATABASE_URL APP_URL POSTGRES_USER POSTGRES_PASSWORD; do
+for var in SESSION_SECRET APP_URL POSTGRES_USER POSTGRES_PASSWORD; do
   if [[ -z "${!var:-}" ]] || [[ "${!var}" == CHANGE_ME* ]]; then
     err "Variable $var is not set or has a placeholder value."
     exit 1
@@ -42,36 +42,49 @@ if [[ "${#SESSION_SECRET}" -lt 32 ]]; then
   exit 1
 fi
 
+if command -v pnpm >/dev/null 2>&1 && [[ -f apps/web/package.json ]]; then
+  log "Running production env checklist..."
+  if ! (cd apps/web && NODE_ENV=production pnpm exec tsx scripts/check-production-env.ts --env-file ../../.env); then
+    err "Production env check failed. Fix .env before deploy."
+    exit 1
+  fi
+else
+  warn "pnpm not found — run manually after install: cd apps/web && pnpm check:env"
+fi
+
 if [[ "${APP_URL}" != https://* ]]; then
-  warn "APP_URL is not https — Caddy will not obtain a TLS certificate."
+  warn "APP_URL is not https — Caddy will not obtain a TLS certificate (OK for IP-only testing)."
+fi
+
+if [[ "${SMS_PROVIDER:-mock}" == "mock" ]]; then
+  warn "SMS_PROVIDER=mock — OTP codes will NOT be delivered to real phones."
+fi
+
+if [[ -z "${PAYMENT_PROVIDER:-}" ]] && [[ "${ALLOW_MOCK_PAYMENT:-false}" != "true" ]]; then
+  warn "PAYMENT_PROVIDER is not set — only free templates can be published until Kaspi/Freedom is configured."
+fi
+
+if [[ "${PAYMENT_PROVIDER:-}" == "kaspi" ]] && [[ -z "${KASPI_WEBHOOK_SECRET:-}" ]]; then
+  warn "KASPI_WEBHOOK_SECRET is empty — payment webhooks will not verify until this is set."
 fi
 
 log "Building images..."
-docker compose build --no-cache
+docker compose build
 
-log "Starting services..."
+log "Starting services (migrations run via container entrypoint)..."
 docker compose up -d
 
-log "Waiting for Postgres..."
-until docker compose exec -T postgres pg_isready -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" >/dev/null 2>&1; do
-  sleep 2
-done
-
-log "Running migrations..."
-docker compose exec -T app npx prisma migrate deploy
-
-log "Seeding templates..."
-docker compose exec -T app npx tsx scripts/seed.ts || warn "Seed step failed (continuing)"
-
-log "Health check..."
-APP_PORT=3000
-for i in {1..20}; do
-  if curl -sf "http://localhost:${APP_PORT}/api/auth/session" >/dev/null 2>&1; then
+log "Waiting for app health..."
+for i in {1..30}; do
+  if docker compose exec -T app wget -q -O- http://localhost:3000/api/health 2>/dev/null | grep -q '"status":"ok"'; then
     log "App is healthy!"
     log "Public URL: ${APP_URL}"
+    log "Tip: set RUN_SEED=true in .env for first deploy only, then set RUN_SEED=false."
+    log "Tip: schedule daily cleanup: docker compose exec app pnpm cleanup"
+    log "Tip: schedule DB backups: ./scripts/backup-db.sh"
     exit 0
   fi
-  sleep 2
+  sleep 3
 done
 
 err "App did not become healthy in time. Inspect: docker compose logs app"

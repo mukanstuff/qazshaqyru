@@ -1,21 +1,30 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { ru } from './messages/ru';
 import { kz } from './messages/kz';
+import {
+  LOCALE_COOKIE,
+  DEFAULT_LOCALE,
+  SUPPORTED_LOCALES,
+  LOCALE_LABELS,
+  detectLocaleFromString,
+  type Locale,
+  type Messages,
+  interpolate,
+} from './shared';
 
-export type Locale = 'kz' | 'ru';
+export { LOCALE_COOKIE, DEFAULT_LOCALE, SUPPORTED_LOCALES, LOCALE_LABELS, detectLocaleFromString } from './shared';
 
-export const LOCALE_COOKIE = 'locale';
-export const DEFAULT_LOCALE: Locale = 'ru';
-export const SUPPORTED_LOCALES: Locale[] = ['ru', 'kz'];
+interface I18nContextType {
+  locale: Locale;
+  setLocale: (locale: Locale) => void;
+  t: (key: string, vars?: Record<string, string | number>) => string;
+  languages: { code: Locale; label: string }[];
+  messages: Messages;
+}
 
-export const LOCALE_LABELS: Record<Locale, string> = {
-  ru: 'Русский',
-  kz: 'Қазақша',
-};
-
-type Messages = Record<string, unknown>;
+const I18nContext = createContext<I18nContextType | undefined>(undefined);
 
 const ALL_MESSAGES: Record<Locale, Messages> = {
   ru: ru as Messages,
@@ -35,29 +44,16 @@ function getNestedValue(obj: Messages, path: string): string | null {
   return typeof current === 'string' ? current : null;
 }
 
-export function detectLocaleFromString(value: string | undefined | null): Locale {
-  if (value === 'kz' || value === 'ru') return value;
-  return DEFAULT_LOCALE;
-}
-
-export function tForLocale(locale: Locale, key: string): string {
-  const primary = getNestedValue(ALL_MESSAGES[locale], key);
+function tForLocale(locale: Locale, messages: Messages, key: string): string {
+  const primary = getNestedValue(messages, key);
   if (primary) return primary;
-  if (locale !== DEFAULT_LOCALE) {
-    const fallback = getNestedValue(ALL_MESSAGES[DEFAULT_LOCALE], key);
+  // Fallback to Russian
+  if (locale !== 'ru') {
+    const fallback = getNestedValue(ALL_MESSAGES['ru'], key);
     if (fallback) return fallback;
   }
   return key;
 }
-
-interface I18nContextType {
-  locale: Locale;
-  setLocale: (locale: Locale) => void;
-  t: (key: string, vars?: Record<string, string | number>) => string;
-  languages: { code: Locale; label: string }[];
-}
-
-const I18nContext = createContext<I18nContextType | undefined>(undefined);
 
 function setLocaleCookie(locale: Locale) {
   if (typeof document === 'undefined') return;
@@ -72,13 +68,14 @@ export function I18nProvider({
   initialLocale?: Locale;
 }) {
   const [locale, setLocaleState] = useState<Locale>(initialLocale);
+  const messages = useMemo(() => ALL_MESSAGES[locale], [locale]);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const match = document.cookie.match(new RegExp(`${LOCALE_COOKIE}=(kz|ru)`));
     if (match) {
       const cookieLocale = detectLocaleFromString(match[1]);
-      if (cookieLocale !== locale) setLocaleState(cookieLocale);
+      setLocaleState(cookieLocale);
     }
   }, []);
 
@@ -89,15 +86,10 @@ export function I18nProvider({
 
   const t = useCallback(
     (key: string, vars?: Record<string, string | number>): string => {
-      let text = tForLocale(locale, key);
-      if (vars) {
-        for (const [k, v] of Object.entries(vars)) {
-          text = text.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));
-        }
-      }
-      return text;
+      const text = tForLocale(locale, messages, key);
+      return interpolate(text, vars);
     },
-    [locale]
+    [locale, messages]
   );
 
   return (
@@ -110,6 +102,7 @@ export function I18nProvider({
           { code: 'ru', label: LOCALE_LABELS.ru },
           { code: 'kz', label: LOCALE_LABELS.kz },
         ],
+        messages,
       }}
     >
       {children}
@@ -120,16 +113,24 @@ export function I18nProvider({
 export function useI18n() {
   const ctx = useContext(I18nContext);
   if (!ctx) {
-    const t = (key: string) => tForLocale(DEFAULT_LOCALE, key);
+    // Return a default value when used outside I18nProvider
+    const defaultMessages = ALL_MESSAGES[DEFAULT_LOCALE];
     return {
       locale: DEFAULT_LOCALE,
       setLocale: () => {},
-      t,
+      t: (key: string) => tForLocale(DEFAULT_LOCALE, defaultMessages, key),
       languages: [
         { code: 'ru' as const, label: LOCALE_LABELS.ru },
         { code: 'kz' as const, label: LOCALE_LABELS.kz },
       ],
+      messages: defaultMessages,
     };
   }
   return ctx;
 }
+
+/**
+ * Export messages for server-side use.
+ * Use getI18n() from server.ts instead.
+ */
+export { ALL_MESSAGES };

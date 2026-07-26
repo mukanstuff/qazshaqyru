@@ -23,9 +23,9 @@ const prismaMock = vi.hoisted(() => ({
   $transaction: vi.fn(),
 }));
 
-vi.mock('@/lib/db', () => ({ default: prismaMock }));
-vi.mock('@/lib/api', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/api')>();
+vi.mock('@/lib/shared/db', () => ({ default: prismaMock }));
+vi.mock('@/lib/shared/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/shared/api')>();
   return {
     ...actual,
     applyRateLimit: vi.fn().mockResolvedValue({

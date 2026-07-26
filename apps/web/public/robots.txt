@@ -1,3 +1,7 @@
+# Allow search engines and AI answer crawlers that cite sources.
+# Block pure training crawlers where citation value is unclear.
+# /i/* stays private (guest invitations).
+
 User-agent: *
 Allow: /
 Disallow: /api/
@@ -6,5 +10,35 @@ Disallow: /invitations
 Disallow: /verify
 Disallow: /admin
 Disallow: /i/*
+Disallow: /login
+Disallow: /settings
 
-Sitemap: /sitemap.xml
+# OpenAI — allow browsing citations; block training corpus bot
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+# Google Gemini training (does NOT affect Google Search / AI Overviews)
+User-agent: Google-Extended
+Disallow: /
+
+# Anthropic training
+User-agent: ClaudeBot
+Disallow: /
+
+# Perplexity — allow (citations drive referral); adjust later via GSC/logs
+User-agent: PerplexityBot
+Allow: /
+
+# ByteDance training
+User-agent: Bytespider
+Disallow: /
+
+# Common Crawl dataset
+User-agent: CCBot
+Disallow: /
+
+# Absolute URL preferred by Google; update host if final domain differs.
+Sitemap: https://qazshaqyru.kz/sitemap.xml

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import prisma from '@/lib/db';
+import prisma from '@/lib/shared/db';
 import {
   ApiError,
   apiErrorResponse,
@@ -9,14 +9,14 @@ import {
   rateLimitResponse,
   RATE_LIMITS,
   checkSameOrigin,
-} from '@/lib/api';
+} from '@/lib/shared/api';
 import { generateGuestToken } from '@/lib/auth';
-import { verifyCaptchaToken } from '@/lib/captcha';
-import { OPEN_RSVP_MAX_NEW_GUESTS_PER_INVITATION, validateOpenRsvpPhone } from '@/lib/open-rsvp';
-import { isEventPast } from '@/lib/event-datetime';
+import { verifyCaptchaToken } from '@/lib/shared/captcha';
+import { OPEN_RSVP_MAX_NEW_GUESTS_PER_INVITATION, validateOpenRsvpPhone } from '@/lib/guests/open-rsvp';
+import { isEventPast } from '@/lib/shared/event-datetime';
 
-import { isOpenRsvpEnabled } from '@/lib/open-rsvp-config';
-import { RSVP_STATUSES, validateRsvpStatus } from '@/lib/rsvp-status';
+import { isOpenRsvpEnabled } from '@/lib/guests/open-rsvp-config';
+import { RSVP_STATUSES, validateRsvpStatus } from '@/lib/guests/rsvp-status';
 
 const openRsvpSchema = z.object({
   slug: z.string().min(1).max(100),

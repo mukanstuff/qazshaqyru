@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createHash } from 'crypto';
-import prisma from '@/lib/db';
+import prisma from '@/lib/shared/db';
 import { getPaymentProvider } from '@/lib/payments';
-import { completeOrderPayment } from '@/lib/order-completion';
-import { applyRateLimit, getClientIp, rateLimitResponse, RATE_LIMITS } from '@/lib/api';
+import { completeOrderPayment } from '@/lib/payments/order-completion';
+import { applyRateLimit, getClientIp, rateLimitResponse, RATE_LIMITS } from '@/lib/shared/api';
 
 export const dynamic = 'force-dynamic';
 

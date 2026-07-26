@@ -1,24 +1,45 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Loader2, Heart, ArrowLeft, Phone } from 'lucide-react';
+import Image from 'next/image';
+import { Loader2, Phone, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { LanguageSwitcher } from '@/components/language-switcher';
+import { PublicShell } from '@/components/shared/PublicShell';
 import { useToast } from '@/components/ui/toaster';
+import { useI18n } from '@/i18n';
+import { LANDING_HERO_SCREEN } from '@/lib/landing/assets';
+import { cn } from '@/lib/shared/utils';
 
 interface Props {
   redirectTo: string;
 }
 
+const panelClassName = cn('us-glass-strong overflow-hidden border shadow-us-lg');
+
 export default function LoginForm({ redirectTo }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
+  const { t } = useI18n();
+  const [step, setStep] = useState<'phone' | 'code'>('phone');
   const [phone, setPhone] = useState('');
+  const [code, setCode] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [devCode, setDevCode] = useState<string | null>(null);
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
 
   const formatPhone = (value: string): string => {
     const digits = value.replace(/\D/g, '');
@@ -31,118 +52,241 @@ export default function LoginForm({ redirectTo }: Props) {
     return `+7 (${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6, 8)}-${d.slice(8, 10)}`;
   };
 
+  useEffect(() => {
+    const rawPhone = searchParams.get('phone');
+    if (!rawPhone) return;
+    setPhone(formatPhone(rawPhone));
+  }, [searchParams]);
+
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPhone(formatPhone(e.target.value));
     setError('');
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const requestOtp = async () => {
     setLoading(true);
     setError('');
-
     try {
       const res = await fetch('/api/auth/request-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone }),
       });
-
       const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || 'Ошибка отправки');
-      }
-
-      sessionStorage.setItem('login_phone', phone);
-      router.push(`/verify?redirect=${encodeURIComponent(redirectTo)}`);
+      if (!res.ok) throw new Error(data.message || 'Ошибка отправки');
+      if (data.devCode) setDevCode(data.devCode);
+      setResendCooldown(60);
+      setStep('code');
+      setTimeout(() => inputRefs.current[0]?.focus(), 100);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Ошибка';
       setError(msg);
-      toast({ title: 'Не удалось отправить код', description: msg, variant: 'destructive' });
+      toast({ title: t('auth.sendFailed'), description: msg, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <main className="min-h-screen flex flex-col bg-stone-50">
-      <header className="px-6 h-16 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2">
-          <Heart className="w-4 h-4 fill-rose-400 text-rose-400" />
-          <span className="font-serif text-lg text-stone-800">Invito</span>
-        </Link>
-        <LanguageSwitcher />
-      </header>
+  const verifyOtp = useCallback(
+    async (codeToVerify: string) => {
+      if (codeToVerify.length !== 6) return;
+      setLoading(true);
+      setError('');
+      try {
+        const res = await fetch('/api/auth/verify-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone, code: codeToVerify }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          if (data.devCode) setDevCode(data.devCode);
+          throw new Error(data.message || 'Неверный код');
+        }
+        router.push(redirectTo);
+        router.refresh();
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Ошибка';
+        setError(msg);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [phone, redirectTo, router],
+  );
 
-      <div className="flex-1 flex items-center justify-center p-6">
-        <div className="w-full max-w-sm">
-          <Link href="/" className="inline-flex items-center gap-1 text-sm text-stone-500 hover:text-stone-800 mb-6">
-            <ArrowLeft className="w-3.5 h-3.5" />
-            На главную
+  const handleCodeChange = (index: number, value: string) => {
+    if (!/^\d*$/.test(value)) return;
+    const newCode = [...code];
+    newCode[index] = value.slice(-1);
+    setCode(newCode);
+    setError('');
+    if (value && index < 5) inputRefs.current[index + 1]?.focus();
+    if (index === 5 && newCode.every((d) => d)) void verifyOtp(newCode.join(''));
+  };
+
+  return (
+    <PublicShell>
+      <div className="relative overflow-hidden">
+        <div className="absolute inset-0 -z-10">
+          <Image
+            src={LANDING_HERO_SCREEN}
+            alt=""
+            fill
+            priority={false}
+            className="object-cover opacity-15 blur-2xl scale-105"
+            sizes="100vw"
+          />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,color-mix(in_srgb,var(--us-ivory)_55%,transparent),transparent_52%),linear-gradient(180deg,color-mix(in_srgb,var(--us-cream)_55%,transparent),color-mix(in_srgb,var(--us-ivory)_88%,white_12%))] backdrop-blur-[2px]" />
+        </div>
+        <div className="us-container flex min-h-[60vh] items-center justify-center py-12">
+        <div className="w-full max-w-md">
+          <Link
+            href="/"
+            className="mb-6 inline-flex items-center gap-2 font-body text-sm text-us-ink-muted transition-colors hover:text-us-accent"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            {t('auth.backToHome')}
           </Link>
 
-          <div className="bg-white rounded-3xl shadow-xl border border-stone-100 p-8">
-            <div className="w-12 h-12 bg-rose-50 rounded-full flex items-center justify-center mb-5">
-              <Phone className="w-5 h-5 text-rose-500" />
-            </div>
-            <h1 className="font-serif text-2xl text-stone-800 mb-2">Вход</h1>
-            <p className="text-sm text-stone-500 mb-6">Введите номер телефона для авторизации</p>
+          <Card className="us-glass-strong overflow-hidden border shadow-us-lg">
+            <CardHeader className="space-y-4 border-b border-us-border/70 bg-gradient-to-br from-us-accent/8 via-us-surface to-us-surface text-left sm:text-center">
+              <div className="flex items-center gap-3 sm:flex-col sm:gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-us-accent/10 text-us-accent">
+                  <Phone className="h-5 w-5" />
+                </div>
+                <div className="space-y-1">
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs uppercase tracking-wider text-stone-500 mb-2">
-                  Телефон
-                </label>
-                <Input
-                  type="tel"
-                  value={phone}
-                  onChange={handlePhoneChange}
-                  placeholder="+7 (700) 123-45-67"
-                  autoComplete="tel"
-                  autoFocus
-                  inputMode="tel"
-                  required
-                  className="h-12 text-base"
-                />
+                  <CardTitle className="font-display text-2xl">
+                    {step === 'phone' ? t('auth.phoneLoginTitle') : t('auth.enterCodeTitle')}
+                  </CardTitle>
+                  <CardDescription>
+                    {step === 'phone' ? t('auth.loginSubtitle') : t('auth.codeSentTo', { phone })}
+                  </CardDescription>
+                </div>
               </div>
+            </CardHeader>
 
-              {error && (
-                <div className="bg-rose-50 border border-rose-200 text-rose-700 rounded-xl px-4 py-2.5 text-sm">
-                  {error}
+            <CardContent>
+              {step === 'phone' ? (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void requestOtp();
+                  }}
+                  className="space-y-4"
+                >
+                  <Input
+                    type="tel"
+                    value={phone}
+                    onChange={handlePhoneChange}
+                    placeholder={t('auth.phonePlaceholder')}
+                    autoComplete="tel"
+                    autoFocus
+                    inputMode="tel"
+                    required
+                  />
+                  {error && <ErrorBox message={error} />}
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={loading || phone.replace(/\D/g, '').length < 11}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        {t('auth.sending')}
+                      </>
+                    ) : (
+                      t('auth.getCode')
+                    )}
+                  </Button>
+                </form>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex justify-center gap-2">
+                    {code.map((digit, index) => (
+                      <Input
+                        key={index}
+                        ref={(el) => {
+                          inputRefs.current[index] = el;
+                        }}
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={1}
+                        value={digit}
+                        onChange={(e) => handleCodeChange(index, e.target.value)}
+                        className="h-12 w-10 text-center text-lg"
+                      />
+                    ))}
+                  </div>
+                  {error && <ErrorBox message={error} />}
+                  {devCode && (
+                    <div className="rounded-md border border-us-border bg-us-surface px-3 py-2">
+                      <p className="font-body text-sm text-us-ink-muted">
+                        {t('auth.devCodeHint')}: <strong className="text-us-ink">{devCode}</strong>
+                      </p>
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    className="w-full"
+                    onClick={() => void verifyOtp(code.join(''))}
+                    disabled={loading || code.some((d) => !d)}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        {t('auth.checking')}
+                      </>
+                    ) : (
+                      t('auth.loginButton')
+                    )}
+                  </Button>
+                  <div className="text-center">
+                    {resendCooldown > 0 ? (
+                      <p className="text-sm text-us-ink-muted">
+                        {t('auth.resendIn', { seconds: resendCooldown })}
+                      </p>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => void requestOtp()}
+                        className="font-body text-sm text-us-accent underline-offset-4 hover:underline"
+                      >
+                        {t('auth.resendCode')}
+                      </button>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStep('phone');
+                      setCode(['', '', '', '', '', '']);
+                      setError('');
+                    }}
+                    className="w-full font-body text-sm text-us-ink-muted hover:text-us-accent"
+                  >
+                    {t('auth.changePhone')}
+                  </button>
                 </div>
               )}
-
-              <Button
-                type="submit"
-                disabled={loading || phone.replace(/\D/g, '').length < 11}
-                className="w-full h-12 rounded-xl text-base"
-                style={{ background: 'linear-gradient(135deg, #1a1a1a 0%, #111 100%)' }}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Отправка...
-                  </>
-                ) : (
-                  'Получить код'
-                )}
-              </Button>
-
-              <p className="text-xs text-stone-400 text-center pt-2">
-                Продолжая, вы соглашаетесь с{' '}
-                <Link href="/terms" className="underline hover:text-stone-600">
-                  условиями
-                </Link>{' '}
-                и{' '}
-                <Link href="/privacy" className="underline hover:text-stone-600">
-                  политикой конфиденциальности
-                </Link>
-              </p>
-            </form>
-          </div>
+            </CardContent>
+          </Card>
+        </div>
         </div>
       </div>
-    </main>
+    </PublicShell>
+  );
+}
+
+function ErrorBox({ message }: { message: string }) {
+  return (
+    <div
+      role="alert"
+      className="rounded-md border border-us-danger/30 bg-red-50 px-3 py-2 font-body text-sm text-us-danger"
+    >
+      {message}
+    </div>
   );
 }

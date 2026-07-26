@@ -1,5 +1,14 @@
-import { ToggleTemplateButton } from '@/components/admin/toggle-template-button';
-import prisma from '@/lib/db';
+import { ToggleTemplateButton } from '@/components/admin/ToggleTemplateButton';
+import {
+  AdminTableShell,
+  adminTableHeadClass,
+  adminTableThClass,
+  adminTableTdClass,
+  adminTableRowClass,
+} from '@/components/admin/AdminTableShell';
+import Image from 'next/image';
+import prisma from '@/lib/shared/db';
+import { cn } from '@/lib/shared/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,51 +19,58 @@ export default async function AdminTemplatesPage() {
   });
 
   return (
-    <div>
-      <h1 className="font-serif text-3xl text-stone-800 mb-6">Шаблоны</h1>
+    <div className="space-y-6">
+      <h1 className="font-display text-3xl font-semibold text-us-ink">Шаблоны</h1>
 
-      <div className="bg-white rounded-2xl border border-stone-100 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-stone-50 text-xs uppercase tracking-wider text-stone-500">
-            <tr>
-              <th className="text-left px-4 py-3">Шаблон</th>
-              <th className="text-left px-4 py-3">Категория</th>
-              <th className="text-right px-4 py-3">Цена</th>
-              <th className="text-right px-4 py-3">Использований</th>
-              <th className="text-center px-4 py-3">Активен</th>
-              <th className="text-center px-4 py-3">Хит</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-stone-100">
-            {templates.map((t) => (
-              <tr key={t.id} className="hover:bg-stone-50">
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-12 rounded bg-stone-100 overflow-hidden flex-shrink-0">
-                      <img src={t.previewImageUrl} alt={t.nameRu} className="w-full h-full object-cover" />
-                    </div>
-                    <div>
-                      <div className="font-medium text-stone-800">{t.nameRu}</div>
-                      <div className="text-xs text-stone-500">{t.slug}</div>
-                    </div>
+      <AdminTableShell>
+        <thead className={adminTableHeadClass}>
+          <tr>
+            <th className={adminTableThClass}>Шаблон</th>
+            <th className={adminTableThClass}>Категория</th>
+            <th className={adminTableThClass}>Цена</th>
+            <th className={adminTableThClass}>Использований</th>
+            <th className={adminTableThClass}>Активен</th>
+            <th className={adminTableThClass}>Хит</th>
+          </tr>
+        </thead>
+        <tbody>
+          {templates.map((t) => (
+            <tr key={t.id} className={adminTableRowClass}>
+              <td className={adminTableTdClass}>
+                <div className="flex items-center gap-3">
+                  <div className="relative h-12 w-10 shrink-0 overflow-hidden rounded-md border border-us-border bg-us-accent/5">
+                    <Image
+                      src={t.previewImageUrl}
+                      alt={t.nameRu}
+                      width={40}
+                      height={48}
+                      className="h-full w-full object-cover"
+                      unoptimized={t.previewImageUrl.startsWith('/uploads/')}
+                    />
                   </div>
-                </td>
-                <td className="px-4 py-3 text-stone-600">{t.category}</td>
-                <td className="px-4 py-3 text-right font-medium">{t.priceKzt.toLocaleString('ru-RU')} ₸</td>
-                <td className="px-4 py-3 text-right text-stone-600">
-                  {t._count.invitations} / {t._count.orders}
-                </td>
-                <td className="px-4 py-3 text-center">
-                  <ToggleTemplateButton id={t.id} initial={t.isActive} field="isActive" />
-                </td>
-                <td className="px-4 py-3 text-center">
-                  <ToggleTemplateButton id={t.id} initial={t.isFeatured} field="isFeatured" />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                  <div>
+                    <div className="font-medium text-us-ink">{t.nameRu}</div>
+                    <div className="text-xs text-us-ink-muted">{t.slug}</div>
+                  </div>
+                </div>
+              </td>
+              <td className={cn(adminTableTdClass, 'capitalize')}>{t.category}</td>
+              <td className={adminTableTdClass}>
+                {t.priceKzt.toLocaleString('ru-RU')} ₸
+              </td>
+              <td className={cn(adminTableTdClass, 'text-us-ink-muted')}>
+                {t._count.invitations} / {t._count.orders}
+              </td>
+              <td className={adminTableTdClass}>
+                <ToggleTemplateButton id={t.id} initial={t.isActive} field="isActive" />
+              </td>
+              <td className={adminTableTdClass}>
+                <ToggleTemplateButton id={t.id} initial={t.isFeatured} field="isFeatured" />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </AdminTableShell>
     </div>
   );
 }

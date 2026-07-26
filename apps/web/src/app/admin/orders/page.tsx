@@ -1,5 +1,17 @@
 import { Search } from 'lucide-react';
-import prisma from '@/lib/db';
+import Link from 'next/link';
+import prisma from '@/lib/shared/db';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { OrderStatusBadge } from '@/components/admin/OrderStatusBadge';
+import {
+  AdminTableShell,
+  adminTableHeadClass,
+  adminTableThClass,
+  adminTableTdClass,
+  adminTableRowClass,
+} from '@/components/admin/AdminTableShell';
+import { cn } from '@/lib/shared/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,6 +20,13 @@ interface Props {
 }
 
 const PAGE_SIZE = 20;
+
+const FILTER_LABELS: Record<string, string> = {
+  all: 'Все',
+  pending: 'Ожидают',
+  paid: 'Оплачены',
+  cancelled: 'Отменены',
+};
 
 export default async function AdminOrdersPage({ searchParams }: Props) {
   const page = Math.max(1, parseInt(searchParams.page || '1', 10));
@@ -40,112 +59,114 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  return (
-    <div>
-      <h1 className="font-serif text-3xl text-stone-800 mb-6">Заказы</h1>
+  function buildHref(nextPage?: number, nextStatus?: string) {
+    const params = new URLSearchParams();
+    const s = nextStatus ?? status;
+    const p = nextPage ?? page;
+    if (s !== 'all') params.set('status', s);
+    if (q) params.set('q', q);
+    if (p > 1) params.set('page', String(p));
+    const qs = params.toString();
+    return qs ? `/admin/orders?${qs}` : '/admin/orders';
+  }
 
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        <form className="flex-1 flex gap-2">
+  return (
+    <div className="space-y-6">
+      <h1 className="font-display text-3xl font-semibold text-us-ink">Заказы</h1>
+
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <form action="/admin/orders" method="get" className="flex flex-1 gap-2 sm:max-w-md">
           <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-            <input
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-us-ink-muted" />
+            <Input
               type="search"
               name="q"
               defaultValue={q}
-              placeholder="Поиск по ID, телефону или имени..."
-              className="w-full h-11 pl-11 pr-4 rounded-xl bg-white border border-stone-200 text-sm focus:outline-none focus:border-stone-400"
+              placeholder="Поиск..."
+              className="pl-9"
             />
           </div>
           <input type="hidden" name="status" value={status} />
-          <button className="h-11 px-5 rounded-xl bg-stone-900 text-white text-sm font-medium">Найти</button>
+          <Button type="submit" size="sm">
+            Найти
+          </Button>
         </form>
-        <div className="flex gap-2">
-          {['all', 'pending', 'paid', 'cancelled'].map((s) => (
-            <a
+        <div className="flex flex-wrap gap-2">
+          {(['all', 'pending', 'paid', 'cancelled'] as const).map((s) => (
+            <Button
               key={s}
-              href={`/admin/orders?status=${s}${q ? `&q=${q}` : ''}`}
-              className={`h-11 px-4 inline-flex items-center rounded-xl text-sm font-medium ${
-                status === s ? 'bg-stone-900 text-white' : 'bg-white text-stone-600 border border-stone-200 hover:bg-stone-50'
-              }`}
+              variant={status === s ? 'secondary' : 'outline'}
+              size="sm"
+              asChild
             >
-              {s === 'all' ? 'Все' : s === 'pending' ? 'Ожидают' : s === 'paid' ? 'Оплачены' : 'Отменены'}
-            </a>
+              <Link href={buildHref(1, s)}>{FILTER_LABELS[s]}</Link>
+            </Button>
           ))}
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-stone-100 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-stone-50 text-xs uppercase tracking-wider text-stone-500">
-            <tr>
-              <th className="text-left px-4 py-3">ID</th>
-              <th className="text-left px-4 py-3">Шаблон</th>
-              <th className="text-left px-4 py-3">Клиент</th>
-              <th className="text-right px-4 py-3">Сумма</th>
-              <th className="text-center px-4 py-3">Статус</th>
-              <th className="text-right px-4 py-3">Дата</th>
+      <AdminTableShell>
+        <thead className={adminTableHeadClass}>
+          <tr>
+            <th className={adminTableThClass}>ID</th>
+            <th className={adminTableThClass}>Шаблон</th>
+            <th className={adminTableThClass}>Клиент</th>
+            <th className={adminTableThClass}>Сумма</th>
+            <th className={adminTableThClass}>Статус</th>
+            <th className={adminTableThClass}>Дата</th>
+          </tr>
+        </thead>
+        <tbody>
+          {orders.map((o) => (
+            <tr key={o.id} className={adminTableRowClass}>
+              <td className={cn(adminTableTdClass, 'font-mono text-xs')}>
+                {o.id.slice(0, 8)}
+              </td>
+              <td className={adminTableTdClass}>{o.template.nameRu}</td>
+              <td className={adminTableTdClass}>
+                {o.customerName && (
+                  <div className="font-medium text-us-ink">{o.customerName}</div>
+                )}
+                <div className="text-us-ink-muted">{o.customerPhone}</div>
+              </td>
+              <td className={adminTableTdClass}>
+                {o.amountKzt.toLocaleString('ru-RU')} ₸
+              </td>
+              <td className={adminTableTdClass}>
+                <OrderStatusBadge status={o.status} />
+              </td>
+              <td className={cn(adminTableTdClass, 'text-us-ink-muted')}>
+                {new Date(o.createdAt).toLocaleDateString('ru-RU')}
+              </td>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-stone-100">
-            {orders.map((o) => (
-              <tr key={o.id} className="hover:bg-stone-50">
-                <td className="px-4 py-3 font-mono text-xs text-stone-500">{o.id.slice(0, 8)}</td>
-                <td className="px-4 py-3 text-stone-800">{o.template.nameRu}</td>
-                <td className="px-4 py-3 text-stone-600 text-xs">
-                  {o.customerName && <div className="text-stone-800">{o.customerName}</div>}
-                  {o.customerPhone}
-                </td>
-                <td className="px-4 py-3 text-right font-medium">{o.amountKzt.toLocaleString('ru-RU')} ₸</td>
-                <td className="px-4 py-3 text-center">
-                  <StatusPill status={o.status} />
-                </td>
-                <td className="px-4 py-3 text-right text-xs text-stone-500">
-                  {new Date(o.createdAt).toLocaleDateString('ru-RU')}
-                </td>
-              </tr>
-            ))}
-            {orders.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-stone-400">
-                  Заказов не найдено
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+          ))}
+          {orders.length === 0 && (
+            <tr>
+              <td colSpan={6} className={cn(adminTableTdClass, 'py-8 text-center text-us-ink-muted')}>
+                Заказов не найдено
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </AdminTableShell>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 mt-6">
-          <a href={`/admin/orders?page=${Math.max(1, page - 1)}${q ? `&q=${q}` : ''}&status=${status}`} className="h-10 px-4 rounded-lg border border-stone-200 hover:bg-white">
-            ←
-          </a>
-          <span className="text-sm text-stone-500">{page} / {totalPages}</span>
-          <a href={`/admin/orders?page=${Math.min(totalPages, page + 1)}${q ? `&q=${q}` : ''}&status=${status}`} className="h-10 px-4 rounded-lg border border-stone-200 hover:bg-white">
-            →
-          </a>
+        <div className="flex items-center justify-center gap-3">
+          <Button variant="outline" size="sm" asChild disabled={page <= 1}>
+            <Link href={buildHref(Math.max(1, page - 1))} aria-disabled={page <= 1}>
+              ←
+            </Link>
+          </Button>
+          <span className="text-sm text-us-ink-muted">
+            {page} / {totalPages}
+          </span>
+          <Button variant="outline" size="sm" asChild disabled={page >= totalPages}>
+            <Link href={buildHref(Math.min(totalPages, page + 1))} aria-disabled={page >= totalPages}>
+              →
+            </Link>
+          </Button>
         </div>
       )}
     </div>
-  );
-}
-
-function StatusPill({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    pending: 'bg-amber-50 text-amber-700',
-    paid: 'bg-emerald-50 text-emerald-700',
-    cancelled: 'bg-rose-50 text-rose-700',
-    refunded: 'bg-stone-100 text-stone-600',
-  };
-  const labels: Record<string, string> = {
-    pending: 'Ожидает',
-    paid: 'Оплачен',
-    cancelled: 'Отменён',
-    refunded: 'Возврат',
-  };
-  return (
-    <span className={`inline-block px-2.5 py-1 rounded-full text-xs ${styles[status] || 'bg-stone-100 text-stone-600'}`}>
-      {labels[status] || status}
-    </span>
   );
 }

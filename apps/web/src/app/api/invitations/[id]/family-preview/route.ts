@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/db';
+import prisma from '@/lib/shared/db';
 import {
   ApiError,
   apiErrorResponse,
   applyRateLimit,
   rateLimitResponse,
   requireAuth,
-} from '@/lib/api';
-import { RATE_LIMITS } from '@/lib/rate-limit';
-import { customTextSchema } from '@/lib/custom-text-schema';
-import { buildFamilyPreviewUrl, createPreviewToken, issuePreviewToken } from '@/lib/preview-token';
+} from '@/lib/shared/api';
+import { RATE_LIMITS } from '@/lib/shared/rate-limit';
+import { customTextSchema } from '@/lib/shared/custom-text-schema';
+import { buildFamilyPreviewUrl, createPreviewToken, issuePreviewToken } from '@/lib/invitations/preview-token';
 
 interface RouteParams {
   params: Promise<{ id: string }>;

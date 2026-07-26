@@ -4,7 +4,7 @@ import {
   resetEnvValidationForTests,
   auditProductionEnv,
   hasBlockingEnvErrors,
-} from '../env';
+} from '@/lib/shared/env';
 
 describe('validateEnv production rules', () => {
   const originalEnv = { ...process.env };
@@ -23,7 +23,7 @@ describe('validateEnv production rules', () => {
     NODE_ENV: 'production' as NodeJS.ProcessEnv['NODE_ENV'],
     DATABASE_URL: 'postgresql://u:p@localhost:5432/db',
     SESSION_SECRET: 'x'.repeat(32),
-    APP_URL: 'https://invito.kz',
+    APP_URL: 'https://qazshaqyru.kz',
     TRUST_PROXY: 'true',
     ADMIN_API_KEY: 'a'.repeat(32),
     SMS_PROVIDER: 'kz',
@@ -103,7 +103,7 @@ describe('auditProductionEnv', () => {
     const items = auditProductionEnv({
       ...baseProdEnv,
       S3_ENDPOINT: 'https://example.r2.cloudflarestorage.com',
-      S3_BUCKET: 'invito',
+      S3_BUCKET: 'QazShaqyru',
     });
     expect(items.some((i) => i.key === 'S3_*' && i.status === 'error')).toBe(true);
   });
@@ -112,10 +112,10 @@ describe('auditProductionEnv', () => {
     const items = auditProductionEnv({
       ...baseProdEnv,
       S3_ENDPOINT: 'https://example.r2.cloudflarestorage.com',
-      S3_BUCKET: 'invito',
+      S3_BUCKET: 'QazShaqyru',
       S3_ACCESS_KEY: 'access',
       S3_SECRET_KEY: 'secret',
-      S3_PUBLIC_URL: 'https://cdn.invito.kz',
+      S3_PUBLIC_URL: 'https://cdn.qazshaqyru.kz',
     });
     expect(items.some((i) => i.key === 'S3_*' && i.status === 'ok')).toBe(true);
   });
@@ -141,6 +141,26 @@ describe('auditProductionEnv', () => {
     const items = auditProductionEnv(baseProdEnv);
     const webhook = items.find((i) => i.key === 'KASPI_WEBHOOK_URL');
     expect(webhook?.message).toContain('/api/orders/webhook/kaspi');
+  });
+
+  it('errors on obsolete invito.kz brand domain', () => {
+    const items = auditProductionEnv({
+      ...baseProdEnv,
+      APP_URL: 'https://invito.kz',
+    });
+    const appUrl = items.find((i) => i.key === 'APP_URL');
+    expect(appUrl?.status).toBe('error');
+    expect(appUrl?.message).toMatch(/obsolete brand domain|qazshaqyru\.kz/i);
+    expect(hasBlockingEnvErrors(items)).toBe(true);
+  });
+
+  it('accepts canonical https://qazshaqyru.kz', () => {
+    const items = auditProductionEnv({
+      ...baseProdEnv,
+      APP_URL: 'https://qazshaqyru.kz',
+    });
+    const appUrl = items.find((i) => i.key === 'APP_URL');
+    expect(appUrl?.status).toBe('ok');
   });
 
   it('errors when turnstile secret is set without public site key', () => {

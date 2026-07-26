@@ -15,11 +15,11 @@ const prismaMock = vi.hoisted(() => ({
 const getPaymentProviderMock = vi.hoisted(() => vi.fn());
 const completeOrderPaymentMock = vi.hoisted(() => vi.fn());
 
-vi.mock('@/lib/db', () => ({ default: prismaMock }));
+vi.mock('@/lib/shared/db', () => ({ default: prismaMock }));
 vi.mock('@/lib/payments', () => ({ getPaymentProvider: getPaymentProviderMock }));
-vi.mock('@/lib/order-completion', () => ({ completeOrderPayment: completeOrderPaymentMock }));
-vi.mock('@/lib/api', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/api')>();
+vi.mock('@/lib/payments/order-completion', () => ({ completeOrderPayment: completeOrderPaymentMock }));
+vi.mock('@/lib/shared/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/shared/api')>();
   return {
     ...actual,
     applyRateLimit: vi.fn().mockResolvedValue({ allowed: true, remaining: 99, resetIn: 60_000 }),

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { getCurrentSession, clearSessionCookie } from '@/lib/api';
+import { getCurrentSession, clearSessionCookie, applyAuthReadRateLimit, rateLimitResponse } from '@/lib/shared/api';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -13,6 +13,9 @@ export async function GET(request: NextRequest) {
       clearSessionCookie(response);
       return response;
     }
+
+    const readRate = await applyAuthReadRateLimit(request, ctx.user.id);
+    if (!readRate.allowed) return rateLimitResponse(readRate);
 
     return NextResponse.json({
       user: {

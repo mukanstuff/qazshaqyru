@@ -1,8 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { requireAdmin } from '@/lib/api';
-import prisma from '@/lib/db';
+import { requireAdmin } from '@/lib/shared/api';
+import prisma from '@/lib/shared/db';
 
 export async function toggleTemplateAction(id: string, field: 'isActive' | 'isFeatured') {
   await requireAdmin();

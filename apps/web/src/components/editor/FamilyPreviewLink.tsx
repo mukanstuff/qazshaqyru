@@ -5,7 +5,7 @@ import { Link2, Check, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/i18n';
 import { useToast } from '@/components/ui/toaster';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/shared/utils';
 
 interface Props {
   invitationId?: string;

@@ -11,9 +11,9 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { auditProductionEnv, hasBlockingEnvErrors, type EnvCheckItem } from '../src/lib/env';
-import { getProductionStartupSummary } from '../src/lib/production-startup';
-import { getKaspiWebhookUrl } from '../src/lib/payment-provider-config';
+import { auditProductionEnv, hasBlockingEnvErrors, type EnvCheckItem } from '../src/lib/shared/env';
+import { getProductionStartupSummary } from '../src/lib/shared/production-startup';
+import { getKaspiWebhookUrl } from '../src/lib/payments/payment-provider-config';
 
 function loadEnvFile(filePath: string): Record<string, string> {
   const content = readFileSync(filePath, 'utf8');
