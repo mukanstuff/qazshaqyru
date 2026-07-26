@@ -1,7 +1,6 @@
 import prisma from '@/lib/shared/db';
 import { TEMPLATE_CONFIGS } from './configs';
 import { LEGACY_TEMPLATE_MAP } from './legacy';
-import { resolveSuretSlug } from './suret-resolve';
 
 const DEFAULT_SLUG = 'wedding-luxury';
 
@@ -14,8 +13,6 @@ export interface ResolvedTemplate {
 
 /** Map legacy / removed keys to the active catalog template. */
 export function normalizeTemplateSlug(slug: string): string {
-  const suret = resolveSuretSlug(slug);
-  if (suret) return suret;
   if (LEGACY_TEMPLATE_MAP[slug]) return LEGACY_TEMPLATE_MAP[slug];
   if (TEMPLATE_CONFIGS[slug]) return slug;
   return DEFAULT_SLUG;

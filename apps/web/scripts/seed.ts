@@ -5,12 +5,6 @@ const prisma = new PrismaClient();
 /** Must match src/lib/templates/catalog.ts */
 const CATALOG_TEMPLATE_SLUG = 'wedding-luxury';
 
-/**
- * Wiring-only Suret row — keep code, hide from public catalog/API until ready.
- * isActive=false so /api/templates and featured lists do not expose it.
- */
-const SURET_WIRING_SLUG = 'suret-uzatu-pilot-01';
-
 const CATALOG_TEMPLATE = {
   slug: CATALOG_TEMPLATE_SLUG,
   nameRu: 'Шаблон',
@@ -26,25 +20,6 @@ const CATALOG_TEMPLATE = {
     colors: { primary: '#181818', secondary: '#fafaf8', accent: '#181818' },
     font: 'system-ui',
     layout: 'fullbleed',
-  },
-};
-
-const SURET_WIRING_TEMPLATE = {
-  slug: SURET_WIRING_SLUG,
-  nameRu: 'Сүрет · узату (wiring)',
-  nameKz: 'Сүрет · ұзату (wiring)',
-  descriptionRu: 'Фото-приглашение. Фон дизайнера обязателен для витрины.',
-  descriptionKz: 'Фото-шақыру. Витрина үшін дизайнер фоны керек.',
-  category: 'kyz_uzatu' as const,
-  previewImageUrl: '/assets/templates/suret/uzatu-pilot-01/bg.webp',
-  isFeatured: false,
-  isActive: false,
-  sortOrder: 100,
-  config: {
-    colors: { primary: '#5c4a32', secondary: '#f7f1e8', accent: '#8a7344' },
-    font: 'serif',
-    layout: 'suret',
-    renderEngine: 'suret',
   },
 };
 
@@ -67,22 +42,7 @@ async function main() {
     },
   });
 
-  console.log(`Seeding Suret wiring template: ${SURET_WIRING_SLUG}`);
-  await prisma.template.upsert({
-    where: { slug: SURET_WIRING_SLUG },
-    create: {
-      ...SURET_WIRING_TEMPLATE,
-      priceKzt: 0,
-    },
-    update: {
-      ...SURET_WIRING_TEMPLATE,
-      priceKzt: 0,
-      isActive: false,
-      isFeatured: false,
-    },
-  });
-
-  console.log('Catalog ready: 1 sales template; Suret wiring seeded inactive (hidden)');
+  console.log('Catalog ready: 1 sales template');
 
   console.log('Seeding admin user...');
   if (!process.env.ADMIN_PHONE) {

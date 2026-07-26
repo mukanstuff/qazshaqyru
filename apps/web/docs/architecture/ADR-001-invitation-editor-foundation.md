@@ -47,7 +47,6 @@ Agents **must not** generate “pretty flagship” templates as product quality.
 | QuickEdit form-as-truth create | Deprecated — create opens Live Editor |
 | `EditorLayout` / `DraftEditorLayout` | Legacy, unrouted; do not revive as second product path |
 | `HtmlTemplateRenderer` | Spike only; not prod create/guest path |
-| Suret | **Accepted as second engine** — see [ADR-002](./ADR-002-suret-render-engine.md). No sales catalog without designer `bg.webp` |
 | GrapesJS / Unlayer / Craft | Forbidden unless future ADR overturns this |
 
 ## Persistence

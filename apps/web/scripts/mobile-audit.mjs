@@ -29,7 +29,6 @@ const ROUTES = [
   '/invitations/quick?template=wedding-luxury',
   '/invitations/edit?template=wedding-luxury',
   '/i/demo?layout=wedding-luxury',
-  '/suret/demo',
   '/mock-payment',
   '/compare/done-for-you',
   '/wedding',

@@ -57,13 +57,7 @@ export function ComingSoonTemplateCard({ template }: Props) {
             {eta}
           </span>
           <span className="rounded-full border border-us-accent/20 bg-white/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-us-ink-muted">
-            {template.product === 'suret'
-              ? locale === 'kz'
-                ? 'Сүрет'
-                : 'Сүрет'
-              : locale === 'kz'
-                ? 'Сайт'
-                : 'Сайт'}
+            {locale === 'kz' ? 'Сайт' : 'Сайт'}
           </span>
         </div>
         <h3 className="font-display text-xl text-us-ink">{displayName}</h3>

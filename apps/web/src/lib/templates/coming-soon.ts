@@ -1,10 +1,10 @@
 /**
  * Placeholder templates — metadata only for designer pipeline.
  * NOT shown as product cards on the public catalog (honest live-only витрина).
- * Agents wire slugs into CATALOG_TEMPLATE_SLUGS / SURET_MANIFESTS when assets exist.
+ * Agents wire slugs into CATALOG_TEMPLATE_SLUGS when assets exist.
  */
 
-export type ComingSoonProduct = 'site' | 'suret';
+export type ComingSoonProduct = 'site';
 
 export type ComingSoonTemplate = {
   slug: string;
@@ -53,28 +53,6 @@ export const COMING_SOON_TEMPLATES: ComingSoonTemplate[] = [
     etaLabelKz: 'Дайындалуда',
   },
   {
-    slug: 'suret-uzatu-01',
-    category: 'kyz_uzatu',
-    nameRu: 'Сүрет · узату 01',
-    nameKz: 'Сүрет · ұзату 01',
-    planTier: 'standard',
-    product: 'suret',
-    tags: ['фото-приглашение', 'Stories'],
-    etaLabelRu: 'Ждёт фон дизайнера',
-    etaLabelKz: 'Дизайнер фонын күтеді',
-  },
-  {
-    slug: 'suret-wedding-01',
-    category: 'wedding',
-    nameRu: 'Сүрет · свадьба 01',
-    nameKz: 'Сүрет · үйлену 01',
-    planTier: 'standard',
-    product: 'suret',
-    tags: ['фото-приглашение', 'Stories'],
-    etaLabelRu: 'Ждёт фон дизайнера',
-    etaLabelKz: 'Дизайнер фонын күтеді',
-  },
-  {
     slug: 'sundet-festive',
     category: 'sundet_toy',
     nameRu: 'Сүндет · праздничный',
@@ -86,17 +64,6 @@ export const COMING_SOON_TEMPLATES: ComingSoonTemplate[] = [
     etaLabelKz: 'Дайындалуда',
   },
   {
-    slug: 'suret-sundet-01',
-    category: 'sundet_toy',
-    nameRu: 'Сүрет · сүндет 01',
-    nameKz: 'Сүрет · сүндет 01',
-    planTier: 'standard',
-    product: 'suret',
-    tags: ['фото-приглашение'],
-    etaLabelRu: 'Ждёт фон дизайнера',
-    etaLabelKz: 'Дизайнер фонын күтеді',
-  },
-  {
     slug: 'tusau-keser-soft',
     category: 'tusau_keser',
     nameRu: 'Тұсаукесер · нежный',
@@ -106,72 +73,6 @@ export const COMING_SOON_TEMPLATES: ComingSoonTemplate[] = [
     tags: ['детский'],
     etaLabelRu: 'В разработке',
     etaLabelKz: 'Дайындалуда',
-  },
-  {
-    slug: 'suret-tusau-01',
-    category: 'tusau_keser',
-    nameRu: 'Сүрет · тұсаукесер 01',
-    nameKz: 'Сүрет · тұсаукесер 01',
-    planTier: 'standard',
-    product: 'suret',
-    tags: ['фото-приглашение'],
-    etaLabelRu: 'Ждёт фон дизайнера',
-    etaLabelKz: 'Дизайнер фонын күтеді',
-  },
-  {
-    slug: 'suret-uzatu-02',
-    category: 'kyz_uzatu',
-    nameRu: 'Сүрет · узату 02',
-    nameKz: 'Сүрет · ұзату 02',
-    planTier: 'standard',
-    product: 'suret',
-    tags: ['фото-приглашение', 'Stories'],
-    etaLabelRu: 'Ждёт фон дизайнера',
-    etaLabelKz: 'Дизайнер фонын күтеді',
-  },
-  {
-    slug: 'suret-wedding-02',
-    category: 'wedding',
-    nameRu: 'Сүрет · свадьба 02',
-    nameKz: 'Сүрет · үйлену 02',
-    planTier: 'standard',
-    product: 'suret',
-    tags: ['фото-приглашение', 'Stories'],
-    etaLabelRu: 'Ждёт фон дизайнера',
-    etaLabelKz: 'Дизайнер фонын күтеді',
-  },
-  {
-    slug: 'suret-sundet-02',
-    category: 'sundet_toy',
-    nameRu: 'Сүрет · сүндет 02',
-    nameKz: 'Сүрет · сүндет 02',
-    planTier: 'standard',
-    product: 'suret',
-    tags: ['фото-приглашение'],
-    etaLabelRu: 'Ждёт фон дизайнера',
-    etaLabelKz: 'Дизайнер фонын күтеді',
-  },
-  {
-    slug: 'suret-toy-01',
-    category: 'toy',
-    nameRu: 'Сүрет · той 01',
-    nameKz: 'Сүрет · той 01',
-    planTier: 'standard',
-    product: 'suret',
-    tags: ['фото-приглашение', 'Stories'],
-    etaLabelRu: 'Ждёт фон дизайнера',
-    etaLabelKz: 'Дизайнер фонын күтеді',
-  },
-  {
-    slug: 'suret-anniversary-01',
-    category: 'anniversary',
-    nameRu: 'Сүрет · мерейтой 01',
-    nameKz: 'Сүрет · мерейтой 01',
-    planTier: 'standard',
-    product: 'suret',
-    tags: ['фото-приглашение'],
-    etaLabelRu: 'Ждёт фон дизайнера',
-    etaLabelKz: 'Дизайнер фонын күтеді',
   },
   {
     slug: 'uzatu-site-02',

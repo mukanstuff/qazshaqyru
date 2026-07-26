@@ -85,7 +85,7 @@
 - **Effort:** M.
 
 ### P0-7 (рост каталога, не блокер одного тоя)
-- Active templates: `wedding-luxury` + `suret-uzatu-pilot-01`. В БД ~40 inactive.
+- Active templates: `wedding-luxury`. В БД ~40 inactive.
 - **Effort:** L (контент). Не считать провалом цикла.
 
 ---
@@ -217,7 +217,7 @@ Browser automation: контент guest — mobile column. Отдельная d
 ## 9. Delete / replace / simplify
 
 1. **Не переписывать** editor/manifest.
-2. **Скрыть** Suret wiring из публичного каталога, пока UX не готов.
+2. **Чистка** устаревших и неиспользуемых файлов.
 3. **Упростить** onboarding до toi-like: один путь до ссылки.
 4. **Ops** (рассадка/CSV/restaurant) — в paid, не в free first-run.
 5. **Не чинить до 5–10 оплат:** white-label, AI fill, Freedom Pay, multi-city SEO polish.

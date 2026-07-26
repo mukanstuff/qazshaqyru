@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     const VALID_CATEGORIES = ['wedding', 'toy', 'betashar', 'kyz_uzatu', 'sundet_toy', 'tusau_keser', 'birthday', 'anniversary', 'corporate', 'other'] as const;
     type TemplateCategoryT = (typeof VALID_CATEGORIES)[number];
 
-    // Only sales catalog slugs — wiring templates (e.g. Suret pilot) stay hidden until ready.
+    // Only active sales catalog slugs.
     const where: {
       isActive: boolean;
       slug: { in: string[] };

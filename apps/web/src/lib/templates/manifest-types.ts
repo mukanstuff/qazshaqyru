@@ -21,7 +21,7 @@ export type TemplateFieldType = 'text' | 'date' | 'time' | 'textarea' | 'image' 
 export type EventTypeProfile = 'wedding' | 'uzatu' | 'generic';
 
 /** Prod render engines. HTML iframe remains deferred. */
-export type TemplateRenderEngine = 'react-sections' | 'suret';
+export type TemplateRenderEngine = 'react-sections';
 
 export interface EventFieldProfile {
   eventType: EventTypeProfile;
@@ -59,7 +59,7 @@ export interface TemplateSection {
 
 export interface TemplateManifest {
   slug: string;
-  /** `'react-sections'` or `'suret'` (ADR-002). */
+  /** `'react-sections'` */
   renderEngine: TemplateRenderEngine;
   sections: TemplateSection[];
   fields: TemplateFieldDef[];
@@ -79,29 +79,6 @@ export interface TemplateManifest {
       ceremonial?: string;
     };
   };
-}
-
-/** Suret image template — background + positioned text slots (ADR-002). */
-export interface SuretTextSlot {
-  id: string;
-  top: number;
-  font: string;
-  color: string;
-  fontSize?: number;
-  defaultText: { kk: string; ru: string };
-}
-
-export interface SuretTemplateManifest {
-  id: string;
-  slug: string;
-  tier: 'SURET';
-  renderEngine: 'suret';
-  category: string;
-  background: string;
-  /** Export canvas size (Stories 9:16 default). */
-  width: number;
-  height: number;
-  texts: SuretTextSlot[];
 }
 
 /** Deferred — not a create or guest path. */

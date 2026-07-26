@@ -5,4 +5,3 @@ export { TemplatesPageHero } from './TemplatesPageHero';
 export { TemplateWaitlistCard } from './TemplateWaitlistCard';
 export { ComingSoonTemplateCard } from './ComingSoonTemplateCard';
 export { CatalogDesignerNote } from './CatalogDesignerNote';
-export { SuretCatalogCard } from './SuretCatalogCard';

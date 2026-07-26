@@ -8,7 +8,6 @@ import { LogoMark } from '@/components/shared/ornaments';
 import { PublicShell } from '@/components/shared/PublicShell';
 import {
   CatalogDesignerNote,
-  SuretCatalogCard,
   TemplateCatalogCard,
   TemplateFilterChip,
   TemplatePreviewModal,
@@ -21,8 +20,7 @@ import { useI18n } from '@/i18n';
 import { ManagedOrderForm } from '@/components/orders/ManagedOrderForm';
 import { PLAN_CATALOG } from '@/lib/entitlements/plan-catalog';
 import { templateMatchesSearch } from '@/lib/shared/ux-guided-flow';
-import { COMING_SOON_TEMPLATES, comingSoonByProduct, type ComingSoonProduct } from '@/lib/templates/coming-soon';
-import { listSuretManifests } from '@/lib/templates/suret-manifests';
+import { COMING_SOON_TEMPLATES, comingSoonByProduct } from '@/lib/templates/coming-soon';
 import type { Template } from '@prisma/client';
 
 const CATEGORY_ORDER = [
@@ -38,13 +36,6 @@ const CATEGORY_ORDER = [
   'other',
 ] as const;
 
-type ProductFilter = 'all' | ComingSoonProduct;
-
-function parseProductFilter(raw: string | null): ProductFilter {
-  if (raw === 'site' || raw === 'suret') return raw;
-  return 'all';
-}
-
 interface Props {
   templates: Template[];
   isLoggedIn?: boolean;
@@ -59,9 +50,6 @@ export function TemplatesClient({
   const { t, locale } = useI18n();
   const searchParams = useSearchParams();
   const [activeCategory, setActiveCategory] = useState<string>('all');
-  const [productFilter, setProductFilter] = useState<ProductFilter>(() =>
-    parseProductFilter(searchParams.get('product') ?? searchParams.get('category')),
-  );
   const [previewSlug, setPreviewSlug] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [managedOpen, setManagedOpen] = useState(showManaged);
@@ -73,30 +61,12 @@ export function TemplatesClient({
     }
   }, [searchParams]);
 
-  useEffect(() => {
-    const category = searchParams.get('category');
-    const product = searchParams.get('product');
-    if (product === 'site' || product === 'suret') {
-      setProductFilter(product);
-    } else if (category === 'site' || category === 'suret') {
-      setProductFilter(category);
-    }
-  }, [searchParams]);
-
   const previewTemplate = useMemo(
     () => templates.find((tpl) => tpl.slug === previewSlug) ?? null,
     [templates, previewSlug],
   );
 
-  const liveTemplates = useMemo(() => {
-    if (productFilter === 'suret') return [] as Template[];
-    return templates;
-  }, [productFilter, templates]);
-
-  const suretLive = useMemo(() => {
-    // P0-3: Suret not ready for public catalog (no DB row / wiring path).
-    return [] as ReturnType<typeof listSuretManifests>;
-  }, []);
+  const liveTemplates = templates;
 
   const grouped = useMemo(
     () =>
@@ -108,7 +78,7 @@ export function TemplatesClient({
     [liveTemplates],
   );
 
-  const totalTemplates = liveTemplates.length + (productFilter === 'site' ? 0 : suretLive.length);
+  const totalTemplates = liveTemplates.length;
 
   const visibleGroups = useMemo(() => {
     if (activeCategory === 'all') return grouped;
@@ -136,19 +106,17 @@ export function TemplatesClient({
   );
 
   const hasVisibleTemplates = Object.values(filteredGroups).some((items) => items.length > 0);
-  const hasSuret = suretLive.length > 0 && !searchQuery.trim();
 
   const ritualHints = useMemo(() => {
-    const byProduct = comingSoonByProduct(productFilter === 'all' ? 'all' : productFilter);
+    const byProduct = comingSoonByProduct('site');
     return byProduct
       .filter((item) => activeCategory === 'all' || item.category === activeCategory)
       .slice(0, 8)
       .map((item) => (locale === 'kz' ? item.nameKz : item.nameRu));
-  }, [activeCategory, locale, productFilter]);
+  }, [activeCategory, locale]);
 
   const liveCountShown =
-    Object.values(filteredGroups).reduce((n, items) => n + items.length, 0) +
-    (hasSuret ? suretLive.length : 0);
+    Object.values(filteredGroups).reduce((n, items) => n + items.length, 0);
 
   return (
     <PublicShell isLoggedIn={isLoggedIn}>
@@ -162,26 +130,6 @@ export function TemplatesClient({
         ]}
       />
 
-      <section className="border-b border-us-border/60 bg-us-surface/40 py-4">
-        <div className="us-container flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden">
-          <TemplateFilterChip
-            active={productFilter === 'all'}
-            onClick={() => setProductFilter('all')}
-            label={locale === 'kz' ? 'Барлығы' : 'Все форматы'}
-          />
-          <TemplateFilterChip
-            active={productFilter === 'site'}
-            onClick={() => setProductFilter('site')}
-            label={locale === 'kz' ? 'Сайт-шақыру' : 'Сайт-приглашение'}
-          />
-          <TemplateFilterChip
-            active={productFilter === 'suret'}
-            onClick={() => setProductFilter('suret')}
-            label={locale === 'kz' ? 'Сүрет' : 'Сүрет (фото)'}
-          />
-        </div>
-      </section>
-
       <section className="border-b border-us-border/60 py-4">
         <div className="us-container flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden">
           <TemplateFilterChip
@@ -190,9 +138,7 @@ export function TemplatesClient({
             label={t('templatesPage.allTemplates')}
           />
           {CATEGORY_ORDER.map((cat) => {
-            const liveCount = grouped[cat]?.length ?? 0;
-            const suretCount = listSuretManifests().filter((m) => m.category === cat).length;
-            const count = liveCount + (productFilter === 'site' ? 0 : suretCount);
+            const count = grouped[cat]?.length ?? 0;
             return (
               <TemplateFilterChip
                 key={cat}
@@ -257,24 +203,11 @@ export function TemplatesClient({
             </section>
           ))}
 
-          {hasSuret ? (
-            <section>
-              <h2 className="mb-6 font-display text-2xl font-medium text-us-ink">
-                {locale === 'kz' ? 'Сүрет · Stories' : 'Сүрет · Stories'}
-              </h2>
-              <div className="grid gap-6 grid-cols-[repeat(auto-fill,minmax(280px,1fr))]">
-                {suretLive.map((manifest) => (
-                  <SuretCatalogCard key={manifest.slug} manifest={manifest} />
-                ))}
-              </div>
-            </section>
-          ) : null}
-
           {!searchQuery.trim() && COMING_SOON_TEMPLATES.length > 0 ? (
             <CatalogDesignerNote ritualHints={ritualHints} />
           ) : null}
 
-          {!hasVisibleTemplates && !hasSuret && templates.length > 0 && (
+          {!hasVisibleTemplates && templates.length > 0 && (
             <div className="flex flex-col items-center gap-4 py-12 text-center">
               <LogoMark size={60} />
               <p className="font-body text-us-ink-muted">{t('templatesPage.noResults')}</p>
@@ -284,7 +217,7 @@ export function TemplatesClient({
             </div>
           )}
 
-          {templates.length === 0 && !hasSuret && (
+          {templates.length === 0 && (
             <div className="flex flex-col items-center gap-4 py-12 text-center">
               <LogoMark size={60} />
               <p className="font-body text-us-ink-muted">{t('templatesPage.empty')}</p>

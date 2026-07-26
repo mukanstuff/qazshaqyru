@@ -12,7 +12,7 @@
 | Область | Shaqyru24 | toi.com.kz | QazShaqyru |
 |---------|-----------|------------|-----------|
 | Визуал шаблонов | **Сильно лучше нас** | **Сильно лучше нас** | procedural placeholders, 1 шаблон |
-| Каталог | **100+** | **79+ HTML + 16 SURET** | **1** |
+| Каталог | **100+** | **79+ HTML** | **1** |
 | KZ типографика | KZ_RomulC, KZOptima, Monumenta | Asylbek Shelley, Ceremonious, Unbounded | generic CSS vars |
 | Анимации | 8 Lottie + video | video hero, CSS reveal | CSS only |
 | UX создания | form → preview | form → iframe preview | form → preview ✓ (Phase 2) |
@@ -150,36 +150,6 @@ types: {
 
 ## 3. toi.com.kz — как устроено приглашение
 
-### 3.1 Две модели шаблонов
-
-#### A) HTML Scroll Templates (118 штук)
-
-Каждый шаблон = **отдельный HTML+CSS файл**, bundled as JS chunk:
-
-```
-import("./template23-Bb-jGW7j.js")  →  export default `<!doctype html>...`
-```
-
-Категории: `wedding/`, `uzatu/`, `besik/`, `sundet/`, `merey/`, `tusau/`, `as/` …
-
-#### B) SURET Image Templates (16 штук)
-
-Один `background.webp` + **text slots** с `% top`, font, color, size:
-
-```javascript
-{
-  id: "suret/uzatu-01",
-  tier: "SURET",
-  background: "/image-templates/uzatu-01/bg.webp",
-  texts: [
-    { id: "greeting", defaultText: { kk: "...", ru: "..." }, top: 30, font: "Montserrat", ... },
-    { id: "names", defaultText: { kk: "Аружан & Нұрлан" }, top: 42, ... },
-  ]
-}
-```
-
-Ближе к «дизайн на картинке», но текст всё равно **HTML overlay**, не raster.
-
 ### 3.2 uzatu/template23 — полная структура (скачан из prod)
 
 **Файл:** `temp_toi_template23.js`  
@@ -237,8 +207,6 @@ import("./template23-Bb-jGW7j.js")  →  export default `<!doctype html>...`
 ### 3.6 Что у них слабее / не факт что лучше
 
 1. Backend depth — не видно guest tokens, wish reactions, payment integrity уровня нашего Kaspi flow.
-2. SURET tier — ограниченная гибкость vs full HTML, но быстрый production.
-3. RSVP в template23 — embedded HTML form, не персональные guest links (как у нас).
 
 ---
 
@@ -315,12 +283,11 @@ QuickEditPage (form)
 
 ### 5.1 Три пути масштабирования шаблонов
 
-| Путь | Кто использует | Плюсы | Минусы | Вердикт для нас |
-|------|----------------|-------|--------|-----------------|
+| Path | Who uses | Pros | Cons | Verdict for us |
+|------|----------|------|------|----------------|
 | **Canvas builder (Tyrasoft)** | Shaqyru24 | 100+ templates, max flexibility | 12–18 мес., нужен Tyrasoft или свой builder | ❌ Не сейчас |
 | **HTML template + data-edit-id** | toi.com.kz | 1 template = 1 html, быстрый production | iframe preview, sanitization, less type-safe | ✅ **Рассмотреть Phase 4+** |
 | **Section manifest + React** | QazShaqyru (наш) | Type-safe, reusable sections, testable | Каждый visual style = CSS/assets work | ✅ **Оставить как core**, но сменить asset pipeline |
-| **SURET (image + text slots)** | toi.com.kz | Очень быстрый новый «дизайнерский» шаблон | Мало гибкости | ✅ **Добавить как tier** для быстрого каталога |
 
 ### 5.2 Рекомендуемая эволюция (не revolution)
 
@@ -328,7 +295,6 @@ QuickEditPage (form)
 Сейчас:     React SectionRenderer + procedural assets     ← визуально слабо
 Phase 3:    + KZ fonts + designer assets + Lottie(1-2)   ← паритет 1 шаблона
 Phase 4:    + HTML template renderer (toi-style)          ← масштаб каталога
-Phase 4+:   + SURET tier                                  ← быстрые image templates
 Никогда v1: Full Tyrasoft canvas для пользователя
 ```
 
@@ -528,10 +494,6 @@ Side-by-side screenshot = acceptance criteria.
    - Spike: render temp_toi_template23.js HTML in sandbox iframe OR server-side with data-edit-id binding
    - Goal: новый шаблон = html file + assets folder, NOT new React section CSS
    - Keep SectionRenderer for flagship; add HtmlTemplateRenderer for scale
-
-8. SURET TIER spike
-   - background.webp + text slots { id, top%, font, color, defaultText kk/ru }
-   - 1 pilot template
 
 ### Priority 4 — manifest/form extensions
 

@@ -24,8 +24,6 @@ import {
 import { SectionRenderer } from '@/components/invitation-layouts/SectionRenderer';
 import { PublicPublishWatermark } from '@/components/invitation-layouts/PublicPublishWatermark';
 import { getTemplateManifest } from '@/lib/templates/manifests';
-import { resolveSuretManifest, readSuretSlots } from '@/lib/templates/suret-resolve';
-import { SuretPublicView } from '@/components/suret/SuretPublicView';
 import { manifestHasEnvelopeIntro } from '@/lib/templates/manifest-envelope';
 import { getCustomTextPersistenceActions } from '@/lib/invitations/custom-text-persistence';
 import { getProgramPreset } from '@/lib/templates/program-presets';
@@ -521,21 +519,6 @@ export function InvitationLayoutRouter({
           musicUrl: effectiveMusicUrl,
         }
       : { ...invitation, musicUrl: effectiveMusicUrl };
-
-  const suretManifest = resolveSuretManifest(displayInvitation.templateKey);
-  if (suretManifest && !isEditing) {
-    const locale =
-      displayInvitation.language === 'kz' ? 'kz' : 'ru';
-    return (
-      <SuretPublicView
-        manifest={suretManifest}
-        slots={readSuretSlots(displayInvitation.templateData)}
-        locale={locale}
-        showWatermark={Boolean(displayInvitation.showWatermark)}
-        slug={displayInvitation.slug}
-      />
-    );
-  }
 
   const showRsvpSticky =
     !isEditing &&

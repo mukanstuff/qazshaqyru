@@ -6,7 +6,6 @@ import { ArrowRight } from 'lucide-react';
 import { PublicShell } from '@/components/shared/PublicShell';
 import {
   CatalogDesignerNote,
-  SuretCatalogCard,
   TemplateCatalogCard,
   TemplatePreviewModal,
   TemplatesPageHero,
@@ -20,7 +19,6 @@ import {
   type CategoryRouteSlug,
 } from '@/lib/templates/template-categories';
 import { comingSoonForCategory } from '@/lib/templates/coming-soon';
-import { listSuretManifests } from '@/lib/templates/suret-manifests';
 import { templateMatchesSearch } from '@/lib/shared/ux-guided-flow';
 import type { Template } from '@prisma/client';
 
@@ -56,8 +54,6 @@ export function CategoryTemplatesClient({
     [categoryLabel, locale, searchQuery, templates],
   );
 
-  const suretLive = useMemo(() => [] as ReturnType<typeof listSuretManifests>, []);
-
   const ritualHints = useMemo(
     () =>
       comingSoonForCategory(dbCategory)
@@ -79,7 +75,7 @@ export function CategoryTemplatesClient({
         subtitle={t(`categoryPage.${routeSlug}.subtitle` as 'categoryPage.wedding.subtitle')}
         stats={[
           {
-            value: filteredTemplates.length + suretLive.length,
+            value: filteredTemplates.length,
             label: t('landing.templatesTitle'),
           },
           { value: 1, label: categoryLabel },
@@ -124,17 +120,9 @@ export function CategoryTemplatesClient({
             </div>
           ) : null}
 
-          {suretLive.length > 0 ? (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {suretLive.map((manifest) => (
-                <SuretCatalogCard key={manifest.slug} manifest={manifest} />
-              ))}
-            </div>
-          ) : null}
-
           {!searchQuery.trim() ? <CatalogDesignerNote ritualHints={ritualHints} /> : null}
 
-          {filteredTemplates.length === 0 && suretLive.length === 0 ? (
+          {filteredTemplates.length === 0 ? (
             <div className="mx-auto max-w-lg space-y-4 py-12 text-center">
               <p className="font-display text-2xl text-us-ink">
                 {templates.length === 0
