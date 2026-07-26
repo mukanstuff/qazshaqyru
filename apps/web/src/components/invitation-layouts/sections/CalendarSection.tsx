@@ -8,6 +8,25 @@ import { FramedInner } from './DressCodeSection';
 const WEEKDAYS_KZ = ['Дс', 'Сс', 'Ср', 'Бс', 'Жм', 'Сн', 'Жс'];
 const WEEKDAYS_RU = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
+const MONTHS_KZ_FULL = [
+  'қаңтар', 'ақпан', 'наурыз', 'сәуір', 'мамыр', 'маусым',
+  'шілде', 'тамыз', 'қыркүйек', 'қазан', 'қараша', 'желтоқсан'
+];
+
+const MONTHS_RU_FULL = [
+  'январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
+  'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'
+];
+
+function formatMonthYear(date: Date, locale: 'kz' | 'ru'): string {
+  const month = date.getMonth();
+  const year = date.getFullYear();
+  if (locale === 'kz') {
+    return `${year} ж. ${MONTHS_KZ_FULL[month]}`;
+  }
+  return `${MONTHS_RU_FULL[month]} ${year}`;
+}
+
 function buildMonthGrid(year: number, month: number) {
   const firstDay = new Date(year, month, 1);
   const startOffset = (firstDay.getDay() + 6) % 7;
@@ -35,10 +54,7 @@ export function CalendarSection({ ctx, bindings, sectionProps }: SectionProps) {
   const year = eventDate.getFullYear();
   const month = eventDate.getMonth();
   const eventDay = eventDate.getDate();
-  const monthLabel = new Intl.DateTimeFormat(isKz ? 'kk-KZ' : 'ru-RU', {
-    month: 'long',
-    year: 'numeric',
-  }).format(eventDate);
+  const monthLabel = formatMonthYear(eventDate, isKz ? 'kz' : 'ru');
 
   const cells = useMemo(() => buildMonthGrid(year, month), [year, month]);
   const frameKey = typeof sectionProps?.frame === 'string' ? sectionProps.frame : undefined;
