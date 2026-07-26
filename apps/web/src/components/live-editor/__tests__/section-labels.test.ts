@@ -7,8 +7,8 @@ describe('getSectionLabel', () => {
   it('returns human label for known section types', () => {
     // In actual app, it will look up in i18n, but here we just check if it doesn't crash
     // and returns the key or fallback.
-    expect(getSectionLabel('hero-names', 'hero-names', mockT)).toBe('public.sections.heroNames');
-    expect(getSectionLabel('cover-photo', 'cover-photo', mockT)).toBe('public.sections.cover-photo');
+    expect(getSectionLabel('hero-names', 'hero-names', mockT)).toBe('liveEditor.sections.heroNames');
+    expect(getSectionLabel('cover-photo', 'cover-photo', mockT)).toBe('liveEditor.sections.photo');
   });
 
   it('falls back to id for unknown types', () => {
