@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp, Eye, EyeOff } from 'lucide-react';
 import type { InvitationDocumentSection } from '@/lib/invitations/document';
 import { getSectionLabel } from './section-labels';
 import { cn } from '@/lib/shared/utils';
+import { useI18n } from '@/i18n';
 
 interface Props {
   sections: InvitationDocumentSection[];
@@ -20,10 +21,12 @@ export function LiveEditorSectionsSheetBody({
   onMove,
   onToggleVisible,
 }: Props) {
+  const { t } = useI18n();
+
   return (
     <ul className="m-0 list-none p-0">
       {sections.map((section) => {
-        const label = getSectionLabel(section.type, section.id);
+        const label = getSectionLabel(section.type, section.id, t);
         const active = section.id === activeSectionId;
         return (
           <li
