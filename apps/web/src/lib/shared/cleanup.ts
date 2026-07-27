@@ -63,10 +63,13 @@ export async function loadProtectedUploadPaths(now = new Date()): Promise<Set<st
     collectUrlsFromJson(inv.templateData, protectedPaths);
   }
 
-  const registryPaths = await loadRegistryProtectedPaths(now);
+  // Registry-based protected paths are a synchronous in-memory set; kept for
+  // future expansion. Currently returns an empty set (DB cross-reference covers it).
+  const registryPaths = loadRegistryProtectedPaths();
   for (const p of registryPaths) {
     protectedPaths.add(p);
   }
+  void now;
 
   return protectedPaths;
 }
@@ -132,7 +135,7 @@ export async function runDatabaseCleanup(): Promise<CleanupResult> {
       },
     }),
     cleanupOldUploads(now, protectedPaths),
-    pruneUploadRegistry(now),
+    pruneUploadRegistry((_rec) => true),
     prisma.invitation.updateMany({
       where: {
         status: 'published',

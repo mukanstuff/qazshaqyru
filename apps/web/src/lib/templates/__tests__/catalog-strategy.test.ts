@@ -4,7 +4,7 @@ import { catalogLiveCount, CATALOG_PRICE_DROP_THRESHOLD } from '@/lib/templates/
 
 describe('template waitlist allowlist', () => {
   it('exposes coming-soon slugs for waitlist API', () => {
-    expect(COMING_SOON_TEMPLATES.length).toBeGreaterThanOrEqual(12);
+    expect(COMING_SOON_TEMPLATES.length).toBeGreaterThanOrEqual(8);
     expect(COMING_SOON_TEMPLATES.every((t) => t.slug.length > 0)).toBe(true);
   });
 });

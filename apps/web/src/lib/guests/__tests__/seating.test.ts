@@ -1,5 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+// Mock pricing to always allow seating (avoids pulling in template/order resolvers).
+vi.mock('@/lib/invitations/invitation-pricing', () => ({
+  getInvitationPricing: vi.fn(async () => ({
+    entitlements: { seating: true },
+    planSku: 'premium',
+  })),
+}));
+
 const { invitation, guest, seatingTable, seatingAssignment } = vi.hoisted(() => ({
   invitation: { findFirst: vi.fn() },
   guest: { findFirst: vi.fn() },

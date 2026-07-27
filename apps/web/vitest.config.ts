@@ -5,6 +5,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],
+    setupFiles: [path.resolve(__dirname, './src/test/setup-prisma-mock.ts')],
     testTimeout: 15_000,
     coverage: {
       provider: 'v8',

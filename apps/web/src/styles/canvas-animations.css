@@ -1,0 +1,114 @@
+/**
+ * Canvas element entrance animations. Applied by the CanvasRenderer on the
+ * guest page via IntersectionObserver (adds .is-visible). In the editor these
+ * classes are NOT auto-played; instead the "preview animations" button toggles
+ * them all from the start.
+ *
+ * Usage: <div class="canvas-anim canvas-anim-fade-up" style="--anim-duration:.6s;--anim-delay:0s">…</div>
+ */
+
+.canvas-anim {
+  opacity: 0;
+  animation-fill-mode: forwards;
+  animation-play-state: paused;
+  will-change: transform, opacity;
+}
+
+.canvas-anim.is-visible,
+.canvas-anim.is-preview {
+  animation-play-state: running;
+}
+
+.canvas-anim-fade {
+  animation-name: canvas-fade;
+  animation-duration: var(--anim-duration, 0.6s);
+  animation-delay: var(--anim-delay, 0s);
+  animation-timing-function: ease-out;
+}
+
+.canvas-anim-fade-up {
+  animation-name: canvas-fade-up;
+  animation-duration: var(--anim-duration, 0.6s);
+  animation-delay: var(--anim-delay, 0s);
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.canvas-anim-fade-down {
+  animation-name: canvas-fade-down;
+  animation-duration: var(--anim-duration, 0.6s);
+  animation-delay: var(--anim-delay, 0s);
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.canvas-anim-zoom-in {
+  animation-name: canvas-zoom-in;
+  animation-duration: var(--anim-duration, 0.7s);
+  animation-delay: var(--anim-delay, 0s);
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.canvas-anim-slide-left {
+  animation-name: canvas-slide-left;
+  animation-duration: var(--anim-duration, 0.6s);
+  animation-delay: var(--anim-delay, 0s);
+  animation-timing-function: ease-out;
+}
+
+.canvas-anim-slide-right {
+  animation-name: canvas-slide-right;
+  animation-duration: var(--anim-duration, 0.6s);
+  animation-delay: var(--anim-delay, 0s);
+  animation-timing-function: ease-out;
+}
+
+.canvas-anim-flip {
+  animation-name: canvas-flip;
+  animation-duration: var(--anim-duration, 0.8s);
+  animation-delay: var(--anim-delay, 0s);
+  animation-timing-function: ease-out;
+  transform-origin: center;
+}
+
+@keyframes canvas-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes canvas-fade-up {
+  from { opacity: 0; transform: translate3d(0, 24px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes canvas-fade-down {
+  from { opacity: 0; transform: translate3d(0, -24px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes canvas-zoom-in {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes canvas-slide-left {
+  from { opacity: 0; transform: translate3d(40px, 0, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes canvas-slide-right {
+  from { opacity: 0; transform: translate3d(-40px, 0, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes canvas-flip {
+  from { opacity: 0; transform: perspective(600px) rotateY(80deg); }
+  to { opacity: 1; transform: perspective(600px) rotateY(0); }
+}
+
+/* Reduced motion: respect user preference */
+@media (prefers-reduced-motion: reduce) {
+  .canvas-anim {
+    opacity: 1 !important;
+    animation: none !important;
+    transform: none !important;
+  }
+}

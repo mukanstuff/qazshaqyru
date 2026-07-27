@@ -36,10 +36,17 @@ describe('s3 path validation', () => {
   it('parses public object path components', () => {
     expect(parsePublicObjectPath('/music/song.mp3')).toEqual({
       subdir: 'music',
+      key: 'song.mp3',
       filename: 'song.mp3',
     });
     expect(parsePublicObjectPath('/uploads/invitations/x.png')).toEqual({
       subdir: 'invitations',
+      key: 'x.png',
+      filename: 'x.png',
+    });
+    expect(parsePublicObjectPath('/uploads/invitations/inv1/x.png')).toEqual({
+      subdir: 'invitations',
+      key: 'inv1/x.png',
       filename: 'x.png',
     });
     expect(parsePublicObjectPath('/bad')).toBeNull();

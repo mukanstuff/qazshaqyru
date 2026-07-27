@@ -9,6 +9,9 @@ import { useI18n } from '@/i18n';
 import { DEFAULT_QUICK_TEMPLATE, quickWizardHref } from '@/lib/shared/quick-wizard-url';
 import { hasSeenEnvelope } from '@/components/invitation-layouts/guest-mobile';
 import { GuestInvitationPage } from './GuestInvitationPage';
+import { CanvasGuestPage } from '@/components/canvas/CanvasGuestPage';
+
+type RenderMode = 'loading' | 'canvas' | 'legacy' | 'error';
 
 export default function PublicInvitationClient({
   slug,
@@ -28,6 +31,10 @@ export default function PublicInvitationClient({
   const isDemo = slug === 'demo';
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [envelopeOpened, setEnvelopeOpened] = useState(false);
+  const [mode, setMode] = useState<RenderMode>('loading');
+  const shareUrl =
+    typeof window !== 'undefined' ? `${window.location.origin}/i/${slug}` : `/i/${slug}`;
+
   const showDemoBanner =
     isDemo && !embedPreview && !bannerDismissed && envelopeOpened;
   const quickHref = quickWizardHref(demoLayout || DEFAULT_QUICK_TEMPLATE);
@@ -48,6 +55,33 @@ export default function PublicInvitationClient({
     window.addEventListener('qazshaqyru:envelope-open', onOpen);
     return () => window.removeEventListener('qazshaqyru:envelope-open', onOpen);
   }, [isDemo, slug]);
+
+  useEffect(() => {
+    if (isDemo) {
+      // Demo always uses legacy renderer for now.
+      setMode('legacy');
+      return;
+    }
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/invitations/public/${encodeURIComponent(slug)}/canvas`, {
+          credentials: 'same-origin',
+        });
+        if (!res.ok) {
+          if (alive) setMode('legacy');
+          return;
+        }
+        const data = await res.json();
+        if (alive) setMode(data.canvas ? 'canvas' : 'legacy');
+      } catch {
+        if (alive) setMode('legacy');
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [slug, isDemo]);
 
   useEffect(() => {
     if (isDemo) return;
@@ -108,13 +142,21 @@ export default function PublicInvitationClient({
         </div>
       )}
 
-      <GuestInvitationPage
-        slug={slug}
-        guestToken={guestToken}
-        familyToken={familyToken}
-        demoLayout={demoLayout}
-        suppressGuestChrome={embedPreview}
-      />
+      {mode === 'loading' && (
+        <div className="min-h-screen flex items-center justify-center text-us-ink-muted text-sm" aria-busy>
+          …
+        </div>
+      )}
+      {mode === 'legacy' && (
+        <GuestInvitationPage
+          slug={slug}
+          guestToken={guestToken}
+          familyToken={familyToken}
+          demoLayout={demoLayout}
+          suppressGuestChrome={embedPreview}
+        />
+      )}
+      {mode === 'canvas' && <CanvasGuestPage slug={slug} shareUrl={shareUrl} />}
     </div>
   );
 }

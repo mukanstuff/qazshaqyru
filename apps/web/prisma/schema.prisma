@@ -180,14 +180,19 @@ model Template {
   previewImageUrl String
   demoUrl         String?
   priceKzt        Int             @default(0)
-  config          Json            @default("{}")
-  isActive        Boolean         @default(true)
-  isFeatured      Boolean         @default(false)
-  sortOrder       Int             @default(0)
-  invitations     Invitation[]
-  orders          Order[]
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  config           Json            @default("{}")
+  /// Canvas document JSON (for new WYSIWYG editor-built templates). When set, template is canvas-backed.
+  canvas           Json?
+  mobileCanvas     Json?
+  isCanvasTemplate Boolean         @default(false)
+  editableConfig   Json?
+  isActive         Boolean         @default(true)
+  isFeatured       Boolean         @default(false)
+  sortOrder        Int             @default(0)
+  invitations      Invitation[]
+  orders           Order[]
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
 
   @@index([slug])
   @@index([category])
@@ -212,6 +217,10 @@ model Invitation {
 
   templateKey  String           @default("classic")
   templateData Json             @default("{}")
+  /// Canvas document JSON for the new WYSIWYG editor (desktop layout).
+  canvas       Json?
+  /// Mobile override canvas; when null, renderer scales from desktop.
+  mobileCanvas Json?
   musicUrl     String?
 
   mapUrl       String?
@@ -455,6 +464,14 @@ model SeatingTable {
   name         String
   capacity     Int                 @default(10)
   sortOrder    Int                 @default(0)
+  /// Absolute positioning on the visual hall canvas (pixels; w/h in px; rotation degrees).
+  x            Float?
+  y            Float?
+  w            Float?
+  h            Float?
+  rotation     Float?              @default(0)
+  shape        String?
+  tableColor   String?
   assignments  SeatingAssignment[]
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt

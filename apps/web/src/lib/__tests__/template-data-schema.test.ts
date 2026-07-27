@@ -4,10 +4,10 @@ import { parseTemplateDataInput } from '@/lib/templates/template-data-schema';
 describe('template data schema', () => {
   it('accepts local upload URLs', () => {
     const data = parseTemplateDataInput({
-      couplePhoto1: '/uploads/abc/photo.jpg',
-      backgroundImage: '/uploads/xyz/bg.png',
+      couplePhoto1: '/uploads/invitations/abc/photo.jpg',
+      backgroundImage: '/uploads/invitations/xyz/bg.png',
     });
-    expect(data.couplePhoto1).toBe('/uploads/abc/photo.jpg');
+    expect(data.couplePhoto1).toBe('/uploads/invitations/abc/photo.jpg');
   });
 
   it('allows Unsplash stock images for template fields', () => {
