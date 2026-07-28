@@ -443,3 +443,15 @@ export class HistoryStack {
     return this.future.length > 0;
   }
 }
+
+export function deriveMobileDocument(doc: InvitationCanvasDocument): InvitationCanvasDocument {
+  if (doc.mobile) return doc.mobile;
+  return {
+    ...cloneDocument(doc),
+    width: 390,
+    elements: doc.elements.map((el) => ({
+      ...el,
+      ...(el.mobile || {}),
+    })) as CanvasElement[],
+  };
+}

@@ -99,7 +99,8 @@ export async function POST(request: NextRequest) {
       throw new ApiError('invalid_status', 'Недопустимый статус ответа', 400);
     }
 
-    const result = await prisma.$transaction(async (tx) => {
+    type PrismaTx = any;
+    const result = await prisma.$transaction(async (tx: PrismaTx) => {
       const existing = await tx.guestResponse.findUnique({
         where: { guestId: guest.id },
       });

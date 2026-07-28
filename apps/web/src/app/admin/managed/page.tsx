@@ -12,12 +12,25 @@ import { cn } from '@/lib/shared/utils';
 export const dynamic = 'force-dynamic';
 
 export default async function AdminManagedOrdersPage() {
-  const orders = await prisma.order.findMany({
+type ManagedOrderRow = {
+  id: string;
+  customerName?: string | null;
+  customerPhone: string;
+  template: { nameRu: string; slug: string };
+  comment?: string | null;
+  notes?: string | null;
+  managedStatus?: string | null;
+  adminNotes?: string | null;
+  status: string;
+  createdAt: Date;
+};
+
+  const orders = (await prisma.order.findMany({
     where: { orderType: 'managed' },
     include: { template: { select: { nameRu: true, slug: true } } },
     orderBy: { createdAt: 'desc' },
     take: 50,
-  });
+  })) as unknown as ManagedOrderRow[];
 
   return (
     <div className="space-y-6">
@@ -41,7 +54,7 @@ export default async function AdminManagedOrdersPage() {
           </tr>
         </thead>
         <tbody>
-          {orders.map((o) => (
+          {orders.map((o: ManagedOrderRow) => (
             <tr key={o.id} className={adminTableRowClass}>
               <td className={adminTableTdClass}>
                 <div className="font-medium text-us-ink">{o.customerName || '—'}</div>
@@ -55,7 +68,7 @@ export default async function AdminManagedOrdersPage() {
                 <ManagedOrderStatusForm
                   orderId={o.id}
                   initialStatus={o.managedStatus ?? 'pending'}
-                  initialNotes={o.adminNotes}
+                  initialNotes={o.adminNotes ?? null}
                 />
               </td>
               <td className={cn(adminTableTdClass, 'whitespace-nowrap text-us-ink-muted')}>

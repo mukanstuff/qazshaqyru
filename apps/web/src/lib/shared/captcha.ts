@@ -19,13 +19,13 @@ export interface CaptchaVerifyInput {
 const TURNSTILE_VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 const HCAPTCHA_VERIFY_URL = 'https://api.hcaptcha.com/siteverify';
 
-export function getCaptchaProvider(env: NodeJS.ProcessEnv = process.env): CaptchaProvider {
+export function getCaptchaProvider(env: Partial<NodeJS.ProcessEnv> = process.env): CaptchaProvider {
   const raw = env.CAPTCHA_PROVIDER?.trim().toLowerCase();
   if (raw === 'turnstile' || raw === 'hcaptcha') return raw;
   return 'stub';
 }
 
-export function isCaptchaConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
+export function isCaptchaConfigured(env: Partial<NodeJS.ProcessEnv> = process.env): boolean {
   const provider = getCaptchaProvider(env);
   if (provider === 'stub') return env.NODE_ENV !== 'production';
   if (provider === 'turnstile') return Boolean(env.TURNSTILE_SECRET_KEY?.trim());
@@ -39,7 +39,7 @@ export interface CaptchaConfigStatus {
 }
 
 /** Human-readable captcha readiness for startup logs and env audit. */
-export function describeCaptchaConfig(env: NodeJS.ProcessEnv = process.env): CaptchaConfigStatus {
+export function describeCaptchaConfig(env: Partial<NodeJS.ProcessEnv> = process.env): CaptchaConfigStatus {
   const provider = getCaptchaProvider(env);
 
   if (provider === 'stub') {
@@ -85,7 +85,7 @@ export function describeCaptchaConfig(env: NodeJS.ProcessEnv = process.env): Cap
  */
 export async function verifyCaptchaToken(
   input: CaptchaVerifyInput,
-  env: NodeJS.ProcessEnv = process.env
+  env: Partial<NodeJS.ProcessEnv> = process.env
 ): Promise<CaptchaVerifyResult> {
   const provider = getCaptchaProvider(env);
 

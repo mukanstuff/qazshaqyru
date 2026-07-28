@@ -8,6 +8,7 @@ import {
   moveElement,
   updateElement,
   normalizeZIndices,
+  deriveMobileDocument,
 } from '../mutations';
 import type { TextElement } from '../types';
 
@@ -89,5 +90,14 @@ describe('canvas mutations', () => {
     expect(stack.canRedo()).toBe(true);
     stack.redo();
     expect(stack.present.elements.length).toBe(2);
+  });
+
+  it('deriveMobileDocument returns mobile overrides or fallback width 390', () => {
+    let doc = createEmptyDocument();
+    doc = addElement(doc, 'text', { text: 'Hello', mobile: { x: 5, w: 90 } });
+    const mobileDoc = deriveMobileDocument(doc);
+    expect(mobileDoc.width).toBe(390);
+    expect(mobileDoc.elements[0].x).toBe(5);
+    expect(mobileDoc.elements[0].w).toBe(90);
   });
 });

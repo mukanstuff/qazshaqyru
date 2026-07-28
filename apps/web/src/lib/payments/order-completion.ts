@@ -76,8 +76,9 @@ export async function completeOrderPayment(
     return { ok: false, reason: 'amount_mismatch' };
   }
 
+  type PrismaTx = any;
   if (order.status === 'paid') {
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: PrismaTx) => {
       if (order.invitationId) {
         await publishInvitationInTx(tx, order.invitationId!);
       }
@@ -92,7 +93,7 @@ export async function completeOrderPayment(
 
   const invitationId = order.invitationId;
 
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: PrismaTx) => {
     const updated = await tx.order.updateMany({
       where: { id: orderId, status: 'pending' },
       data: { status: 'paid', paidAt: new Date() },
@@ -117,7 +118,7 @@ export async function completeOrderPayment(
   if (!result.ok) {
     const existing = await prisma.order.findUnique({ where: { id: orderId } });
     if (existing?.status === 'paid') {
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx: PrismaTx) => {
         if (existing.invitationId) {
           await publishInvitationInTx(tx, existing.invitationId!);
         }

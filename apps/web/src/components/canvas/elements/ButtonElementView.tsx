@@ -5,9 +5,11 @@ import { fontStack } from './TextElementView';
 export function ButtonElementView({
   el,
   locale = 'ru',
+  shareUrl,
 }: {
   el: ButtonElement;
   locale?: 'ru' | 'kz';
+  shareUrl?: string;
 }) {
   const style: CSSProperties = {
     width: '100%',
@@ -31,7 +33,7 @@ export function ButtonElementView({
     textDecoration: 'none',
   };
 
-  const href = computeHref(el, locale);
+  const href = computeHref(el, locale, shareUrl);
 
   if (href) {
     return (
@@ -43,7 +45,7 @@ export function ButtonElementView({
   return <button type="button" style={style}>{el.label}</button>;
 }
 
-function computeHref(el: ButtonElement, locale: 'ru' | 'kz'): string | null {
+function computeHref(el: ButtonElement, locale: 'ru' | 'kz', shareUrl?: string): string | null {
   switch (el.action.kind) {
     case 'rsvp': return '#rsvp';
     case 'link': return el.action.href;
@@ -54,7 +56,10 @@ function computeHref(el: ButtonElement, locale: 'ru' | 'kz'): string | null {
       const text = el.action.text || (locale === 'kz' ? 'Сәлеметсіз бе!' : 'Здравствуйте!');
       return phone ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}` : null;
     }
-    case 'calendar': return '#calendar';
+    case 'calendar': {
+      const slug = shareUrl ? shareUrl.split('/i/')[1]?.split('/')[0] : null;
+      return slug ? `/api/invitations/public/${slug}/ics` : '#calendar';
+    }
     default: return null;
   }
 }

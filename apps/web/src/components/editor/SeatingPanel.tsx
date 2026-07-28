@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { EditorPanelShell } from './EditorPanelShell';
+import { VisualSeatingChart } from './VisualSeatingChart';
 import type { EditorGuestInfo } from './types';
 
 type SeatingTable = {
@@ -15,6 +16,13 @@ type SeatingTable = {
   capacity: number;
   assignedCount: number;
   guestIds: string[];
+  x?: number | null;
+  y?: number | null;
+  w?: number | null;
+  h?: number | null;
+  rotation?: number | null;
+  shape?: string | null;
+  tableColor?: string | null;
 };
 
 interface Props {
@@ -31,6 +39,13 @@ export function SeatingPanel({ invitationId, guests, onClose }: Props) {
   const [error, setError] = useState('');
   const [newName, setNewName] = useState('');
   const [newCapacity, setNewCapacity] = useState('10');
+  const [mode, setMode] = useState<'canvas' | 'list'>('canvas');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setMode('list');
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -138,6 +153,27 @@ export function SeatingPanel({ invitationId, guests, onClose }: Props) {
     }
   };
 
+  const handleUpdateTableVisual = async (tableId: string, patch: Partial<SeatingTable>) => {
+    setTables((prev) => prev.map((t) => (t.id === tableId ? { ...t, ...patch } : t)));
+    await fetch(`/api/invitations/${invitationId}/seating`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tableId, ...patch }),
+    }).catch(() => {});
+  };
+
+  const handleCreateTableVisual = async (name: string, capacity: number, shape: string) => {
+    const res = await fetch(`/api/invitations/${invitationId}/seating`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, capacity, shape }),
+    });
+    const data = await res.json();
+    if (res.ok && data.table) {
+      setTables((prev) => [...prev, data.table]);
+    }
+  };
+
   const tableByGuest = new Map<string, string>();
   for (const table of tables) {
     for (const guestId of table.guestIds) {
@@ -153,13 +189,47 @@ export function SeatingPanel({ invitationId, guests, onClose }: Props) {
 
       {error ? <p className="font-body text-sm text-red-700">{error}</p> : null}
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex items-center justify-between gap-2 border-b border-us-border pb-3">
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant={mode === 'canvas' ? 'default' : 'outline'}
+            onClick={() => setMode('canvas')}
+          >
+            Схема зала
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={mode === 'list' ? 'default' : 'outline'}
+            onClick={() => setMode('list')}
+          >
+            Список
+          </Button>
+        </div>
         <Button type="button" size="sm" variant="outline" onClick={() => void exportBanquet()} disabled={saving}>
           {t('invitation.edit.seatingExport')}
         </Button>
       </div>
 
-      <div className="space-y-2 rounded-md border border-us-border p-3">
+      {mode === 'canvas' ? (
+        <VisualSeatingChart
+          invitationId={invitationId}
+          tables={tables}
+          guests={guests}
+          onUpdateTable={handleUpdateTableVisual}
+          onCreateTable={handleCreateTableVisual}
+          onAssignGuest={async (guestId, tableId) => {
+            await assignGuest(guestId, tableId);
+          }}
+          onDeleteTable={async (tableId) => {
+            await removeTable(tableId);
+          }}
+        />
+      ) : (
+        <div className="space-y-4">
+          <div className="space-y-2 rounded-md border border-us-border p-3">
         <Label htmlFor="seat-name">{t('invitation.edit.seatingTableName')}</Label>
         <Input
           id="seat-name"
@@ -243,6 +313,8 @@ export function SeatingPanel({ invitationId, guests, onClose }: Props) {
           ))}
         </div>
       ) : null}
+        </div>
+      )}
     </EditorPanelShell>
   );
 }

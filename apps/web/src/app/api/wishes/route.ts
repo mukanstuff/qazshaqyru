@@ -67,10 +67,19 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    type WishReactionRow = { emoji: string; likerHash: string };
+    type WishRow = {
+      id: string;
+      authorName: string;
+      text: string;
+      createdAt: Date;
+      reactions: WishReactionRow[];
+    };
+
     return NextResponse.json({
-      wishes: wishes.map((w) => {
+      wishes: wishes.map((w: WishRow) => {
         const reactions = aggregateReactionCounts(w.reactions);
-        const mine = w.reactions.find((r) => r.likerHash === likerHash);
+        const mine = w.reactions.find((r: WishReactionRow) => r.likerHash === likerHash);
         const likeCount = Object.values(reactions).reduce((sum, n) => sum + n, 0);
         return {
           id: w.id,

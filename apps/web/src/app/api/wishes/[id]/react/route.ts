@@ -25,11 +25,12 @@ const reactBodySchema = z.object({
 });
 
 async function loadReactionSummary(wishId: string, likerHash: string) {
-  const rows = await prisma.wishReaction.findMany({
+  type WishReactionRow = { emoji: string; likerHash: string };
+  const rows = (await prisma.wishReaction.findMany({
     where: { wishId },
     select: { emoji: true, likerHash: true },
-  });
-  const mine = rows.find((r) => r.likerHash === likerHash);
+  })) as unknown as WishReactionRow[];
+  const mine = rows.find((r: WishReactionRow) => r.likerHash === likerHash);
   return {
     reactions: aggregateReactionCounts(rows),
     myReaction: mine && isWishReactionEmoji(mine.emoji) ? mine.emoji : null,

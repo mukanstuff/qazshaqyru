@@ -9,6 +9,13 @@ export type SeatingTableDto = {
   sortOrder: number;
   assignedCount: number;
   guestIds: string[];
+  x?: number | null;
+  y?: number | null;
+  w?: number | null;
+  h?: number | null;
+  rotation?: number | null;
+  shape?: string | null;
+  tableColor?: string | null;
 };
 
 async function assertSeatingEntitled(invitationId: string, userId: string): Promise<void> {
@@ -41,13 +48,35 @@ export async function listSeatingTables(invitationId: string, userId: string): P
     },
   });
 
-  return tables.map((t) => ({
+  type TableRow = {
+    id: string;
+    name: string;
+    capacity: number;
+    sortOrder: number;
+    x?: number | null;
+    y?: number | null;
+    w?: number | null;
+    h?: number | null;
+    rotation?: number | null;
+    shape?: string | null;
+    tableColor?: string | null;
+    assignments: { guestId: string }[];
+  };
+
+  return tables.map((t: TableRow) => ({
     id: t.id,
     name: t.name,
     capacity: t.capacity,
     sortOrder: t.sortOrder,
     assignedCount: t.assignments.length,
-    guestIds: t.assignments.map((a) => a.guestId),
+    guestIds: t.assignments.map((a: { guestId: string }) => a.guestId),
+    x: t.x ?? null,
+    y: t.y ?? null,
+    w: t.w ?? null,
+    h: t.h ?? null,
+    rotation: t.rotation ?? null,
+    shape: t.shape ?? 'round',
+    tableColor: t.tableColor ?? '#ffffff',
   }));
 }
 
@@ -56,6 +85,13 @@ export async function createSeatingTable(input: {
   userId: string;
   name: string;
   capacity?: number;
+  x?: number | null;
+  y?: number | null;
+  w?: number | null;
+  h?: number | null;
+  rotation?: number | null;
+  shape?: string | null;
+  tableColor?: string | null;
 }): Promise<SeatingTableDto> {
   await assertSeatingEntitled(input.invitationId, input.userId);
   const invitation = await prisma.invitation.findFirst({
@@ -85,6 +121,13 @@ export async function createSeatingTable(input: {
         name,
         capacity,
         sortOrder,
+        x: input.x ?? 100,
+        y: input.y ?? 100,
+        w: input.w ?? 120,
+        h: input.h ?? 120,
+        rotation: input.rotation ?? 0,
+        shape: input.shape ?? 'round',
+        tableColor: input.tableColor ?? '#ffffff',
       },
     });
     return {
@@ -94,6 +137,13 @@ export async function createSeatingTable(input: {
       sortOrder: table.sortOrder,
       assignedCount: 0,
       guestIds: [],
+      x: table.x ?? null,
+      y: table.y ?? null,
+      w: table.w ?? null,
+      h: table.h ?? null,
+      rotation: table.rotation ?? null,
+      shape: table.shape ?? 'round',
+      tableColor: table.tableColor ?? '#ffffff',
     };
   } catch (err) {
     const code = (err as { code?: string })?.code;
@@ -109,6 +159,13 @@ export async function updateSeatingTable(input: {
   userId: string;
   name?: string;
   capacity?: number;
+  x?: number | null;
+  y?: number | null;
+  w?: number | null;
+  h?: number | null;
+  rotation?: number | null;
+  shape?: string | null;
+  tableColor?: string | null;
 }): Promise<SeatingTableDto> {
   const table = await prisma.seatingTable.findFirst({
     where: { id: input.tableId, invitation: { userId: input.userId } },
@@ -119,22 +176,30 @@ export async function updateSeatingTable(input: {
   }
   await assertSeatingEntitled(table.invitationId, input.userId);
 
-  const data: { name?: string; capacity?: number } = {};
+  const data: Record<string, unknown> = {};
   if (input.name !== undefined) {
     const name = input.name.trim().slice(0, 80);
     if (!name) throw new ApiError('validation_error', 'Название стола обязательно', 400);
     data.name = name;
   }
   if (input.capacity !== undefined) {
-    data.capacity = Math.min(50, Math.max(1, input.capacity));
-    if (data.capacity < table.assignments.length) {
+    const capacity = Math.min(50, Math.max(1, input.capacity));
+    if (capacity < table.assignments.length) {
       throw new ApiError(
         'capacity_too_low',
         `За столом уже ${table.assignments.length} гостей — увеличьте вместимость`,
         400
       );
     }
+    data.capacity = capacity;
   }
+  if (input.x !== undefined) data.x = input.x;
+  if (input.y !== undefined) data.y = input.y;
+  if (input.w !== undefined) data.w = input.w;
+  if (input.h !== undefined) data.h = input.h;
+  if (input.rotation !== undefined) data.rotation = input.rotation;
+  if (input.shape !== undefined) data.shape = input.shape;
+  if (input.tableColor !== undefined) data.tableColor = input.tableColor;
 
   try {
     const updated = await prisma.seatingTable.update({
@@ -148,7 +213,14 @@ export async function updateSeatingTable(input: {
       capacity: updated.capacity,
       sortOrder: updated.sortOrder,
       assignedCount: updated.assignments.length,
-      guestIds: updated.assignments.map((a) => a.guestId),
+      guestIds: updated.assignments.map((a: { guestId: string }) => a.guestId),
+      x: updated.x ?? null,
+      y: updated.y ?? null,
+      w: updated.w ?? null,
+      h: updated.h ?? null,
+      rotation: updated.rotation ?? null,
+      shape: updated.shape ?? 'round',
+      tableColor: updated.tableColor ?? '#ffffff',
     };
   } catch (err) {
     const code = (err as { code?: string })?.code;

@@ -143,16 +143,17 @@ export function listBlogPosts(locale: Locale): BlogPostMeta[] {
       const slug = f.replace(/\.md$/, '');
       const post = readPostFile(locale, slug);
       if (!post) return null;
-      return {
+      const meta: BlogPostMeta = {
         slug: post.slug,
         title: post.title,
         description: post.description,
         date: post.date,
-        updated: post.updated,
+        ...(post.updated ? { updated: post.updated } : {}),
       };
+      return meta;
     })
     .filter((p): p is BlogPostMeta => p !== null)
-    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+    .sort((a: BlogPostMeta, b: BlogPostMeta) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
 }
 
 export function getBlogPost(locale: Locale, slug: string): BlogPost | null {

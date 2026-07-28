@@ -22,15 +22,16 @@ export async function syncInvitationPaymentState(
     select: { id: true, templateId: true, amountKzt: true, status: true },
   });
 
+  type SyncOrderRow = { id: string; templateId: string; amountKzt: number; status: 'pending' | 'paid' | 'cancelled' | 'refunded' };
   const staleIds = pendingOrders
-    .filter((o) =>
+    .filter((o: SyncOrderRow) =>
       isStalePendingOrder(
         { templateId: o.templateId, amountKzt: o.amountKzt, status: o.status },
         pricing.templateId,
         pricing.priceKzt
       )
     )
-    .map((o) => o.id);
+    .map((o: SyncOrderRow) => o.id);
 
   let cancelledPendingOrders = 0;
   if (staleIds.length > 0) {

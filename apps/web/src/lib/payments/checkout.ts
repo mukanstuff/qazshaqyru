@@ -1,5 +1,7 @@
 import { Prisma } from '@prisma/client';
 
+type PrismaTx = any;
+
 import prisma from '@/lib/shared/db';
 import { ApiError } from '@/lib/shared/api';
 import {
@@ -199,7 +201,8 @@ export async function checkoutInvitation(
       ? pricing.priceKzt
       : amountKzt;
 
-  const checkoutState = await prisma.$transaction(async (tx) => {
+  type PrismaTx = any;
+  const checkoutState = await prisma.$transaction(async (tx: PrismaTx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`checkout:${invitation.id}:${planSku}`}))`;
 
     let pendingOrder = await tx.order.findFirst({
@@ -344,7 +347,7 @@ async function checkoutAgency(
     throw new ApiError('validation_error', 'Нет активных шаблонов для оформления тарифа', 500);
   }
 
-  const checkoutState = await prisma.$transaction(async (tx) => {
+  const checkoutState = await prisma.$transaction(async (tx: PrismaTx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`checkout:agency:${user.id}`}))`;
 
     let pendingOrder = await tx.order.findFirst({

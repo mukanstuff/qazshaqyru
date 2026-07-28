@@ -138,13 +138,25 @@ export async function resolveRestaurantPortalByToken(
     },
   });
 
+  type RestaurantGuestRow = {
+    id: string;
+    name: string;
+    phone: string;
+    side: string | null;
+    hasPlusOne: boolean;
+    plusOneName: string | null;
+    householdLabel: string | null;
+    response?: { status: string; dietaryRestrictions?: string | null } | null;
+    seating?: { table: { name: string } } | null;
+  };
+
   return buildRestaurantPortalPayload({
     title: invitation.title,
     eventDate: invitation.eventDate,
     eventTime: invitation.eventTime,
     eventPlace: invitation.eventPlace,
     address: invitation.address,
-    guests: invitation.guests.map((g) => ({
+    guests: invitation.guests.map((g: RestaurantGuestRow) => ({
       id: g.id,
       name: g.name,
       phone: g.phone,

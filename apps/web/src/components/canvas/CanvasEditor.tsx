@@ -3,12 +3,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CanvasElement, CanvasElementType, InvitationCanvasDocument } from '@/lib/canvas/types';
 import { CanvasRenderer } from './CanvasRenderer';
-import { HistoryStack, addElement, deleteElement, duplicateElement, moveElement, updateElement } from '@/lib/canvas/mutations';
+import { HistoryStack, addElement, deleteElement, duplicateElement, moveElement, updateElement, deriveMobileDocument } from '@/lib/canvas/mutations';
 import { InspectorPanel } from './InspectorPanel';
 import { ElementPalette } from './ElementPalette';
 import { EditorToolbar } from './EditorToolbar';
 import { SelectionChrome } from './SelectionChrome';
+import { ElementContextMenu } from './ElementContextMenu';
+import { PresetLibraryModal } from './PresetLibraryModal';
 import { useDrag } from './hooks/useDrag';
+import { useResize } from './hooks/useResize';
+import { useRotate } from './hooks/useRotate';
+import { snapElementPosition, type GuideLine } from '@/lib/canvas/snap-guides';
 import { cn } from '@/lib/shared/utils';
 
 export interface CanvasEditorProps {
@@ -30,6 +35,7 @@ export function CanvasEditor(props: CanvasEditorProps) {
   const [zoom, setZoom] = useState(1);
   const [showGrid, setShowGrid] = useState(false);
   const [previewAnim, setPreviewAnim] = useState(false);
+  const [showPresets, setShowPresets] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
@@ -54,8 +60,13 @@ export function CanvasEditor(props: CanvasEditorProps) {
     [onChange]
   );
 
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; el: CanvasElement } | null>(null);
+
+  const [activeGuides, setActiveGuides] = useState<GuideLine[]>([]);
+
   // Autosave with 1s debounce.
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clipboardRef = useRef<CanvasElement | null>(null);
   const scheduleSave = useCallback(
     (d: InvitationCanvasDocument) => {
       if (!onSaveRequest) return;
@@ -94,11 +105,63 @@ export function CanvasEditor(props: CanvasEditorProps) {
     },
     onStart: (id) => setSelectedId(id),
     onMove: (id, x, y) => {
-      setDoc((d) => updateElement(d, id, { x, y } as Partial<CanvasElement>));
+      const el = doc.elements.find((e) => e.id === id);
+      const res = snapElementPosition(id, x, y, el?.w || 20, typeof el?.h === 'number' ? el.h : 40, doc.elements, {
+        snapGrid: showGrid,
+      });
+      setActiveGuides(res.guides);
+      setDoc((d) => updateElement(d, id, { x: res.x, y: res.y } as Partial<CanvasElement>));
     },
     onEnd: (id, x, y) => {
+      setActiveGuides([]);
+      const el = doc.elements.find((e) => e.id === id);
+      const res = snapElementPosition(id, x, y, el?.w || 20, typeof el?.h === 'number' ? el.h : 40, doc.elements, {
+        snapGrid: showGrid,
+      });
       setDoc((d) => {
-        const next = updateElement(d, id, { x, y } as Partial<CanvasElement>);
+        const next = updateElement(d, id, { x: res.x, y: res.y } as Partial<CanvasElement>);
+        commit(next);
+        return next;
+      });
+    },
+  });
+
+  // Resize logic.
+  const { beginResize } = useResize({
+    stageRef: stageRef as React.RefObject<HTMLElement>,
+    scale: zoom,
+    docWidth: doc.width,
+    getInitial: (id) => {
+      const el = doc.elements.find((e) => e.id === id);
+      return el ? { x: el.x, y: el.y, w: el.w, h: el.h } : { x: 0, y: 0, w: 20, h: 40 };
+    },
+    onStart: (id) => setSelectedId(id),
+    onResize: (id, x, y, w, h) => {
+      setDoc((d) => updateElement(d, id, { x, y, w, h } as Partial<CanvasElement>));
+    },
+    onEnd: (id, x, y, w, h) => {
+      setDoc((d) => {
+        const next = updateElement(d, id, { x, y, w, h } as Partial<CanvasElement>);
+        commit(next);
+        return next;
+      });
+    },
+  });
+
+  // Rotate logic.
+  const { beginRotate } = useRotate({
+    stageRef: stageRef as React.RefObject<HTMLElement>,
+    getInitial: (id) => {
+      const el = doc.elements.find((e) => e.id === id);
+      return el ? { rotation: el.rotation || 0 } : { rotation: 0 };
+    },
+    onStart: (id) => setSelectedId(id),
+    onRotate: (id, angleDeg) => {
+      setDoc((d) => updateElement(d, id, { rotation: angleDeg } as Partial<CanvasElement>));
+    },
+    onEnd: (id, angleDeg) => {
+      setDoc((d) => {
+        const next = updateElement(d, id, { rotation: angleDeg } as Partial<CanvasElement>);
         commit(next);
         return next;
       });
@@ -142,6 +205,28 @@ export function CanvasEditor(props: CanvasEditorProps) {
         commit(next);
         return;
       }
+      if (mod && e.key.toLowerCase() === 'c' && selectedId) {
+        e.preventDefault();
+        const el = doc.elements.find((x) => x.id === selectedId);
+        if (el) clipboardRef.current = el;
+        return;
+      }
+      if (mod && e.key.toLowerCase() === 'v' && clipboardRef.current) {
+        e.preventDefault();
+        const src = clipboardRef.current;
+        let next = addElement(doc, src.type);
+        const newId = next.elements[next.elements.length - 1].id;
+        const patch: Partial<CanvasElement> = {
+          ...src,
+          id: newId,
+          x: Math.min(80, src.x + 5),
+          y: src.y + 20,
+        };
+        next = updateElement(next, newId, patch);
+        commit(next);
+        setSelectedId(newId);
+        return;
+      }
       if (e.key === 'Escape') {
         setSelectedId(null);
       }
@@ -166,9 +251,12 @@ export function CanvasEditor(props: CanvasEditorProps) {
   }, [doc, selectedId, commit]);
 
   const handleAdd = useCallback(
-    (type: CanvasElementType) => {
-      const next = addElement(doc, type);
+    (type: CanvasElementType, xPercent?: number, yPx?: number) => {
+      let next = addElement(doc, type);
       const newId = next.elements[next.elements.length - 1].id;
+      if (typeof xPercent === 'number' && typeof yPx === 'number') {
+        next = updateElement(next, newId, { x: Math.round(xPercent), y: Math.round(yPx) } as Partial<CanvasElement>);
+      }
       commit(next);
       setSelectedId(newId);
     },
@@ -185,7 +273,12 @@ export function CanvasEditor(props: CanvasEditorProps) {
   );
 
   const stageWidth = viewport === 'mobile' ? 390 : doc.width;
-  const effectiveDoc = useMemo(() => ({ ...doc, width: stageWidth }), [doc, stageWidth]);
+  const effectiveDoc = useMemo(() => {
+    if (viewport === 'mobile') {
+      return deriveMobileDocument(doc);
+    }
+    return { ...doc, width: stageWidth };
+  }, [doc, stageWidth, viewport]);
 
   return (
     <div className="flex h-full flex-col bg-[#1b1419] text-zinc-100">
@@ -213,6 +306,7 @@ export function CanvasEditor(props: CanvasEditorProps) {
           setPreviewAnim(true);
           setTimeout(() => setPreviewAnim(false), 2500);
         }}
+        onOpenPresets={() => setShowPresets(true)}
         saveState={saveState}
         lastSaved={lastSaved}
         onSaveNow={() => scheduleSave(doc)}
@@ -238,6 +332,22 @@ export function CanvasEditor(props: CanvasEditorProps) {
                 transformOrigin: 'top center',
                 marginBottom: (zoom - 1) * -200,
               }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'copy';
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                const type = e.dataTransfer.getData('text/plain') as CanvasElementType;
+                if (!type) return;
+                const rect = stageRef.current?.getBoundingClientRect();
+                if (!rect) return;
+                const xPx = (e.clientX - rect.left) / zoom;
+                const yPx = (e.clientY - rect.top) / zoom;
+                const stagePxPerPercent = (rect.width / zoom) / 100;
+                const xPercent = Math.max(0, Math.min(80, xPx / stagePxPerPercent));
+                handleAdd(type, xPercent, yPx);
+              }}
             >
               <CanvasRenderer
                 document={effectiveDoc}
@@ -250,6 +360,14 @@ export function CanvasEditor(props: CanvasEditorProps) {
                     selected={el.id === selectedId}
                     zoom={zoom}
                     onDragStart={(e) => beginDrag(el.id, e)}
+                    onResizeStart={(e, handle) => beginResize(el.id, handle, e)}
+                    onRotateStart={(e) => beginRotate(el.id, e)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setSelectedId(el.id);
+                      setContextMenu({ x: e.clientX, y: e.clientY, el });
+                    }}
                   >
                     {children}
                   </SelectionChrome>
@@ -258,6 +376,34 @@ export function CanvasEditor(props: CanvasEditorProps) {
                 shareUrl={shareUrl}
                 locale={locale}
               />
+              {activeGuides.map((g, idx) => (
+                <div
+                  key={`${g.type}-${idx}`}
+                  style={
+                    g.type === 'vertical'
+                      ? {
+                          position: 'absolute',
+                          left: `${g.pos}%`,
+                          top: 0,
+                          bottom: 0,
+                          width: 1,
+                          backgroundColor: '#c9a961',
+                          pointerEvents: 'none',
+                          zIndex: 9999,
+                        }
+                      : {
+                          position: 'absolute',
+                          top: g.pos,
+                          left: 0,
+                          right: 0,
+                          height: 1,
+                          backgroundColor: '#c9a961',
+                          pointerEvents: 'none',
+                          zIndex: 9999,
+                        }
+                  }
+                />
+              ))}
             </div>
           </div>
         </div>
@@ -282,6 +428,47 @@ export function CanvasEditor(props: CanvasEditorProps) {
           mode={mode}
         />
       </div>
+      {contextMenu && (
+        <ElementContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          element={contextMenu.el}
+          locale={locale}
+          onDuplicate={() => {
+            commit(duplicateElement(doc, contextMenu.el.id));
+          }}
+          onDelete={() => {
+            const next = deleteElement(doc, contextMenu.el.id);
+            if (selectedId === contextMenu.el.id) setSelectedId(null);
+            commit(next);
+          }}
+          onBringToFront={() => {
+            commit(moveElement(doc, contextMenu.el.id, 'front'));
+          }}
+          onSendToBack={() => {
+            commit(moveElement(doc, contextMenu.el.id, 'back'));
+          }}
+          onToggleLock={() => {
+            const next = updateElement(doc, contextMenu.el.id, { locked: !contextMenu.el.locked });
+            commit(next);
+          }}
+          onToggleHide={() => {
+            const next = updateElement(doc, contextMenu.el.id, { hidden: !contextMenu.el.hidden });
+            commit(next);
+          }}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
+      {showPresets && (
+        <PresetLibraryModal
+          doc={doc}
+          onApplyDoc={(nextDoc) => {
+            commit(nextDoc);
+          }}
+          onClose={() => setShowPresets(false)}
+          locale={locale}
+        />
+      )}
       <style>{`
         .canvas-grid-bg {
           background-image:

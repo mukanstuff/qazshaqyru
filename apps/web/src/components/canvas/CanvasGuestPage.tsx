@@ -43,7 +43,16 @@ export function CanvasGuestPage({ slug, shareUrl }: Props) {
           return;
         }
         const doc = parseCanvasOrEmpty(data.canvas);
-        if (alive) setState({ loading: false, doc, error: null });
+        if (alive) {
+          setState({ loading: false, doc, error: null });
+          if (data.id) {
+            fetch(`/api/invitations/${data.id}/event`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ type: 'open', userAgent: navigator.userAgent }),
+            }).catch(() => {});
+          }
+        }
       } catch (e) {
         if (alive) setState({ loading: false, doc: null, error: 'load_failed' });
       }

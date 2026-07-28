@@ -32,8 +32,11 @@ export function UploadButton({
     setError('');
 
     try {
-      const url = await uploadImageFile(file, invitationId);
-      onUpload(url);
+      const res = await uploadImageFile(file, invitationId);
+      if (!res.success || !res.url) {
+        throw new Error(res.message || t('common.uploadError'));
+      }
+      onUpload(res.url);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.uploadError'));
     } finally {

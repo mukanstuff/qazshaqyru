@@ -21,6 +21,7 @@ coverage
 next-env.d.ts
 prisma/migrations/dev.db*
 storage/
-uploads/
+/uploads/
+/public/uploads/
 postgres-data/
 design/templates/**/_drafts/

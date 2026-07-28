@@ -4,7 +4,7 @@ import prisma from '@/lib/shared/db';
 import { hashToken, verifyTokenHash, getClientIpFromHeaders } from '@/lib/auth';
 import { verifyUploadToken, type UploadTokenScope } from '@/lib/uploads/upload-token';
 import { checkRateLimit, type RateLimitConfig, RATE_LIMITS, type RateLimitResult } from '@/lib/shared/rate-limit';
-import type { ZodSchema } from 'zod';
+import type { ZodType, ZodTypeDef } from 'zod';
 
 export const SESSION_COOKIE = 'session_token';
 
@@ -187,7 +187,7 @@ export function rateLimitResponse(result: RateLimitResult) {
   );
 }
 
-export async function parseJsonBody<T>(request: NextRequest, schema: ZodSchema<T>): Promise<T> {
+export async function parseJsonBody<Output, Input = any>(request: NextRequest, schema: ZodType<Output, ZodTypeDef, Input>): Promise<Output> {
   let body: unknown;
   try {
     body = await request.json();

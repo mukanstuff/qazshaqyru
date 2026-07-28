@@ -68,6 +68,13 @@ describe('seating service', () => {
         sortOrder: 0,
         assignedCount: 2,
         guestIds: ['g1', 'g2'],
+        x: null,
+        y: null,
+        w: null,
+        h: null,
+        rotation: null,
+        shape: 'round',
+        tableColor: '#ffffff',
       },
     ]);
   });

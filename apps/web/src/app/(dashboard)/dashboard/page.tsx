@@ -42,7 +42,26 @@ export default async function DashboardPage({ searchParams }: Props) {
     },
   });
 
-  const invitations = await prisma.invitation.findMany({
+type DashboardInvitation = {
+  id: string;
+  slug: string;
+  title: string;
+  eventType: string;
+  eventDate: Date;
+  status: string;
+  viewCount: number;
+  unlockedPlanSku: string | null;
+  _count?: { guests: number };
+};
+
+type DashboardGuestRow = {
+  id?: string;
+  invitationId: string;
+  response?: { status: string } | null;
+  hasPlusOne?: boolean;
+};
+
+  const invitations = (await prisma.invitation.findMany({
     where: { userId: ctx.user.id, status: { not: 'archived' } },
     orderBy: { createdAt: 'desc' },
     select: {
@@ -56,19 +75,21 @@ export default async function DashboardPage({ searchParams }: Props) {
       unlockedPlanSku: true,
       _count: { select: { guests: true } },
     },
-  });
+  })) as unknown as DashboardInvitation[];
 
-  const invitationIds = invitations.map((inv) => inv.id);
+  const invitationIds = invitations.map((inv: DashboardInvitation) => inv.id);
   const guestRows =
-    invitationIds.length > 0
+    (invitationIds.length > 0
       ? await prisma.guest.findMany({
           where: { invitationId: { in: invitationIds } },
           select: {
+            id: true,
             invitationId: true,
+            hasPlusOne: true,
             response: { select: { status: true } },
           },
         })
-      : [];
+      : []) as unknown as DashboardGuestRow[];
 
   const dateLocale = locale === 'kz' ? 'kk-KZ' : 'ru-RU';
 
@@ -99,7 +120,7 @@ export default async function DashboardPage({ searchParams }: Props) {
         ) : null}
 
         <DashboardOpsStrip
-          hasPublished={invitations.some((inv) => inv.status === 'published')}
+          hasPublished={invitations.some((inv: DashboardInvitation) => inv.status === 'published')}
         />
 
         {payment === 'invalid' && (
@@ -115,14 +136,14 @@ export default async function DashboardPage({ searchParams }: Props) {
           <EmptyState t={t} />
         ) : (
           <div className="space-y-4">
-            {invitations.map((inv) => {
+            {invitations.map((inv: DashboardInvitation) => {
               const date = new Date(inv.eventDate);
               const dateStr = date.toLocaleDateString(dateLocale, {
                 day: 'numeric',
                 month: 'long',
               });
-              const guestTotal = inv._count.guests;
-              const invGuestRows = guestRows.filter((row) => row.invitationId === inv.id);
+              const guestTotal = inv._count?.guests ?? 0;
+              const invGuestRows = guestRows.filter((row: DashboardGuestRow) => row.invitationId === inv.id);
               const invEntitlements = resolveEntitlements({
                 now: new Date(),
                 user: {

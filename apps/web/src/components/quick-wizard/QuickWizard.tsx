@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
 import { InvitationLayoutRouter } from '@/components/invitation-layouts/LayoutRouter';
@@ -33,7 +33,7 @@ import { checkoutInvitationClient } from '@/lib/payments/checkout-client';
 import { DEFAULT_PUBLICATION_PRICE_KZT } from '@/lib/invitations/invitation-pricing';
 import { resolvePublishStep } from '@/lib/invitations/publish-flow';
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 6;
 
 interface Props {
   templateKey: string;
@@ -119,9 +119,33 @@ export function QuickWizard({ templateKey, templateId, templateName }: Props) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [previewDraft, setPreviewDraft] = useState<LocalDraft | null>(null);
   const [showLogin, setShowLogin] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [isOpeningConstructor, setIsOpeningConstructor] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [serverInvitationId, setServerInvitationId] = useState<string | undefined>();
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('qazshaqyru_wizard_draft');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          setForm((prev) => ({ ...prev, ...parsed }));
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('qazshaqyru_wizard_draft', JSON.stringify(form));
+    } catch {
+      /* ignore */
+    }
+  }, [form]);
 
   const eventTypes: QuickWizardEventType[] = [
     'wedding',
@@ -219,6 +243,37 @@ export function QuickWizard({ templateKey, templateId, templateName }: Props) {
     if (previewDraft) await handlePublish();
   };
 
+  const handleOpenConstructor = async () => {
+    if (!previewDraft) return;
+    const sessionRes = await fetch('/api/auth/session');
+    const sessionData = await sessionRes.json();
+    if (!sessionData.user) {
+      setShowLogin(true);
+      return;
+    }
+    setIsLoggedIn(true);
+
+    const planSku = sessionData.user.planSku || 'free';
+    if (planSku === 'free') {
+      setShowUpgradeModal(true);
+      return;
+    }
+
+    setIsOpeningConstructor(true);
+    try {
+      const invitationId = await ensureSaved(previewDraft);
+      router.push(`/invitations/${invitationId}/canvas`);
+    } catch (err) {
+      toast({
+        title: 'Ошибка',
+        description: err instanceof Error ? err.message : 'Не удалось открыть конструктор',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsOpeningConstructor(false);
+    }
+  };
+
   const publishStep = resolvePublishStep({
     isPublished: false,
     isLoggedIn,
@@ -280,6 +335,15 @@ export function QuickWizard({ templateKey, templateId, templateName }: Props) {
                     DEFAULT_PUBLICATION_PRICE_KZT.toLocaleString('ru-RU')
                   )}
             </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="relative z-10 w-full"
+              onClick={() => void handleOpenConstructor()}
+              disabled={isPublishing || isOpeningConstructor}
+            >
+              {isOpeningConstructor ? 'Загрузка...' : 'Настроить детали в конструкторе'}
+            </Button>
           </div>
         </footer>
 
@@ -290,6 +354,33 @@ export function QuickWizard({ templateKey, templateId, templateName }: Props) {
           title={t('auth.publishLoginTitle')}
           subtitle={t('quickWizard.loginSubtitle')}
         />
+
+        {showUpgradeModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+            <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-4">
+              <h3 className="font-display text-xl font-bold text-us-ink">
+                Продвинутый конструктор
+              </h3>
+              <p className="font-body text-sm text-us-ink-muted">
+                Чтобы свободно двигать элементы, добавлять свои фото и декор — оформите Стандарт или Премиум.
+              </p>
+              <div className="flex justify-end gap-3 pt-2">
+                <Button variant="outline" onClick={() => setShowUpgradeModal(false)}>
+                  Позже
+                </Button>
+                <Button
+                  variant="default"
+                  onClick={() => {
+                    setShowUpgradeModal(false);
+                    router.push('/pricing');
+                  }}
+                >
+                  Тарифы →
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </EditorWorkspaceShell>
     );
   }
@@ -465,6 +556,42 @@ export function QuickWizard({ templateKey, templateId, templateName }: Props) {
               onUpload={(url) => updateForm({ coverPhoto: url })}
               label={t('quickWizard.uploadPhoto')}
             />
+          </div>
+        )}
+
+        {step === 6 && (
+          <div className="space-y-4">
+            <Label>Выберите цветовое оформление</Label>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {[
+                { id: 'bordeaux-gold', nameRu: 'Бордо и золото', nameKz: 'Бордо және алтын', bg: '#6b1d3a', accent: '#c9a961' },
+                { id: 'rose-gold', nameRu: 'Нежно-розовый', nameKz: 'Нәзік қызғылт', bg: '#d88c9a', accent: '#f2d6dc' },
+                { id: 'classic-mono', nameRu: 'Классика ч/б', nameKz: 'Классикалық ақ-қара', bg: '#18181b', accent: '#d4d4d8' },
+                { id: 'emerald-gold', nameRu: 'Изумруд и золото', nameKz: 'Изумруд және алтын', bg: '#1b4332', accent: '#d8f3dc' },
+                { id: 'oriental', nameRu: 'Восточный орнамент', nameKz: 'Шығыс өрнегі', bg: '#800f2f', accent: '#ffb703' },
+                { id: 'pastel', nameRu: 'Пастельный', nameKz: 'Пастель', bg: '#8e9aaf', accent: '#efd3d7' },
+              ].map((scheme) => (
+                <button
+                  key={scheme.id}
+                  type="button"
+                  onClick={() => updateForm({ colorScheme: scheme.id })}
+                  className={cn(
+                    'flex flex-col items-center gap-2 rounded-xl border p-4 text-center transition',
+                    form.colorScheme === scheme.id
+                      ? 'border-us-cta bg-us-cta/5 ring-2 ring-us-cta/20'
+                      : 'border-us-border hover:border-us-ink-muted/30'
+                  )}
+                >
+                  <div className="flex h-8 w-16 overflow-hidden rounded-full border border-us-border shadow-sm">
+                    <div className="h-full w-1/2" style={{ backgroundColor: scheme.bg }} />
+                    <div className="h-full w-1/2" style={{ backgroundColor: scheme.accent }} />
+                  </div>
+                  <span className="font-body text-xs font-medium text-us-ink">
+                    {locale === 'kz' ? scheme.nameKz : scheme.nameRu}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </main>

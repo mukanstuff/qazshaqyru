@@ -106,7 +106,7 @@ export function CategoryTemplatesClient({
           {filteredTemplates.length > 0 ? (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {filteredTemplates.map((template) => {
-                const displayName = locale === 'kz' ? template.nameKz : template.nameRu;
+                const displayName = (locale === 'kz' ? template.nameKz : template.nameRu) ?? template.nameRu;
                 return (
                   <TemplateCatalogCard
                     key={template.id}
@@ -162,7 +162,7 @@ export function CategoryTemplatesClient({
       {previewTemplate && (
         <TemplatePreviewModal
           template={previewTemplate}
-          displayName={locale === 'kz' ? previewTemplate.nameKz : previewTemplate.nameRu}
+          displayName={(locale === 'kz' ? previewTemplate.nameKz : previewTemplate.nameRu) ?? previewTemplate.nameRu}
           onClose={() => setPreviewSlug(null)}
         />
       )}

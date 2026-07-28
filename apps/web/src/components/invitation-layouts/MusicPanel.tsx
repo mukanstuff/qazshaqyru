@@ -42,8 +42,11 @@ export function MusicPanel({ currentMusicUrl, onSelectMusic, onClose, invitation
     setUploadError('');
 
     try {
-      const url = await uploadMusicFile(file, invitationId);
-      onSelectMusic(url);
+      const res = await uploadMusicFile(file, invitationId);
+      if (!res.success || !res.url) {
+        throw new Error(res.message || t('common.uploadError'));
+      }
+      onSelectMusic(res.url);
       onClose();
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : t('common.uploadError'));

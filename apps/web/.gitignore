@@ -15,4 +15,5 @@ coverage
 .idea
 *.tsbuildinfo
 storage/
-uploads/
+/uploads/
+/public/uploads/

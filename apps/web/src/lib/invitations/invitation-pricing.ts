@@ -109,7 +109,8 @@ export async function getInvitationPricing(
     ? resolvePublicationPriceKzt(template.priceKzt)
     : DEFAULT_PUBLICATION_PRICE_KZT;
 
-  const unlockedFromOrders = invitation.orders.some((order) =>
+  type PricingOrderRow = { id: string; status: 'pending' | 'paid' | 'cancelled' | 'refunded'; templateId: string; amountKzt: number };
+  const unlockedFromOrders = invitation.orders.some((order: PricingOrderRow) =>
     isValidPaidOrder(order, templateId, priceKzt)
   );
 

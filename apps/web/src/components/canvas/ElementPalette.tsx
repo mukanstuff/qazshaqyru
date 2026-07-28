@@ -105,6 +105,9 @@ export function ElementPalette({ onAdd, locale }: Props) {
                   <button
                     key={it.type}
                     onClick={() => onAdd(it.type)}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('text/plain', it.type);
+                    }}
                     className="flex flex-col items-center justify-center gap-1 rounded-lg border border-zinc-700 bg-zinc-800/40 hover:border-[#c9a961] hover:bg-zinc-800 px-2 py-3 text-[11px] text-zinc-200"
                     draggable
                   >

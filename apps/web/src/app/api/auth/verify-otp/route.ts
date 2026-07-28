@@ -100,7 +100,8 @@ export async function POST(request: NextRequest) {
 
     const isValid = await verifyOTP(code, otpToken.codeHash);
 
-    const result: OtpVerifyResult = await prisma.$transaction(async (tx) => {
+    type PrismaTx = any;
+    const result: OtpVerifyResult = await prisma.$transaction(async (tx: PrismaTx) => {
       const fresh = await tx.oTPToken.findFirst({
         where: {
           id: otpToken.id,
@@ -159,7 +160,7 @@ export async function POST(request: NextRequest) {
     const sessionExpiry = getSessionExpiry();
     const sessionTokenHash = hashToken(sessionToken);
 
-    const user = await prisma.$transaction(async (tx) => {
+    const user = await prisma.$transaction(async (tx: PrismaTx) => {
       await tx.session.updateMany({
         where: { user: { phone: normalizedPhone }, revokedAt: null },
         data: { revokedAt: new Date() },

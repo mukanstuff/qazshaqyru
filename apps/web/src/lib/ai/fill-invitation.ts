@@ -69,7 +69,7 @@ export function buildAiFillFallback(input: AiFillInput): AiFillOutput {
   };
 }
 
-export function getAiApiConfig(env: NodeJS.ProcessEnv = process.env): {
+export function getAiApiConfig(env: Partial<NodeJS.ProcessEnv> = process.env): {
   apiKey: string | null;
   baseUrl: string;
   model: string;
@@ -86,7 +86,7 @@ export function getAiApiConfig(env: NodeJS.ProcessEnv = process.env): {
  */
 export async function fillInvitationFields(
   input: AiFillInput,
-  env: NodeJS.ProcessEnv = process.env,
+  env: Partial<NodeJS.ProcessEnv> = process.env,
   fetchImpl: typeof fetch = fetch
 ): Promise<{ data: AiFillOutput; source: 'ai' | 'fallback' }> {
   const parsed = aiFillInputSchema.parse(input);

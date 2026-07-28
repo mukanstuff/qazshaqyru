@@ -79,6 +79,7 @@ export async function GET(request: NextRequest) {
         templateKey: invitation.templateKey || DEFAULT_TEMPLATE_SLUG,
       };
     }
+    if (!data) return new Response('Not found', { status: 404 });
 
     const cfg = getTemplate(data.templateKey);
     const coverUrl = resolveAbsoluteUrl(cfg.coverUrl, origin);

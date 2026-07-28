@@ -1,5 +1,4 @@
 import { cookies, headers } from 'next/headers';
-import { Noto_Sans, Pinyon_Script } from 'next/font/google';
 
 import { ClientProviders } from '@/components/shared/ClientProviders';
 
@@ -12,28 +11,8 @@ import { Toaster } from '@/components/ui/toaster';
 import { SITE_ORIGIN_FALLBACK } from '@/lib/seo/site';
 
 import './globals.css';
+import '@/styles/kz-fonts.css';
 import '@/styles/editor-scrollbars.css';
-
-/**
- * Display serif: loaded via Google CSS in <head> (not next/font).
- * next/font subsets drop some Kazakh glyphs (қ ң ғ ұ ү ә ө і) into fallback.
- * Body sans still via next/font — Noto Sans cyrillic-ext covers Kazakh UI text.
- */
-const fontBody = Noto_Sans({
-  subsets: ['latin', 'cyrillic', 'cyrillic-ext'],
-  weight: ['400', '500', '600', '700', '800'],
-  variable: '--font-body',
-  display: 'swap',
-  adjustFontFallback: false,
-});
-
-/** Hero highlight accent only */
-const fontScript = Pinyon_Script({
-  subsets: ['latin'],
-  weight: '400',
-  variable: '--font-script',
-  display: 'swap',
-});
 
 export const metadata = {
   title: {
@@ -88,17 +67,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html
       lang={initialLocale === 'kz' ? 'kk' : 'ru'}
-      className={`${fontBody.variable} ${fontScript.variable}`}
       suppressHydrationWarning
     >
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;500;600;700;800;900&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+      <head />
       <body className="min-h-screen bg-white font-body text-us-ink antialiased">
         <I18nProvider initialLocale={initialLocale}>
           <ClientProviders>

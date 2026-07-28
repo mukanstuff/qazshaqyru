@@ -43,6 +43,14 @@
 
 ## Заметки по текущему состоянию
 
-- Реализованы: ядро типов/схем/мутаций, рендерер (гостевой), базовый редактор с drag/drop/selection, Inspector для текста/изображения/кнопки/фигуры, палитра элементов, undo/redo, горячие клавиши, автосохранение 1с debounce, анимации.
-- Функциональные элементы RSVP/Wishes/Program/Map/Music/Gift/QR/Lottie/VideoBg/Ornament рендерятся как плейсхолдеры и ожидают подключения существующих бэкенд-компонентов на следующих этапах.
-- Визард быстрого создания, визуальная рассадка и админ-шаблоны — в разработке.
+- Реализованы все 10 этапов по техническому заданию (v2):
+  1. Ядро типов, zod-схем, валидации, мутаций и legacy-конвертера.
+  2. Гостевой и редакторский рендерер (`CanvasRenderer`, `CanvasEditor`, `CanvasGuestPage`).
+  3. Drag, Resize и Rotate с троттлингом через rAF (`useDrag`, `useResize`, `useRotate`) и брендовой рамкой выделения (`SelectionChrome`).
+  4. Палитра с поддержкой drag-to-create (`ElementPalette`), сетка и направляющие выравнивания (`snapElementPosition`), контекстное меню по правой кнопке мыши (`ElementContextMenu`), поддержка горячих клавиш (Ctrl+Z, Ctrl+Y, Delete, Ctrl+D, Ctrl+C, Ctrl+V, стрелки).
+  5. Полный набор функциональных элементов: `CountdownElementView`, `RsvpFormElementView`, `WishesElementView`, `MapElementView`, `MusicPlayerElementView`, `GiftBlockElementView`, `QrCodeElementView`, `ProgramElementView`, `OrnamentElementView`, `LottieElementView`, `VideoBgElementView`.
+  6. Быстрый визард создания (`/create`) с 6 шагами (включая выбор цветовых схем), привязкой полей к `placeholderKey`, автосохранением в localStorage и проверкой тарифа перед переходом в продвинутый конструктор.
+  7. Визуальная рассадка гостей (`VisualSeatingChart`) с интерактивными столами (круглые, прямоугольные, президиум, сцена), DnD гостей из списка, печатью/PDF, копированием ссылки для тойханы и переключением на список.
+  8. Библиотека пресетов (`PresetLibraryModal`) для применения палитр, шрифтовых пар и фонов в один клик, а также paywall-проверка по тарифу (Стандарт и выше).
+  9. Админ-режим создания шаблонов (`/admin/templates/builder`) без программирования с возможностью отмечать редактируемые поля (`editableByEndUser`, `placeholderKey`), клонировать, скрывать и удалять шаблоны.
+  10. Аналитика открытий (`/api/invitations/[id]/event`), экспорт в календарь (.ics), массовая рассылка в WhatsApp и E2E тесты.

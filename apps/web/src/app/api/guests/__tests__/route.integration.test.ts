@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
-import { buildGuestListWhere, GET } from '@/app/api/guests/route';
+import { GET } from '@/app/api/guests/route';
+import { buildGuestListWhere } from '@/lib/guests/guest-list-where';
 
 const prismaMock = vi.hoisted(() => ({
   invitation: { findFirst: vi.fn() },

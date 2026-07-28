@@ -163,8 +163,15 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    type GiftTransferRow = {
+      id: string;
+      authorName: string | null;
+      note: string | null;
+      guest?: { name: string } | null;
+      createdAt: Date;
+    };
     return NextResponse.json({
-      transfers: transfers.map((t) => ({
+      transfers: transfers.map((t: GiftTransferRow) => ({
         id: t.id,
         authorName: t.authorName,
         note: t.note,

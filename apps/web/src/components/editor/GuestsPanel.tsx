@@ -171,6 +171,26 @@ export function GuestsPanel({
         </div>
       )}
 
+      <div className="flex flex-wrap gap-2 my-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            const firstWithPhone = displayGuests.find((g: EditorGuestInfo) => g.phone);
+            if (!firstWithPhone || !firstWithPhone.phone) {
+              alert('Добавьте гостям номера телефонов, чтобы рассылать в WhatsApp');
+              return;
+            }
+            const phone = firstWithPhone.phone.replace(/\D/g, '');
+            const url = `https://wa.me/${phone}?text=${encodeURIComponent('Приглашаем вас на торжество! Ссылка на приглашение отправлена в сообщении.')}`;
+            window.open(url, '_blank', 'noopener,noreferrer');
+          }}
+        >
+          📲 Разослать в WhatsApp
+        </Button>
+      </div>
+
       {displayGuests.length > 0 && (
         <ul className="divide-y divide-us-border rounded-md border border-us-border">
           {displayGuests.map((g, i) => (

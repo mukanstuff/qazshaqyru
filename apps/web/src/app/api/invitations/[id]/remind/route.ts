@@ -82,7 +82,14 @@ export async function POST(
       throw new ApiError('no_guests', 'Добавьте хотя бы одного гостя', 400);
     }
 
-    const reminderInputs: ReminderGuestInput[] = guestRows.map((g) => ({
+    type RemindGuestRow = {
+      id: string;
+      name: string;
+      phone: string;
+      response?: { status: string } | null;
+    };
+
+    const reminderInputs: ReminderGuestInput[] = guestRows.map((g: RemindGuestRow) => ({
       id: g.id,
       name: g.name,
       phone: g.phone,

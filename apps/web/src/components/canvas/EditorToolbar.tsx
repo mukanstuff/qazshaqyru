@@ -15,6 +15,7 @@ interface ToolbarProps {
   onRedo: () => void;
   onPreviewGuest: () => void;
   onPreviewAnimations: () => void;
+  onOpenPresets?: () => void;
   saveState: SaveState;
   lastSaved: Date | null;
   onSaveNow: () => void;
@@ -105,6 +106,11 @@ export function EditorToolbar(p: ToolbarProps) {
         {L.grid}
       </label>
       <span className="mx-2 h-5 w-px bg-zinc-800" />
+      {p.onOpenPresets && (
+        <button className={btn} onClick={p.onOpenPresets}>
+          ✨ {p.locale === 'ru' ? 'Пресеты' : 'Пресеттер'}
+        </button>
+      )}
       <button className={btn} onClick={p.onPreviewAnimations}>▶ {L.animPreview}</button>
       <button className={btn} onClick={p.onPreviewGuest}>👁 {L.preview}</button>
 

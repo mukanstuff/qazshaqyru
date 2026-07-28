@@ -41,11 +41,16 @@ export const quickWizardStep5Schema = z.object({
   coverPhoto: z.string().max(500).optional().or(z.literal('')),
 });
 
+export const quickWizardStep6Schema = z.object({
+  colorScheme: z.string().max(50).optional().or(z.literal('')),
+});
+
 export const quickWizardFormSchema = quickWizardStep1Schema
   .merge(quickWizardStep2Schema)
   .merge(quickWizardStep3Schema)
   .merge(quickWizardStep4Schema)
-  .merge(quickWizardStep5Schema);
+  .merge(quickWizardStep5Schema)
+  .merge(quickWizardStep6Schema);
 
 export type QuickWizardFormData = z.infer<typeof quickWizardFormSchema>;
 
@@ -63,6 +68,7 @@ export function validateQuickWizardStep(
     quickWizardStep3Schema,
     quickWizardStep4Schema,
     quickWizardStep5Schema,
+    quickWizardStep6Schema,
   ];
   const schema = schemas[step - 1];
   if (!schema) return { success: true };

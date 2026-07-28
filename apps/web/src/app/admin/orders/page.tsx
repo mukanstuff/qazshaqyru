@@ -43,6 +43,16 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
     ];
   }
 
+type AdminOrderRow = {
+  id: string;
+  template: { nameRu: string; slug: string };
+  customerName?: string | null;
+  customerPhone?: string | null;
+  amountKzt: number;
+  status: string;
+  createdAt: Date;
+};
+
   const [orders, total] = await Promise.all([
     prisma.order.findMany({
       where,
@@ -53,7 +63,7 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
-    }),
+    }) as unknown as Promise<AdminOrderRow[]>,
     prisma.order.count({ where }),
   ]);
 
@@ -117,7 +127,7 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
           </tr>
         </thead>
         <tbody>
-          {orders.map((o) => (
+          {orders.map((o: AdminOrderRow) => (
             <tr key={o.id} className={adminTableRowClass}>
               <td className={cn(adminTableTdClass, 'font-mono text-xs')}>
                 {o.id.slice(0, 8)}

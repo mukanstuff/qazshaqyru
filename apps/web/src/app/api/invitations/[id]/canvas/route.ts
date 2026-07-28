@@ -18,6 +18,7 @@ import prisma from '@/lib/shared/db';
 import { canvasDocumentSchema } from '@/lib/canvas/schemas';
 import { convertLegacyToCanvas } from '@/lib/canvas/legacy-converter';
 import { parseCanvasOrEmpty, validateCanvasDocument } from '@/lib/canvas/validation';
+import { getInvitationPricing } from '@/lib/invitations/invitation-pricing';
 import type { InvitationCanvasDocument } from '@/lib/canvas/types';
 
 export const dynamic = 'force-dynamic';
@@ -92,7 +93,11 @@ const patchBodySchema = z.object({
 export async function PATCH(req: NextRequest, { params }: RouteCtx) {
   try {
     const { id } = await params;
-    await loadOwnedInvitation(id);
+    const { session } = await loadOwnedInvitation(id);
+    const pricing = await getInvitationPricing(id, session.user.id);
+    if (pricing && pricing.entitlements.planSku === 'free' && !session.user.isAdmin) {
+      throw new ApiError('plan_required', 'Продвинутый конструктор доступен на тарифе Стандарт и выше', 403);
+    }
     const body = await req.json().catch(() => null);
     const parsed = patchBodySchema.safeParse(body);
     if (!parsed.success) {

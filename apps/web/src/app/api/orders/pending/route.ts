@@ -96,9 +96,11 @@ export async function GET(request: NextRequest) {
 
 
 
+    type PendingOrderRow = { id: string; invitationId: string; amountKzt: number; paymentProvider: string | null; createdAt: Date; paidAt?: Date | null };
+
     return NextResponse.json({
 
-      orders: orders.map((o) => ({
+      orders: orders.map((o: PendingOrderRow) => ({
 
         id: o.id,
 
@@ -112,7 +114,7 @@ export async function GET(request: NextRequest) {
 
       })),
 
-      recentlyPaid: recentlyPaid.map((o) => ({
+      recentlyPaid: recentlyPaid.map((o: PendingOrderRow) => ({
 
         id: o.id,
 

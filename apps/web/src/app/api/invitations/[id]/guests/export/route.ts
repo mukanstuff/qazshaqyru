@@ -42,7 +42,19 @@ async function buildBanquetCsv(invitationId: string, userId: string) {
     orderBy: { createdAt: 'asc' },
   });
 
-  const rows: BanquetExportGuest[] = guests.map((g) => ({
+  type GuestExportRow = {
+    id: string;
+    name: string;
+    phone: string;
+    side: string | null;
+    householdLabel: string | null;
+    hasPlusOne: boolean;
+    plusOneName: string | null;
+    response?: { status: string; dietaryRestrictions?: string | null } | null;
+    seating?: { table: { name: string } } | null;
+  };
+
+  const rows: BanquetExportGuest[] = guests.map((g: GuestExportRow) => ({
     id: g.id,
     name: g.name,
     phone: g.phone,

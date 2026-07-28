@@ -44,8 +44,21 @@ export default async function InvitationEditorPage({ params, searchParams }: Pro
 
   const pricing = await getInvitationPricing(invitation.id, ctx.user.id);
 
+  type InvitationGuestRow = {
+    id: string;
+    name: string;
+    phone: string;
+    sentAt: Date | null;
+    openedAt: Date | null;
+    householdLabel: string | null;
+    hasPlusOne: boolean;
+    plusOneName?: string | null;
+    side?: string | null;
+    response?: { status: string } | null;
+  };
+
   const funnel = computeGuestFunnelWithPhone(
-    invitation.guests.map((g) => ({
+    invitation.guests.map((g: InvitationGuestRow) => ({
       id: g.id,
       phone: g.phone,
       sentAt: g.sentAt,
@@ -54,7 +67,7 @@ export default async function InvitationEditorPage({ params, searchParams }: Pro
     }))
   );
 
-  const headcountGuests = invitation.guests.map((g) => ({
+  const headcountGuests = invitation.guests.map((g: InvitationGuestRow) => ({
     id: g.id,
     name: g.name,
     householdLabel: g.householdLabel,

@@ -72,7 +72,8 @@ export async function GET(
     const template = catalogTemplate ?? invitation.template;
     const templateId = template?.id ?? invitation.templateId;
     const priceKzt = resolvePublicationPriceKzt(template?.priceKzt ?? null);
-    const hasPaidOrder = invitation.orders.some((order) =>
+    type PublicOrderRow = { id: string; status: 'pending' | 'paid' | 'cancelled' | 'refunded'; templateId: string; amountKzt: number };
+    const hasPaidOrder = invitation.orders.some((order: PublicOrderRow) =>
       isValidPaidOrder(order, templateId, priceKzt)
     );
     const entitlements = resolveEntitlements({

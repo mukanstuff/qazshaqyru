@@ -20,12 +20,26 @@ import {
 const createSchema = z.object({
   name: z.string().min(1).max(80),
   capacity: z.number().int().min(1).max(50).optional(),
+  x: z.number().optional().nullable(),
+  y: z.number().optional().nullable(),
+  w: z.number().optional().nullable(),
+  h: z.number().optional().nullable(),
+  rotation: z.number().optional().nullable(),
+  shape: z.string().max(20).optional().nullable(),
+  tableColor: z.string().max(20).optional().nullable(),
 });
 
 const updateSchema = z.object({
   tableId: z.string().uuid(),
   name: z.string().min(1).max(80).optional(),
   capacity: z.number().int().min(1).max(50).optional(),
+  x: z.number().optional().nullable(),
+  y: z.number().optional().nullable(),
+  w: z.number().optional().nullable(),
+  h: z.number().optional().nullable(),
+  rotation: z.number().optional().nullable(),
+  shape: z.string().max(20).optional().nullable(),
+  tableColor: z.string().max(20).optional().nullable(),
 });
 
 const assignSchema = z.object({
@@ -94,6 +108,13 @@ export async function POST(
       userId: ctx.user.id,
       name: parsed.data.name,
       capacity: parsed.data.capacity,
+      x: parsed.data.x,
+      y: parsed.data.y,
+      w: parsed.data.w,
+      h: parsed.data.h,
+      rotation: parsed.data.rotation,
+      shape: parsed.data.shape,
+      tableColor: parsed.data.tableColor,
     });
     return NextResponse.json({ table }, { status: 201 });
   } catch (error) {
@@ -127,6 +148,13 @@ export async function PATCH(
       userId: ctx.user.id,
       name: parsed.data.name,
       capacity: parsed.data.capacity,
+      x: parsed.data.x,
+      y: parsed.data.y,
+      w: parsed.data.w,
+      h: parsed.data.h,
+      rotation: parsed.data.rotation,
+      shape: parsed.data.shape,
+      tableColor: parsed.data.tableColor,
     });
     return NextResponse.json({ table });
   } catch (error) {

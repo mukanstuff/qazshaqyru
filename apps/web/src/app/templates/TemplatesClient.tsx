@@ -194,7 +194,7 @@ export function TemplatesClient({
                   <TemplateCatalogCard
                     key={template.id}
                     template={template}
-                    displayName={locale === 'kz' ? template.nameKz : template.nameRu}
+                    displayName={(locale === 'kz' ? template.nameKz : template.nameRu) ?? template.nameRu}
                     categoryLabel={t(`events.${template.category}` as 'events.wedding')}
                     onPreview={() => setPreviewSlug(template.slug)}
                   />
@@ -249,7 +249,7 @@ export function TemplatesClient({
               <ManagedOrderForm
                 templateId={templates[0].id}
                 templateName={
-                  locale === 'kz' ? templates[0].nameKz : templates[0].nameRu
+                  (locale === 'kz' ? templates[0].nameKz : templates[0].nameRu) ?? templates[0].nameRu
                 }
                 managedPrice={
                   templates[0].priceKzt > 0
@@ -265,7 +265,7 @@ export function TemplatesClient({
       {previewTemplate && (
         <TemplatePreviewModal
           template={previewTemplate}
-          displayName={locale === 'kz' ? previewTemplate.nameKz : previewTemplate.nameRu}
+          displayName={(locale === 'kz' ? previewTemplate.nameKz : previewTemplate.nameRu) ?? previewTemplate.nameRu}
           onClose={() => setPreviewSlug(null)}
         />
       )}

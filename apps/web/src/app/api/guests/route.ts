@@ -64,39 +64,7 @@ const updateGuestSchema = z.object({
   householdLabel: z.string().max(100).nullable().optional(),
 });
 
-type GuestResponseStatusFilter =
-  | 'attending'
-  | 'not_attending'
-  | 'attending_plus_one'
-  | 'attending_no_children'
-  | 'pending';
-
-/** Build Prisma where with correct 1:1 relation filters (`is` / `isNot`). */
-export function buildGuestListWhere(
-  invitationId: string,
-  status: string | null
-): Prisma.GuestWhereInput {
-  const where: Prisma.GuestWhereInput = { invitationId };
-
-  if (
-    status === 'attending' ||
-    status === 'not_attending' ||
-    status === 'attending_plus_one' ||
-    status === 'attending_no_children'
-  ) {
-    where.response = { is: { status: status as Exclude<GuestResponseStatusFilter, 'pending'> } };
-    return where;
-  }
-
-  if (status === 'pending') {
-    where.OR = [
-      { response: { is: null } },
-      { response: { is: { status: 'pending' } } },
-    ];
-  }
-
-  return where;
-}
+import { buildGuestListWhere } from '@/lib/guests/guest-list-where';
 
 export async function PATCH(request: NextRequest) {
   try {

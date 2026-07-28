@@ -14,6 +14,14 @@ import {
 
 export const dynamic = 'force-dynamic';
 
+type RecentOrderRow = {
+  id: string;
+  template: { nameRu: string };
+  customerPhone: string;
+  amountKzt: number;
+  status: string;
+};
+
 export default async function AdminHome() {
   const [totalRevenue, paidOrders, pendingOrders, totalInvitations, recentOrders] = await Promise.all([
     prisma.order.aggregate({ where: { status: 'paid' }, _sum: { amountKzt: true } }),
@@ -24,7 +32,7 @@ export default async function AdminHome() {
       take: 10,
       orderBy: { createdAt: 'desc' },
       include: { user: { select: { phone: true } }, template: { select: { nameRu: true } } },
-    }),
+    }) as unknown as Promise<RecentOrderRow[]>,
   ]);
 
   return (
@@ -56,7 +64,7 @@ export default async function AdminHome() {
             </tr>
           </thead>
           <tbody>
-            {recentOrders.map((o) => (
+            {recentOrders.map((o: RecentOrderRow) => (
               <tr key={o.id} className={adminTableRowClass}>
                 <td className={`${adminTableTdClass} font-mono text-xs`}>{o.id.slice(0, 8)}</td>
                 <td className={adminTableTdClass}>{o.template.nameRu}</td>

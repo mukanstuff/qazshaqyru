@@ -7,6 +7,9 @@ interface Props {
   zoom: number;
   children: React.ReactNode;
   onDragStart: (e: React.PointerEvent) => void;
+  onResizeStart?: (e: React.PointerEvent, handle: 'nw' | 'ne' | 'sw' | 'se') => void;
+  onRotateStart?: (e: React.PointerEvent) => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
 }
 
 const HANDLER = 8;
@@ -18,8 +21,10 @@ const HANDLER = 8;
  * The chrome wraps the rendered element; interactions are on the wrapper
  * so that clicking/dragging anywhere on the element starts a move.
  */
-export function SelectionChrome({ el, selected, zoom, children, onDragStart }: Props) {
-  if (!selected) return <>{children}</>;
+export function SelectionChrome({ el, selected, zoom, children, onDragStart, onResizeStart, onRotateStart, onContextMenu }: Props) {
+  if (!selected) {
+    return <div onContextMenu={onContextMenu}>{children}</div>;
+  }
 
   const outlineStyle: CSSProperties = {
     outline: `2px solid #6b1d3a`,
@@ -81,16 +86,58 @@ export function SelectionChrome({ el, selected, zoom, children, onDragStart }: P
         if (el.locked) return;
         onDragStart(e);
       }}
+      onContextMenu={onContextMenu}
       data-selected-id={el.id}
     >
       {children}
       {/* handlers */}
-      <div style={handlerStyle('top-left')} data-resize="nw" />
-      <div style={handlerStyle('top-right')} data-resize="ne" />
-      <div style={handlerStyle('bottom-left')} data-resize="sw" />
-      <div style={handlerStyle('bottom-right')} data-resize="se" />
+      <div
+        style={{ ...handlerStyle('top-left'), cursor: 'nwse-resize' }}
+        data-resize="nw"
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          if (el.locked) return;
+          onResizeStart?.(e, 'nw');
+        }}
+      />
+      <div
+        style={{ ...handlerStyle('top-right'), cursor: 'nesw-resize' }}
+        data-resize="ne"
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          if (el.locked) return;
+          onResizeStart?.(e, 'ne');
+        }}
+      />
+      <div
+        style={{ ...handlerStyle('bottom-left'), cursor: 'nesw-resize' }}
+        data-resize="sw"
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          if (el.locked) return;
+          onResizeStart?.(e, 'sw');
+        }}
+      />
+      <div
+        style={{ ...handlerStyle('bottom-right'), cursor: 'nwse-resize' }}
+        data-resize="se"
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          if (el.locked) return;
+          onResizeStart?.(e, 'se');
+        }}
+      />
       <div style={connector} />
-      <div style={rotateHandle} data-rotate="true" title="Повернуть" />
+      <div
+        style={rotateHandle}
+        data-rotate="true"
+        title="Повернуть"
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          if (el.locked) return;
+          onRotateStart?.(e);
+        }}
+      />
       {el.locked && (
         <div
           style={{

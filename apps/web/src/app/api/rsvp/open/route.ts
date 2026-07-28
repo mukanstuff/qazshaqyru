@@ -108,7 +108,8 @@ export async function POST(request: NextRequest) {
 
     const normalizedName = name.trim().toLowerCase();
 
-    const result = await prisma.$transaction(async (tx) => {
+    type PrismaTx = any;
+    const result = await prisma.$transaction(async (tx: PrismaTx) => {
       let guest = await tx.guest.findFirst({
         where: { invitationId: invitation.id, phone: phoneNormalized },
       });

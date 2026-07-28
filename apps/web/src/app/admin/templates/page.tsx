@@ -1,4 +1,6 @@
 import { ToggleTemplateButton } from '@/components/admin/ToggleTemplateButton';
+import { TemplateAdminActions } from '@/components/admin/TemplateAdminActions';
+import Link from 'next/link';
 import {
   AdminTableShell,
   adminTableHeadClass,
@@ -10,17 +12,38 @@ import Image from 'next/image';
 import prisma from '@/lib/shared/db';
 import { cn } from '@/lib/shared/utils';
 
+type AdminTemplateRow = {
+  id: string;
+  nameRu: string;
+  slug: string;
+  category: string;
+  priceKzt: number;
+  isPublic: boolean;
+  isActive: boolean;
+  isFeatured: boolean;
+  previewImageUrl: string;
+  _count: { invitations: number; orders: number };
+};
+
 export const dynamic = 'force-dynamic';
 
 export default async function AdminTemplatesPage() {
-  const templates = await prisma.template.findMany({
+  const templates = (await prisma.template.findMany({
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
     include: { _count: { select: { invitations: true, orders: true } } },
-  });
+  })) as unknown as AdminTemplateRow[];
 
   return (
     <div className="space-y-6">
-      <h1 className="font-display text-3xl font-semibold text-us-ink">Шаблоны</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="font-display text-3xl font-semibold text-us-ink">Шаблоны</h1>
+        <Link
+          href="/admin/templates/builder?new=1"
+          className="inline-flex items-center gap-2 rounded-lg bg-us-accent px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-us-accent-strong"
+        >
+          + Создать шаблон
+        </Link>
+      </div>
 
       <AdminTableShell>
         <thead className={adminTableHeadClass}>
@@ -31,10 +54,11 @@ export default async function AdminTemplatesPage() {
             <th className={adminTableThClass}>Использований</th>
             <th className={adminTableThClass}>Активен</th>
             <th className={adminTableThClass}>Хит</th>
+            <th className={adminTableThClass}>Действия</th>
           </tr>
         </thead>
         <tbody>
-          {templates.map((t) => (
+          {templates.map((t: AdminTemplateRow) => (
             <tr key={t.id} className={adminTableRowClass}>
               <td className={adminTableTdClass}>
                 <div className="flex items-center gap-3">
@@ -66,6 +90,9 @@ export default async function AdminTemplatesPage() {
               </td>
               <td className={adminTableTdClass}>
                 <ToggleTemplateButton id={t.id} initial={t.isFeatured} field="isFeatured" />
+              </td>
+              <td className={adminTableTdClass}>
+                <TemplateAdminActions id={t.id} slug={t.slug} isPublic={t.isPublic} />
               </td>
             </tr>
           ))}

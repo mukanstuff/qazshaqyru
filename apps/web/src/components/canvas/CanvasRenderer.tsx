@@ -24,6 +24,16 @@ import { ShapeElementView } from './elements/ShapeElementView';
 import { DividerElementView } from './elements/DividerElementView';
 import { CoupleNamesElementView } from './elements/CoupleNamesElementView';
 import { CountdownElementView } from './elements/CountdownElementView';
+import { RsvpFormElementView } from './elements/RsvpFormElementView';
+import { WishesElementView } from './elements/WishesElementView';
+import { MapElementView } from './elements/MapElementView';
+import { MusicPlayerElementView } from './elements/MusicPlayerElementView';
+import { GiftBlockElementView } from './elements/GiftBlockElementView';
+import { QrCodeElementView } from './elements/QrCodeElementView';
+import { ProgramElementView } from './elements/ProgramElementView';
+import { OrnamentElementView } from './elements/OrnamentElementView';
+import { LottieElementView } from './elements/LottieElementView';
+import { VideoBgElementView } from './elements/VideoBgElementView';
 import { PlaceholderFunctionalView } from './elements/PlaceholderFunctionalView';
 
 export type RendererMode = 'guest' | 'editor';
@@ -233,22 +243,21 @@ function renderElement(
     case 'text': return <TextElementView el={el} />;
     case 'heading': return <HeadingElementView el={el} />;
     case 'image': return <ImageElementView el={el} />;
-    case 'button': return <ButtonElementView el={el} locale={ctx.locale} />;
+    case 'button': return <ButtonElementView el={el} locale={ctx.locale} shareUrl={ctx.shareUrl} />;
     case 'shape': return <ShapeElementView el={el} />;
     case 'divider': return <DividerElementView el={el} />;
     case 'couple-names': return <CoupleNamesElementView el={el} />;
     case 'countdown': return <CountdownElementView el={el} />;
-    case 'rsvp-form':
-    case 'wishes':
-    case 'program':
-    case 'map':
-    case 'music':
-    case 'gift':
-    case 'qr':
-    case 'lottie':
-    case 'video-bg':
-    case 'ornament':
-      return <PlaceholderFunctionalView el={el} shareUrl={ctx.shareUrl} mode={ctx.mode} />;
+    case 'rsvp-form': return <RsvpFormElementView el={el} shareUrl={ctx.shareUrl} mode={ctx.mode} />;
+    case 'wishes': return <WishesElementView el={el} shareUrl={ctx.shareUrl} mode={ctx.mode} />;
+    case 'map': return <MapElementView el={el} />;
+    case 'music': return <MusicPlayerElementView el={el} />;
+    case 'gift': return <GiftBlockElementView el={el} mode={ctx.mode} />;
+    case 'qr': return <QrCodeElementView el={el} shareUrl={ctx.shareUrl} mode={ctx.mode} />;
+    case 'program': return <ProgramElementView el={el} />;
+    case 'ornament': return <OrnamentElementView el={el} />;
+    case 'lottie': return <LottieElementView el={el} />;
+    case 'video-bg': return <VideoBgElementView el={el} />;
     default:
       return null;
   }

@@ -140,6 +140,7 @@ export function convertLegacyToCanvas(inv: LegacyInvitationLike): InvitationCanv
       objectFit: 'cover',
       borderRadius: 0,
       overlayColor: 'rgba(107,29,58,0.15)',
+      placeholderKey: 'coverPhoto',
     });
     y += 340;
   }
@@ -172,6 +173,7 @@ export function convertLegacyToCanvas(inv: LegacyInvitationLike): InvitationCanv
     font: 'Cormorant',
     fontSize: 56,
     color: LUXURY_PRIMARY,
+    placeholderKey: 'coupleNames',
   });
   y += 110;
 
@@ -180,7 +182,9 @@ export function convertLegacyToCanvas(inv: LegacyInvitationLike): InvitationCanv
 
   const dateStr = fmtDate(inv.eventDate);
   if (dateStr) {
-    elements.push(headingEl(nanoid(10), y, dateStr, 28));
+    const elDate = headingEl(nanoid(10), y, dateStr, 28);
+    elDate.placeholderKey = 'eventDate';
+    elements.push(elDate);
     y += 60;
   }
 
@@ -190,14 +194,18 @@ export function convertLegacyToCanvas(inv: LegacyInvitationLike): InvitationCanv
   }
 
   if (inv.eventPlace || inv.address) {
-    elements.push(textEl(nanoid(10), y, inv.eventPlace || inv.address || '', {
+    const elPlace = textEl(nanoid(10), y, inv.eventPlace || inv.address || '', {
       fontSize: 18,
       color: LUXURY_PRIMARY,
-    }));
+    });
+    elPlace.placeholderKey = 'venueName';
+    elements.push(elPlace);
     y += 40;
   }
   if (inv.address) {
-    elements.push(textEl(nanoid(10), y, inv.address, { fontSize: 14, color: LUXURY_TEXT }));
+    const elAddr = textEl(nanoid(10), y, inv.address, { fontSize: 14, color: LUXURY_TEXT });
+    elAddr.placeholderKey = 'venueAddress';
+    elements.push(elAddr);
     y += 50;
   }
 

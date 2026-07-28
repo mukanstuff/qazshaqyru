@@ -2,6 +2,8 @@ import prisma from '@/lib/shared/db';
 import { generateGuestToken, normalizePhone, validatePhone } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 
+type PrismaTx = any;
+
 export class GuestValidationError extends Error {
   constructor(message: string) {
     super(message);
@@ -123,7 +125,8 @@ export async function issueGuestInviteLinks(
   const out: IssuedGuestLink[] = [];
   const now = new Date();
 
-  await prisma.$transaction(async (tx) => {
+  type PrismaTx = any;
+  await prisma.$transaction(async (tx: PrismaTx) => {
     for (const g of guests) {
       if (g.sentAt !== null && !reissue) {
         out.push({ id: g.id, name: g.name, phone: g.phone, token: '', alreadySent: true });
@@ -175,14 +178,17 @@ export async function addGuests(
     .filter((g) => !g.phoneNormalized)
     .map((g) => g.name.trim().toLowerCase());
 
-  const existing = phones.length
+  type GuestPhoneRow = { id: string; phone: string; tokenHash: string };
+  type GuestNameRow = { id: string; name: string; phone: string | null; tokenHash: string };
+
+  const existing = (phones.length
     ? await prisma.guest.findMany({
         where: { invitationId, phone: { in: phones } },
         select: { id: true, phone: true, tokenHash: true },
       })
-    : [];
+    : []) as unknown as GuestPhoneRow[];
 
-  const existingByName =
+  const existingByName = (
     namesWithoutPhone.length > 0
       ? await prisma.guest.findMany({
           where: {
@@ -191,9 +197,10 @@ export async function addGuests(
           },
           select: { id: true, name: true, phone: true, tokenHash: true },
         })
-      : [];
+      : []
+  ) as unknown as GuestNameRow[];
 
-  const existingByPhone = new Map(existing.map((e) => [e.phone, e]));
+  const existingByPhone = new Map(existing.map((e: GuestPhoneRow) => [e.phone, e]));
   const existingByNameBuckets = new Map<string, typeof existingByName>();
   for (const guest of existingByName) {
     const key = guest.name.trim().toLowerCase();
@@ -275,7 +282,7 @@ export async function addGuests(
     }
   }
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: PrismaTx) => {
     if (toCreate.length > 0) {
       const created = await tx.guest.createManyAndReturn({
         data: toCreate.map(({ resultIndex: _resultIndex, ...guestData }) => guestData),
@@ -402,17 +409,18 @@ export async function getGuestStatsForInvitation(invitationId: string) {
   const responded = respondedResult;
   const pending = total - responded;
 
-  const byStatus = await prisma.guestResponse.groupBy({
+  type GroupByStatusRow = { status: string; _count: { _all: number } };
+  const byStatusRows = (await prisma.guestResponse.groupBy({
     by: ['status'],
     where: { guest: { invitationId } },
     _count: { _all: true },
-  });
+  })) as unknown as GroupByStatusRow[];
 
-  const statusCounts = new Map(byStatus.map((r) => [r.status, r._count._all]));
-  const attending = statusCounts.get('attending') ?? 0;
-  const attendingPlusOne = statusCounts.get('attending_plus_one') ?? 0;
-  const attendingNoChildren = statusCounts.get('attending_no_children') ?? 0;
-  const notAttending = statusCounts.get('not_attending') ?? 0;
+  const statusCounts = new Map<string, number>(byStatusRows.map((r: GroupByStatusRow) => [r.status, r._count._all]));
+  const attending = Number(statusCounts.get('attending') ?? 0);
+  const attendingPlusOne = Number(statusCounts.get('attending_plus_one') ?? 0);
+  const attendingNoChildren = Number(statusCounts.get('attending_no_children') ?? 0);
+  const notAttending = Number(statusCounts.get('not_attending') ?? 0);
   const expectedGuests = attending + attendingNoChildren + attendingPlusOne * 2;
 
   return { total, responded, pending, attending, attendingPlusOne, attendingNoChildren, notAttending, expectedGuests };
