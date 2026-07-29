@@ -25,3 +25,4 @@ storage/
 /public/uploads/
 postgres-data/
 design/templates/**/_drafts/
+__pycache__/
