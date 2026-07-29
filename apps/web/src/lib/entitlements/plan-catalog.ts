@@ -91,7 +91,7 @@ export const PLAN_CATALOG: Record<PlanSku, PlanDefinition> = {
   },
   agency: {
     sku: 'agency',
-    priceKzt: 9_990,
+    priceKzt: 20_000,
     billingPeriod: 'monthly',
     rank: 30,
     invitationLevel: false,

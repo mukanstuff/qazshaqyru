@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Settings } from 'lucide-react';
-import { LogoMark } from '@/components/shared/ornaments';
 import { LanguageSwitcher } from '@/components/auth/LanguageSwitcher';
 import { LogoutButton } from '@/components/auth/LogoutButton';
 import { Button } from '@/components/ui/button';
@@ -39,13 +38,14 @@ export function AppHeader({ variant = 'dashboard', action }: AppHeaderProps) {
             href={variant === 'admin' ? '/admin' : '/dashboard'}
             className="inline-flex min-w-0 items-center gap-2.5 transition-opacity hover:opacity-90"
           >
-            <LogoMark size={24} color="var(--us-accent)" />
             <div className="min-w-0">
               <span className="block truncate font-display text-lg text-us-ink sm:text-xl">
-                {t('landing.brandName')}
-              </span>
-              <span className="block truncate text-[10px] uppercase tracking-[0.24em] text-us-ink-muted">
-                {variant === 'admin' ? 'Admin' : t('landing.headerTagline')}
+                QazShaqyru
+                {variant === 'admin' ? (
+                  <span className="ml-2 rounded-full bg-us-accent/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-us-accent">
+                    Admin
+                  </span>
+                ) : null}
               </span>
             </div>
           </Link>

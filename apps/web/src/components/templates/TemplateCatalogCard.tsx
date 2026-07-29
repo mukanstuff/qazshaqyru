@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight, Maximize2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useI18n } from '@/i18n';
 import { getTemplateSignature } from '@/lib/templates/template-identity';
@@ -85,22 +85,13 @@ export function TemplateCatalogCard({
         </div>
       </button>
 
-      <div className="us-glass-soft flex flex-col gap-2 border-t border-us-border/50 p-3 sm:flex-row sm:flex-wrap">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="min-h-11 flex-1 justify-center sm:flex-none"
-          onClick={onPreview}
-        >
-          {t('templatesPage.preview')}
-        </Button>
+      <div className="us-glass-soft border-t border-us-border/50 p-3">
         <Link
           href={quickWizardHref(template.slug)}
           data-testid={`template-quick-${template.slug}`}
           className={cn(
             buttonVariants({ variant: 'default', size: 'sm' }),
-            'min-h-11 flex-1 justify-center sm:min-w-[11rem] sm:flex-none',
+            'flex min-h-11 w-full items-center justify-center gap-2',
           )}
         >
           {t('templatesPage.makeThisTemplate')}

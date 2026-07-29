@@ -71,11 +71,11 @@ describe('template catalog', () => {
 });
 
 describe('quickWizardHref', () => {
-  it('builds live editor URL with default template', () => {
-    expect(quickWizardHref()).toBe(`/invitations/edit?template=${encodeURIComponent(DEFAULT_QUICK_TEMPLATE)}`);
+  it('builds quick wizard URL with default template', () => {
+    expect(quickWizardHref()).toBe(`/create?template=${encodeURIComponent(DEFAULT_QUICK_TEMPLATE)}`);
   });
 
   it('encodes template slug per card', () => {
-    expect(quickWizardHref('wedding-luxury')).toBe('/invitations/edit?template=wedding-luxury');
+    expect(quickWizardHref('wedding-luxury')).toBe('/create?template=wedding-luxury');
   });
 });

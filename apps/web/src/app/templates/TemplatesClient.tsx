@@ -4,10 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { LocaleLink } from '@/components/seo/LocaleLink';
 import { useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
-import { LogoMark } from '@/components/shared/ornaments';
 import { PublicShell } from '@/components/shared/PublicShell';
 import {
-  CatalogDesignerNote,
   TemplateCatalogCard,
   TemplateFilterChip,
   TemplatePreviewModal,
@@ -17,10 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useI18n } from '@/i18n';
-import { ManagedOrderForm } from '@/components/orders/ManagedOrderForm';
-import { PLAN_CATALOG } from '@/lib/entitlements/plan-catalog';
 import { templateMatchesSearch } from '@/lib/shared/ux-guided-flow';
-import { COMING_SOON_TEMPLATES, comingSoonByProduct } from '@/lib/templates/coming-soon';
 import type { Template } from '@prisma/client';
 
 const CATEGORY_ORDER = [
@@ -52,7 +47,6 @@ export function TemplatesClient({
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [previewSlug, setPreviewSlug] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [managedOpen, setManagedOpen] = useState(showManaged);
 
   useEffect(() => {
     const category = searchParams.get('category');
@@ -106,14 +100,6 @@ export function TemplatesClient({
   );
 
   const hasVisibleTemplates = Object.values(filteredGroups).some((items) => items.length > 0);
-
-  const ritualHints = useMemo(() => {
-    const byProduct = comingSoonByProduct('site');
-    return byProduct
-      .filter((item) => activeCategory === 'all' || item.category === activeCategory)
-      .slice(0, 8)
-      .map((item) => (locale === 'kz' ? item.nameKz : item.nameRu));
-  }, [activeCategory, locale]);
 
   const liveCountShown =
     Object.values(filteredGroups).reduce((n, items) => n + items.length, 0);
@@ -203,13 +189,8 @@ export function TemplatesClient({
             </section>
           ))}
 
-          {!searchQuery.trim() && COMING_SOON_TEMPLATES.length > 0 ? (
-            <CatalogDesignerNote ritualHints={ritualHints} />
-          ) : null}
-
           {!hasVisibleTemplates && templates.length > 0 && (
             <div className="flex flex-col items-center gap-4 py-12 text-center">
-              <LogoMark size={60} />
               <p className="font-body text-us-ink-muted">{t('templatesPage.noResults')}</p>
               <Button type="button" variant="outline" onClick={() => setSearchQuery('')}>
                 {t('templatesPage.clearSearch')}
@@ -219,46 +200,12 @@ export function TemplatesClient({
 
           {templates.length === 0 && (
             <div className="flex flex-col items-center gap-4 py-12 text-center">
-              <LogoMark size={60} />
               <p className="font-body text-us-ink-muted">{t('templatesPage.empty')}</p>
               <Button variant="outline" asChild>
                 <LocaleLink href="/">{t('templatesPage.backHome')}</LocaleLink>
               </Button>
             </div>
           )}
-
-          <div className="rounded-2xl border border-us-border bg-us-ivory/70 p-6 md:p-8">
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h2 className="font-display text-2xl text-us-ink">
-                  {t('templatesPage.managedTitle')}
-                </h2>
-                <p className="mt-1 max-w-xl font-body text-sm text-us-ink-muted">
-                  {t('templatesPage.managedDesc')}
-                </p>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setManagedOpen((v) => !v)}
-              >
-                {managedOpen ? t('templatesPage.managedHide') : t('templatesPage.managedCta')}
-              </Button>
-            </div>
-            {managedOpen && templates[0] ? (
-              <ManagedOrderForm
-                templateId={templates[0].id}
-                templateName={
-                  (locale === 'kz' ? templates[0].nameKz : templates[0].nameRu) ?? templates[0].nameRu
-                }
-                managedPrice={
-                  templates[0].priceKzt > 0
-                    ? templates[0].priceKzt
-                    : PLAN_CATALOG.premium.priceKzt
-                }
-              />
-            ) : null}
-          </div>
         </div>
       </section>
 

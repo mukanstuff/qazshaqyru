@@ -25,7 +25,7 @@ export function AboutPageClient({ isLoggedIn = false }: { isLoggedIn?: boolean }
 
         <div className="mt-10 flex flex-wrap gap-3">
           <Link
-            href="/invitations/edit"
+            href="/create"
             className="inline-flex items-center gap-2 rounded-full bg-us-accent px-6 py-3 text-sm font-medium text-us-cream transition-colors hover:bg-us-accent-strong"
           >
             {t('landing.v2.nav.create')}

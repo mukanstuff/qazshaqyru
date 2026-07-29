@@ -16,7 +16,6 @@ interface AdminNavProps {
 const NAV = [
   { href: '/admin', label: 'Обзор', exact: true },
   { href: '/admin/orders', label: 'Заказы', badgeKey: 'orders' as const },
-  { href: '/admin/managed', label: 'Сделаем за вас' },
   { href: '/admin/templates', label: 'Шаблоны', countKey: 'templates' as const },
 ];
 

@@ -139,7 +139,7 @@ export function SiteMarketingHeader({ isLoggedIn = false }: SiteMarketingHeaderP
               {isLoggedIn ? t('nav.myInvites') : t('landing.nav.login')}
             </LocaleLink>
             <LocaleLink
-              href="/invitations/edit"
+              href="/create"
               className={`hidden h-9 shrink-0 items-center whitespace-nowrap rounded-full text-sm leading-none transition-colors duration-300 md:flex ${
                 navCompact ? 'px-4' : 'px-5'
               } ${
@@ -203,7 +203,7 @@ export function SiteMarketingHeader({ isLoggedIn = false }: SiteMarketingHeaderP
                   {isLoggedIn ? t('nav.myInvites') : t('landing.nav.login')}
                 </LocaleLink>
                 <LocaleLink
-                  href="/invitations/edit"
+                  href="/create"
                   className="block rounded-full bg-us-accent px-5 py-3 text-center text-sm text-us-cream"
                   onClick={() => setMenuOpen(false)}
                 >

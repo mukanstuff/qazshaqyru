@@ -5,12 +5,7 @@ import { TemplatesClient } from './TemplatesClient';
 
 export const dynamic = 'force-dynamic';
 
-interface Props {
-  searchParams: Promise<{ managed?: string }>;
-}
-
-export default async function TemplatesPage({ searchParams }: Props) {
-  const { managed } = await searchParams;
+export default async function TemplatesPage() {
   const [templates, session] = await Promise.all([
     prisma.template.findMany({
       where: { isActive: true, slug: { in: [...CATALOG_TEMPLATE_SLUGS] } },
@@ -23,7 +18,6 @@ export default async function TemplatesPage({ searchParams }: Props) {
     <TemplatesClient
       templates={templates}
       isLoggedIn={Boolean(session)}
-      showManaged={managed === '1'}
     />
   );
 }

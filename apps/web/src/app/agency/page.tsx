@@ -7,11 +7,12 @@ import { PLAN_CATALOG } from '@/lib/entitlements/plan-catalog';
 import { resolveEntitlements } from '@/lib/entitlements';
 import prisma from '@/lib/shared/db';
 import { Button } from '@/components/ui/button';
+import { getWhatsappHref } from '@/lib/site/legal-config';
 
 export const metadata: Metadata = {
   title: 'Для тойхан и организаторов — QazShaqyru',
   description:
-    '9 990 ₸/мес: безлимит приглашений, список гостей, рассадка, портал менеджеру тойханы. Инструмент партнёра, не marketplace.',
+    '20 000 ₸/мес: безлимит приглашений, обучающий курс, ответы гостей, рассадка, список для зала. Инструмент партнёра.',
 };
 
 export default async function AgencyPage() {
@@ -45,16 +46,17 @@ export default async function AgencyPage() {
             Для партнёров
           </p>
           <h1 className="font-display text-4xl text-us-ink md:text-5xl">
-            Для тойхан и организаторов
+            Для агентств и организаторов
           </h1>
           <p className="mt-4 font-body text-base leading-relaxed text-us-ink-muted">
-            {price} ₸/мес. Безлимит приглашений, ответы гостей, рассадка, список для зала и портал
-            менеджеру. «Сделаем за вас» — после оплаты. Не клон toikhana.kz.
+            {price} ₸/мес. Постоянный доступ к обучающему курсу (создание и продажа приглашений,
+            ведение Instagram) + безлимит приглашений для клиентов.
           </p>
         </div>
 
         <ul className="space-y-2 font-body text-sm text-us-ink">
-          <li>— Безлимит сайт- и сүрет-приглашений на 30 дней</li>
+          <li>— Безлимит приглашений для клиентов</li>
+          <li>— Обучающий курс: как создавать и продавать приглашения</li>
           <li>— Список на тойхану: Excel-файл и ссылка-портал менеджеру</li>
           <li>— Рассадка и семьи для 150–300 гостей</li>
           <li>— Своя ссылка /i/… на каждом приглашении</li>
@@ -65,9 +67,13 @@ export default async function AgencyPage() {
         ) : (
           <div className="flex flex-wrap gap-3">
             <Button asChild>
-              <Link href={`/login?next=${encodeURIComponent('/agency')}`}>
-                Войти и оформить
-              </Link>
+              <a
+                href={getWhatsappHref('Здравствуйте! Хочу узнать об агентском тарифе.')}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Написать в WhatsApp
+              </a>
             </Button>
             <Button variant="outline" asChild>
               <Link href="/pricing">Сравнить тарифы</Link>

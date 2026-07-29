@@ -11,7 +11,6 @@ import { ArrowRight, Check, Phone } from 'lucide-react';
 import { useI18n } from '@/i18n';
 
 import { LandingFaq } from './LandingFaq';
-import { LandingTemplateShowroom } from './LandingTemplateShowroom';
 import { LandingHeroShowcase } from './LandingHeroShowcase';
 import { LandingCelebrations } from './LandingCelebrations';
 import { LandingGrain } from './LandingGrain';
@@ -24,11 +23,14 @@ type LandingPageProps = {
   /** Kept for callers; hero no longer shows vanity stats (D6 hero budget). */
   publishedInvitations?: number;
   isLoggedIn?: boolean;
+  /** Minimum template price from DB for pricing teaser. */
+  minTemplatePriceKzt?: number;
 };
 
 export function LandingPage({
   publishedInvitations: _publishedInvitations = 0,
   isLoggedIn = false,
+  minTemplatePriceKzt = 3_990,
 }: LandingPageProps) {
   void _publishedInvitations;
   const { t } = useI18n();
@@ -105,7 +107,7 @@ export function LandingPage({
                   data-testid="landing-hero-ctas"
                 >
                   <LocaleLink
-                    href="/invitations/edit"
+                    href="/create"
                     className="flex min-h-11 items-center gap-2 rounded-full bg-us-accent px-6 py-3 text-sm font-medium text-us-cream shadow-[0_14px_32px_-16px_rgba(44,24,16,0.45)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-us-accent-strong md:min-h-12 md:px-8 md:text-base"
                   >
                     {t('landing.v2.hero.ctaPrimary')} <ArrowRight className="h-4 w-4" />
@@ -161,10 +163,6 @@ export function LandingPage({
             </div>
 
             <LandingCelebrations embedded />
-
-            <div className="mt-14">
-              <LandingTemplateShowroom />
-            </div>
           </div>
         </section>
 
@@ -178,7 +176,7 @@ export function LandingPage({
               </h2>
             </div>
 
-            <PricingTeaser />
+            <PricingTeaser minTemplatePriceKzt={minTemplatePriceKzt} />
           </div>
         </section>
 
@@ -196,7 +194,7 @@ export function LandingPage({
             </p>
             <div className="flex flex-col justify-center gap-3 sm:flex-row">
               <LocaleLink
-                href="/invitations/edit"
+                href="/create"
                 className="inline-flex items-center justify-center gap-2.5 rounded-full bg-white px-9 py-4 text-base font-semibold text-us-accent transition-colors hover:bg-white/90"
               >
                 {t('landing.v2.cta.primary')} <ArrowRight className="h-5 w-5" />

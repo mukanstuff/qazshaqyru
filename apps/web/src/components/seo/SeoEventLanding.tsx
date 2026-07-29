@@ -136,7 +136,7 @@ export async function SeoEventLanding({ landingKey }: { landingKey: SeoLandingKe
             <LocaleLink href={L.primaryCta.href}>{L.primaryCta.label}</LocaleLink>
           </Button>
           <Button variant="outline" asChild>
-            <LocaleLink href="/invitations/edit">{createLabel}</LocaleLink>
+            <LocaleLink href="/create">{createLabel}</LocaleLink>
           </Button>
         </div>
       </article>

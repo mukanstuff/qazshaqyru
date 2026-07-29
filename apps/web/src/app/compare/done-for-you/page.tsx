@@ -1,9 +1,10 @@
-import { CompareLandingPage, buildCompareMetadata } from '@/components/seo/ComparePage';
+import { redirect } from 'next/navigation';
+import type { Metadata } from 'next';
 
-export async function generateMetadata() {
-  return buildCompareMetadata('done-for-you');
-}
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
-export default function CompareDoneForYouPage() {
-  return <CompareLandingPage pageKey="done-for-you" />;
+export default function CompareDoneForYouRedirect() {
+  redirect('/pricing');
 }

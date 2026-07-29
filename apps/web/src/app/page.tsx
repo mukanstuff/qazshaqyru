@@ -7,6 +7,8 @@ import { getLandingPublicStats } from '@/lib/landing/public-stats';
 import { getI18n } from '@/i18n/server';
 import { buildLanguageAlternates, seoLocaleFromHeaders } from '@/lib/seo/hreflang';
 import { buildFaqPageSchema, buildHomeJsonLdGraph, resolveLandingFaqItems } from '@/lib/seo/json-ld';
+import prisma from '@/lib/shared/db';
+import { CATALOG_TEMPLATE_SLUGS } from '@/lib/templates/catalog';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: 'Онлайн-приглашение на той — ответы гостей и рассадка | QazShaqyru',
     description:
-      'Электронное приглашение на той и свадьбу в Казахстане: шаблон за минуты, ответы гостей без звонков, семьи, рассадка и список для тойханы. Бесплатно с логотипом сервиса — Стандарт от 3 990 ₸.',
+      'Электронное приглашение на той и свадьбу в Казахстане: шаблон за минуты, ответы гостей без звонков, семьи, рассадка и список для тойханы. Бесплатно с логотипом сервиса — от 3 990 ₸.',
     alternates: buildLanguageAlternates('/', urlLocale),
   };
 }
@@ -27,6 +29,14 @@ export default async function HomePage() {
   const session = await getCurrentSession();
   const faqItems = resolveLandingFaqItems(t);
 
+  // Get min template price from active catalog templates
+  const minTemplate = await prisma.template.findFirst({
+    where: { isActive: true, slug: { in: [...CATALOG_TEMPLATE_SLUGS] } },
+    orderBy: { priceKzt: 'asc' },
+    select: { priceKzt: true },
+  });
+  const minTemplatePriceKzt = minTemplate?.priceKzt ?? 3_990;
+
   return (
     <>
       <JsonLd data={buildHomeJsonLdGraph()} />
@@ -34,6 +44,7 @@ export default async function HomePage() {
       <LandingPage
         publishedInvitations={stats.publishedInvitations}
         isLoggedIn={Boolean(session)}
+        minTemplatePriceKzt={minTemplatePriceKzt}
       />
     </>
   );

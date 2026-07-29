@@ -22,7 +22,7 @@ describe('plan catalog', () => {
   it('defines ladder prices', () => {
     expect(getPlanPriceKzt('standard')).toBe(3990);
     expect(getPlanPriceKzt('premium')).toBe(4990);
-    expect(getPlanPriceKzt('agency')).toBe(9990);
+    expect(getPlanPriceKzt('agency')).toBe(20000);
     expect(PLAN_CATALOG.agency.billingPeriod).toBe('monthly');
   });
 

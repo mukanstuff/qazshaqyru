@@ -2,26 +2,24 @@ import { DEFAULT_TEMPLATE_SLUG } from '@/lib/templates/catalog';
 
 export const DEFAULT_QUICK_TEMPLATE = DEFAULT_TEMPLATE_SLUG;
 
-/** Primary create / edit path — Live Editor (document truth). */
+/** Primary create path — QuickWizard → canvas editor. */
 export function liveEditorHref(
   templateSlug: string = DEFAULT_QUICK_TEMPLATE,
   invitationId?: string,
 ): string {
-  const base = `/invitations/edit?template=${encodeURIComponent(templateSlug)}`;
-  if (!invitationId) return base;
-  return `${base}&invitationId=${encodeURIComponent(invitationId)}`;
+  if (invitationId) {
+    return `/invitations/${encodeURIComponent(invitationId)}/canvas`;
+  }
+  return `/create?template=${encodeURIComponent(templateSlug)}`;
 }
 
-/**
- * @deprecated Prefer `liveEditorHref`. Kept as alias so existing imports keep working
- * while create flow points at Live Editor.
- */
+/** Create/start from a template — goes through QuickWizard then canvas. */
 export function quickWizardHref(templateSlug: string = DEFAULT_QUICK_TEMPLATE): string {
-  return liveEditorHref(templateSlug);
+  return `/create?template=${encodeURIComponent(templateSlug)}`;
 }
 
-/** Legacy `/invitations/new` → Live Editor create path. */
+/** Legacy `/invitations/new` → quick wizard path. */
 export function newInvitationRedirectHref(template?: string | null): string {
   if (!template) return '/templates';
-  return liveEditorHref(template);
+  return quickWizardHref(template);
 }

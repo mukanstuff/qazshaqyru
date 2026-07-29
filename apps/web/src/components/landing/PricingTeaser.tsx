@@ -4,16 +4,18 @@ import { ArrowRight, Check } from 'lucide-react';
 
 import { LocaleLink } from '@/components/seo/LocaleLink';
 import { useI18n } from '@/i18n';
-import { PLAN_CATALOG } from '@/lib/entitlements/plan-catalog';
-import { formatPlanPriceKzt } from './pricing-utils';
+
+interface PricingTeaserProps {
+  minTemplatePriceKzt: number;
+}
 
 const TIMELINE_KEYS = ['timeline1', 'timeline2', 'timeline3'] as const;
 const BULLET_KEYS = ['bullet1', 'bullet2', 'bullet3'] as const;
 
-/** Short freemium pricing block for the landing — full details on /pricing. */
-export function PricingTeaser() {
+/** Short pricing block for the landing — from {MIN} ₸ per invitation. */
+export function PricingTeaser({ minTemplatePriceKzt }: PricingTeaserProps) {
   const { t } = useI18n();
-  const standardPrice = formatPlanPriceKzt('standard');
+  const formattedMin = minTemplatePriceKzt.toLocaleString('ru-RU');
 
   return (
     <div className="mx-auto max-w-3xl text-center" data-testid="pricing-teaser">
@@ -21,7 +23,7 @@ export function PricingTeaser() {
         <p className="text-sm font-medium text-us-ink-muted">{t('landing.v2.pricing.teaser.freeNote')}</p>
         <p className="mt-2 font-display text-5xl text-us-ink md:text-6xl" data-testid="pricing-teaser-hero-price">
           <span className="text-us-accent">
-            {t('landing.v2.pricing.teaser.heroPrice', { price: standardPrice })}
+            {t('landing.v2.pricing.teaser.heroPrice', { price: formattedMin })}
           </span>
         </p>
         <p className="mt-1 text-base text-us-ink-muted">{t('landing.v2.pricing.teaser.priceLabel')}</p>

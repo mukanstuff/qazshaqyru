@@ -103,7 +103,7 @@ export default async function BlogPostPage({ params }: Props) {
           <p className="font-display text-2xl text-us-ink">{t('blog.ctaTitle')}</p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <LocaleLink
-              href="/invitations/edit"
+              href="/create"
               className="inline-flex items-center gap-2 rounded-full bg-us-accent px-6 py-3 text-sm font-medium text-us-cream transition-colors hover:bg-us-accent-strong"
             >
               {t('landing.v2.nav.create')}

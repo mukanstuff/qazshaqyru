@@ -74,7 +74,7 @@ export default async function BlogPage() {
           <p className="mt-2 text-sm text-us-ink-muted">{t('blog.ctaSubtitle')}</p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <LocaleLink
-              href="/invitations/edit"
+              href="/create"
               className="inline-flex items-center gap-2 rounded-full bg-us-accent px-6 py-3 text-sm font-medium text-us-cream transition-colors hover:bg-us-accent-strong"
             >
               {t('landing.v2.nav.create')}

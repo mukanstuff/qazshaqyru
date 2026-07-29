@@ -86,7 +86,7 @@ export default async function InvitationEditorPage({ params, searchParams }: Pro
       status={invitation.status as 'draft' | 'published' | 'archived'}
       isPublished={invitation.status === 'published'}
       priceKzt={pricing?.priceKzt ?? 3990}
-      editHref={`/invitations/edit?template=${encodeURIComponent(invitation.templateKey)}&invitationId=${invitation.id}`}
+      editHref={`/invitations/${encodeURIComponent(invitation.id)}/canvas`}
       planSku={entitlements?.planSku ?? 'free'}
       watermark={entitlements?.watermark ?? true}
       guestOpsUnlocked={entitlements?.guestOps ?? false}

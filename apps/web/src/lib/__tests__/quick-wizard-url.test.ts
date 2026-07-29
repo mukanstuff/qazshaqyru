@@ -11,29 +11,29 @@ describe('quick-wizard-url', () => {
     expect(DEFAULT_QUICK_TEMPLATE).toBe('wedding-luxury');
   });
 
-  it('builds encoded live editor href', () => {
+  it('builds encoded quick wizard href', () => {
     expect(quickWizardHref('wedding-luxury')).toBe(
-      '/invitations/edit?template=wedding-luxury',
+      '/create?template=wedding-luxury',
     );
     expect(liveEditorHref('wedding-luxury')).toBe(
-      '/invitations/edit?template=wedding-luxury',
+      '/create?template=wedding-luxury',
     );
   });
 
   it('defaults to catalog template when slug omitted', () => {
     expect(quickWizardHref()).toContain('wedding-luxury');
-    expect(quickWizardHref()).toContain('/invitations/edit');
+    expect(quickWizardHref()).toContain('/create');
   });
 
   it('encodes special characters in template slug', () => {
     expect(quickWizardHref('toy & family')).toBe(
-      `/invitations/edit?template=${encodeURIComponent('toy & family')}`,
+      `/create?template=${encodeURIComponent('toy & family')}`,
     );
   });
 
-  it('includes invitationId when provided', () => {
+  it('includes invitationId — redirects to canvas', () => {
     expect(liveEditorHref('wedding-luxury', 'inv-1')).toBe(
-      '/invitations/edit?template=wedding-luxury&invitationId=inv-1',
+      '/invitations/inv-1/canvas',
     );
   });
 });
@@ -45,9 +45,9 @@ describe('newInvitationRedirectHref', () => {
     expect(newInvitationRedirectHref('')).toBe('/templates');
   });
 
-  it('redirects /invitations/new to edit with same template', () => {
+  it('redirects to quick wizard with same template', () => {
     expect(newInvitationRedirectHref('wedding-luxury')).toBe(
-      '/invitations/edit?template=wedding-luxury',
+      '/create?template=wedding-luxury',
     );
     expect(newInvitationRedirectHref('family-warm')).toBe(quickWizardHref('family-warm'));
   });

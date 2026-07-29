@@ -119,7 +119,6 @@ export function QuickWizard({ templateKey, templateId, templateName }: Props) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [previewDraft, setPreviewDraft] = useState<LocalDraft | null>(null);
   const [showLogin, setShowLogin] = useState(false);
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [isOpeningConstructor, setIsOpeningConstructor] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
@@ -253,12 +252,6 @@ export function QuickWizard({ templateKey, templateId, templateName }: Props) {
     }
     setIsLoggedIn(true);
 
-    const planSku = sessionData.user.planSku || 'free';
-    if (planSku === 'free') {
-      setShowUpgradeModal(true);
-      return;
-    }
-
     setIsOpeningConstructor(true);
     try {
       const invitationId = await ensureSaved(previewDraft);
@@ -355,32 +348,7 @@ export function QuickWizard({ templateKey, templateId, templateName }: Props) {
           subtitle={t('quickWizard.loginSubtitle')}
         />
 
-        {showUpgradeModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-            <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-4">
-              <h3 className="font-display text-xl font-bold text-us-ink">
-                Продвинутый конструктор
-              </h3>
-              <p className="font-body text-sm text-us-ink-muted">
-                Чтобы свободно двигать элементы, добавлять свои фото и декор — оформите Стандарт или Премиум.
-              </p>
-              <div className="flex justify-end gap-3 pt-2">
-                <Button variant="outline" onClick={() => setShowUpgradeModal(false)}>
-                  Позже
-                </Button>
-                <Button
-                  variant="default"
-                  onClick={() => {
-                    setShowUpgradeModal(false);
-                    router.push('/pricing');
-                  }}
-                >
-                  Тарифы →
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
+
       </EditorWorkspaceShell>
     );
   }

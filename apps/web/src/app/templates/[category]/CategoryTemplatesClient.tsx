@@ -5,7 +5,6 @@ import { LocaleLink } from '@/components/seo/LocaleLink';
 import { ArrowRight } from 'lucide-react';
 import { PublicShell } from '@/components/shared/PublicShell';
 import {
-  CatalogDesignerNote,
   TemplateCatalogCard,
   TemplatePreviewModal,
   TemplatesPageHero,
@@ -18,7 +17,6 @@ import {
   categoryDbKeyFromRoute,
   type CategoryRouteSlug,
 } from '@/lib/templates/template-categories';
-import { comingSoonForCategory } from '@/lib/templates/coming-soon';
 import { templateMatchesSearch } from '@/lib/shared/ux-guided-flow';
 import type { Template } from '@prisma/client';
 
@@ -52,14 +50,6 @@ export function CategoryTemplatesClient({
         }),
       ),
     [categoryLabel, locale, searchQuery, templates],
-  );
-
-  const ritualHints = useMemo(
-    () =>
-      comingSoonForCategory(dbCategory)
-        .slice(0, 6)
-        .map((item) => (locale === 'kz' ? item.nameKz : item.nameRu)),
-    [dbCategory, locale],
   );
 
   const previewTemplate = useMemo(
@@ -120,8 +110,6 @@ export function CategoryTemplatesClient({
             </div>
           ) : null}
 
-          {!searchQuery.trim() ? <CatalogDesignerNote ritualHints={ritualHints} /> : null}
-
           {filteredTemplates.length === 0 ? (
             <div className="mx-auto max-w-lg space-y-4 py-12 text-center">
               <p className="font-display text-2xl text-us-ink">
@@ -137,9 +125,6 @@ export function CategoryTemplatesClient({
               <div className="flex flex-wrap justify-center gap-3">
                 <Button asChild>
                   <LocaleLink href="/templates">Все шаблоны</LocaleLink>
-                </Button>
-                <Button variant="outline" asChild>
-                  <LocaleLink href="/templates?managed=1">Сделаем за вас</LocaleLink>
                 </Button>
               </div>
             </div>

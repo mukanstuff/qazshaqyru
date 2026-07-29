@@ -8,7 +8,7 @@ describe('pricing-utils', () => {
     expect(formatPlanPriceKzt('free')).toBe('0');
     expect(formatPlanPriceKzt('standard')).toBe('3\u00a0990');
     expect(formatPlanPriceKzt('premium')).toBe('4\u00a0990');
-    expect(formatPlanPriceKzt('agency')).toBe('9\u00a0990');
+    expect(formatPlanPriceKzt('agency')).toBe('20\u00a0000');
   });
 
   it('uses catalog prices, not hardcoded literals', () => {

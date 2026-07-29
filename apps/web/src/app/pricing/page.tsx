@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
+import prisma from '@/lib/shared/db';
 import { getCurrentSession } from '@/lib/shared/api';
 import { PublicShell } from '@/components/shared/PublicShell';
 import { PricingPageContent } from '@/components/landing/PricingPageContent';
@@ -7,6 +8,9 @@ import { JsonLd } from '@/components/seo/JsonLd';
 import { buildLanguageAlternates, seoLocaleFromHeaders } from '@/lib/seo/hreflang';
 import { buildServiceSchema, buildSoftwareApplicationSchema } from '@/lib/seo/json-ld';
 import { getI18n } from '@/i18n/server';
+import { CATALOG_TEMPLATE_SLUGS } from '@/lib/templates/catalog';
+
+export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
   const [{ locale, t }, headerStore] = await Promise.all([getI18n(), headers()]);
@@ -17,8 +21,8 @@ export async function generateMetadata(): Promise<Metadata> {
       : 'Цены на онлайн-приглашение — от 3 990 ₸ | QazShaqyru';
   const description =
     locale === 'kz'
-      ? 'Шақыруды тегін жасаңыз — QazShaqyru белгісімен. Стандарт 3 990 ₸-ден: белгісіз сілтеме, қонақтар тізімі және тойханаға файл. Төлем Kaspi.'
-      : 'Создать приглашение бесплатно с логотипом сервиса. Стандарт от 3 990 ₸: без логотипа, ответы гостей, семьи, рассадка и список для тойханы. Оплата Kaspi.';
+      ? 'Шақыруды тегін жасаңыз — QazShaqyru белгісімен. 3 990 ₸-ден: белгісіз сілтеме, қонақтар тізімі және тойханаға файл. Төлем Kaspi.'
+      : 'Создать приглашение бесплатно с логотипом сервиса. от 3 990 ₸: без логотипа, ответы гостей, семьи, рассадка и список для тойханы. Оплата Kaspi.';
   return {
     title,
     description,
@@ -29,6 +33,14 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function PricingPage() {
   const [session, { locale, t }] = await Promise.all([getCurrentSession(), getI18n()]);
 
+  // Get min template price from active catalog templates
+  const minTemplate = await prisma.template.findFirst({
+    where: { isActive: true, slug: { in: [...CATALOG_TEMPLATE_SLUGS] } },
+    orderBy: { priceKzt: 'asc' },
+    select: { priceKzt: true },
+  });
+  const minTemplatePriceKzt = minTemplate?.priceKzt ?? 3_990;
+
   return (
     <PublicShell isLoggedIn={Boolean(session)}>
       <JsonLd
@@ -36,8 +48,8 @@ export default async function PricingPage() {
           name: locale === 'kz' ? 'QazShaqyru цифрлық шақырулары' : 'Цифровые приглашения QazShaqyru',
           description:
             locale === 'kz'
-              ? 'Онлайн шақырулар: қонақ жауабы, тізім, отырғызу, тойханаға файл. Стандарт 3 990 ₸-ден.'
-              : 'Онлайн-приглашения: ответы гостей, список, рассадка, файл для тойханы. Стандарт от 3 990 ₸.',
+              ? 'Онлайн шақырулар: қонақ жауабы, тізім, отырғызу, тойханаға файл. 3 990 ₸-ден.'
+              : 'Онлайн-приглашения: ответы гостей, список, рассадка, файл для тойханы. от 3 990 ₸.',
           path: '/pricing',
         })}
       />
@@ -60,7 +72,7 @@ export default async function PricingPage() {
         </div>
       </div>
       <div className="mx-auto max-w-6xl px-4 py-12">
-        <PricingPageContent />
+        <PricingPageContent minTemplatePriceKzt={minTemplatePriceKzt} />
       </div>
     </PublicShell>
   );
