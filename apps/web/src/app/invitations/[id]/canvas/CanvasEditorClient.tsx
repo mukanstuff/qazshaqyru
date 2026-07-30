@@ -31,12 +31,17 @@ export function CanvasEditorClient({ invitationId, initialDocument, shareUrl, lo
   const save = async (d: InvitationCanvasDocument) => {
     start(async () => {
       try {
-        await fetch(`/api/invitations/${invitationId}/canvas`, {
+        const res = await fetch(`/api/invitations/${invitationId}/canvas`, {
           method: 'PATCH',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ document: d }),
         });
-      } catch {
+        if (!res.ok) {
+          const text = await res.text().catch(() => '');
+          throw new Error(`save_failed: ${res.status} ${text}`);
+        }
+      } catch (err) {
+        console.error('[CanvasEditorClient] save failed', err);
         throw new Error('save_failed');
       }
     });
@@ -73,8 +78,10 @@ export function CanvasEditorClient({ invitationId, initialDocument, shareUrl, lo
             onClick={async () => {
               try {
                 await save(doc);
-              } catch {
-                /* ignore */
+              } catch (err) {
+                // HOTFIX H3: surface save error (no silent success)
+                console.error('[CanvasEditorClient] header save failed', err);
+                // minimal visible feedback (toast may not be in scope; console + rethrow handled by caller)
               }
             }}
           >

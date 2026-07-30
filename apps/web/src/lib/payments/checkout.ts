@@ -90,7 +90,9 @@ export async function checkoutInvitation(
     planSku?: string | null;
   }
 ): Promise<CheckoutResult> {
-  const intent = options.intent ?? 'publish';
+  // HOTFIX: default to 'pay' (template price = fullAccess) for all user paths.
+  // 'publish' (freemium) is legacy and should only be used explicitly by admin/internal.
+  const intent = options.intent ?? 'pay';
   const planSku = assertPaidPlanSku(options.planSku);
   const planDef = getPlanDefinition(planSku);
   const providerName = resolveCheckoutProvider(options.provider);
@@ -153,12 +155,17 @@ export async function checkoutInvitation(
     };
   }
 
-  // === DECISIVE PRODUCT CHANGE (2026-07-30) ===
-  // 'publish' intent is legacy freemium path. For user-facing "Оплатить" we use 'pay'.
-  // We are actively moving away from freemium publish.
+  // HOTFIX H1: 'publish' (freemium without payment) is legacy.
+  // Only allow for admin (internal / migration). Regular user path must use 'pay'.
   if (intent === 'publish') {
-    // Still support for backward compatibility in some internal paths,
-    // but we no longer encourage it in the main user journey.
+    if (!user.isAdmin) {
+      throw new ApiError(
+        'validation_error',
+        'Публикация только после оплаты цены шаблона. Используйте intent: "pay".',
+        400
+      );
+    }
+    // Admin legacy path only
     await publishInvitationIfDraft(invitation.id);
     return {
       published: true,

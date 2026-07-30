@@ -63,7 +63,7 @@ describe('invitation checkout API integration', () => {
     expect(checkoutInvitationMock).toHaveBeenCalledWith(
       'inv-1',
       { id: 'user-1' },
-      expect.objectContaining({ provider: 'mock', appUrl: 'http://localhost:3000', intent: 'publish' })
+      expect.objectContaining({ provider: 'mock', appUrl: 'http://localhost:3000', intent: 'pay' })
     );
     expect(body.paymentUrl).toContain('/mock-payment');
   });

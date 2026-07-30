@@ -114,33 +114,20 @@ export async function syncDraftToServer(draft: LocalDraft): Promise<DraftSyncRes
 
   const updatedGuests = await syncGuestsToServer(serverInvitationId, draft);
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // 2026-07-30 SACRED: CANVAS PRIMARY PATH FROM WIZARD DAY 1
-  // See PRODUCT_MODEL_AND_RULES.md + ensure-canvas.ts
-  // After sync (POST or PATCH invitation) → ALWAYS force canvas seed.
-  // This ensures preview (wizard) == editor == public == paid guest page use the same doc.
-  // pay once = fullAccess; canvas document must exist before payment.
-  // ═══════════════════════════════════════════════════════════════════════════
+  // HOTFIX H2: ensure canvas document exists after wizard create/sync.
+  // GET /canvas already calls ensureCanvasDocument (on owner read).
+  // Do NOT PATCH { document: null } — validateCanvasDocument(null) → 400.
+  // No browser import of server-only helper.
   try {
-    // Force canvas via the canonical API (server-side will call ensureCanvasDocument)
     const canvasRes = await fetch(`/api/invitations/${serverInvitationId}/canvas`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ document: null }), // server-side will seed if missing
+      method: 'GET',
+      credentials: 'same-origin',
     });
     if (!canvasRes.ok) {
-      console.warn('[draft-sync] canvas PATCH non-ok (will be retried on edit)');
+      console.warn('[draft-sync] canvas GET ensure failed (will retry on editor GET)', await canvasRes.text().catch(() => ''));
     }
-
-    // Extra-hard: also directly call the helper if possible (server contexts)
-    // This reinforces the "canvas from creation + sync" rule.
-    try {
-      const { ensureCanvasDocument } = await import('./ensure-canvas');
-      // best-effort direct (no tx here, but ensures)
-      // The /canvas PATCH above already triggers the server ensure path.
-    } catch {}
   } catch (e) {
-    console.warn('[draft-sync] canvas ensure failed (will retry on edit)', e);
+    console.warn('[draft-sync] canvas ensure via GET failed (will retry on edit)', e);
   }
 
   return { serverInvitationId, guests: updatedGuests };

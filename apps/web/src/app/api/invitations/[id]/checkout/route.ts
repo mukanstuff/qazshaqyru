@@ -66,7 +66,8 @@ export async function POST(
     const result = await checkoutInvitation(id, ctx.user, {
       appUrl: getAppUrl(request),
       provider: parsed.data.provider,
-      intent: parsed.data.intent ?? 'publish',
+      // HOTFIX: server default must be 'pay' (symmetric to client + product model)
+      intent: parsed.data.intent ?? 'pay',
       planSku: parsed.data.planSku,
     });
 
