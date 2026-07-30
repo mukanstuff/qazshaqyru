@@ -23,12 +23,18 @@ export interface CanvasEditorProps {
   shareUrl?: string;
   locale?: 'ru' | 'kz';
   mode?: 'user' | 'template-builder';
+  /** 2026-07-30: chrome controls how much UI is shown.
+   * 'full' = complete editor with palette + inspector (default).
+   * 'minimal' = stage + basic toolbar only (for "simple view inside editor").
+   * This is the start of the "one shell" pattern requested in review.
+   */
+  chrome?: 'minimal' | 'full';
 }
 
 export type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 export function CanvasEditor(props: CanvasEditorProps) {
-  const { initialDocument, onChange, onSaveRequest, shareUrl, locale = 'ru', mode = 'user' } = props;
+  const { initialDocument, onChange, onSaveRequest, shareUrl, locale = 'ru', mode = 'user', chrome = 'full' } = props;
   const [doc, setDoc] = useState<InvitationCanvasDocument>(initialDocument);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [viewport, setViewport] = useState<'mobile' | 'desktop'>('mobile');
@@ -280,8 +286,11 @@ export function CanvasEditor(props: CanvasEditorProps) {
     return { ...doc, width: stageWidth };
   }, [doc, stageWidth, viewport]);
 
+  const isMinimal = chrome === 'minimal';
+
   return (
     <div className="flex h-full flex-col bg-[#1b1419] text-zinc-100">
+      {/* Toolbar is always shown (even in minimal) for basic save/zoom actions */}
       <EditorToolbar
         viewport={viewport}
         onViewportChange={setViewport}
@@ -314,7 +323,9 @@ export function CanvasEditor(props: CanvasEditorProps) {
         mode={mode}
       />
       <div className="flex flex-1 min-h-0">
-        <ElementPalette onAdd={handleAdd} locale={locale} />
+        {/* Hide full palette in minimal chrome (for "simple view inside editor") */}
+        {!isMinimal && <ElementPalette onAdd={handleAdd} locale={locale} />}
+
         <div className="flex-1 overflow-auto p-6 flex items-start justify-center" data-testid="canvas-stage-wrap">
           <div
             className={cn('relative shadow-2xl', showGrid && 'canvas-grid-bg')}
@@ -407,26 +418,30 @@ export function CanvasEditor(props: CanvasEditorProps) {
             </div>
           </div>
         </div>
-        <InspectorPanel
-          selected={selected}
-          onUpdate={handleUpdateSelected}
-          onDelete={() => {
-            if (!selectedId) return;
-            commit(deleteElement(doc, selectedId));
-            setSelectedId(null);
-          }}
-          onDuplicate={() => {
-            if (!selectedId) return;
-            const next = duplicateElement(doc, selectedId);
-            commit(next);
-          }}
-          onLayer={(dir) => {
-            if (!selectedId) return;
-            commit(moveElement(doc, selectedId, dir));
-          }}
-          locale={locale}
-          mode={mode}
-        />
+
+        {/* Hide inspector in minimal chrome */}
+        {!isMinimal && (
+          <InspectorPanel
+            selected={selected}
+            onUpdate={handleUpdateSelected}
+            onDelete={() => {
+              if (!selectedId) return;
+              commit(deleteElement(doc, selectedId));
+              setSelectedId(null);
+            }}
+            onDuplicate={() => {
+              if (!selectedId) return;
+              const next = duplicateElement(doc, selectedId);
+              commit(next);
+            }}
+            onLayer={(dir) => {
+              if (!selectedId) return;
+              commit(moveElement(doc, selectedId, dir));
+            }}
+            locale={locale}
+            mode={mode}
+          />
+        )}
       </div>
       {contextMenu && (
         <ElementContextMenu
