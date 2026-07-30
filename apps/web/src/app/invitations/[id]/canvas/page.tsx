@@ -5,6 +5,7 @@ import { CanvasEditorClient } from './CanvasEditorClient';
 import { convertLegacyToCanvas } from '@/lib/canvas/legacy-converter';
 import { parseCanvasOrEmpty } from '@/lib/canvas/validation';
 import { getI18n } from '@/i18n/server';
+import { ensureCanvasDocument } from '@/lib/invitations/ensure-canvas';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +27,22 @@ export default async function CanvasEditorPage({ params }: Props) {
   if (!raw || raw.length === 0) return notFound();
   const inv = raw[0] as Record<string, unknown>;
   if (inv.userId !== session.user.id && !session.user.isAdmin) return notFound();
+
+  // 2026-07-30 PRODUCT RULE: ensure canvas on EVERY editor entry.
+  // This closes any remaining hole where a row could be opened in canvas without doc.
+  if (!inv.canvas) {
+    await prisma.$transaction(async (tx: import('@prisma/client').Prisma.TransactionClient) => {
+      await ensureCanvasDocument(tx, id);
+    });
+    // re-read the (now seeded) canvas
+    const refreshed = await prisma.invitation.findUnique({
+      where: { id },
+      select: { canvas: true },
+    });
+    if (refreshed?.canvas) {
+      (inv as any).canvas = refreshed.canvas;
+    }
+  }
 
   let document;
   if (inv.canvas) {

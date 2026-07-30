@@ -32,6 +32,8 @@ export default function PublicInvitationClient({
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [envelopeOpened, setEnvelopeOpened] = useState(false);
   const [mode, setMode] = useState<RenderMode>('loading');
+  // 2026-07-30: store fullAccess from canvas API so we can pass it at render time
+  const [fullAccessFromApi, setFullAccessFromApi] = useState(false);
   const shareUrl =
     typeof window !== 'undefined' ? `${window.location.origin}/i/${slug}` : `/i/${slug}`;
 
@@ -84,8 +86,10 @@ export default function PublicInvitationClient({
         const isFullAccess = !!data.fullAccess;
 
         if (alive) {
-          // Paid or has canvas document → canvas mode (clean, no watermark)
+          // 2026-07-30 PRODUCT RULE: canvas OR fullAccess (paid template) → canvas renderer (clean, no watermark).
+          // Legacy only for ancient unpaid rows without canvas ever seeded.
           if (hasCanvas || isFullAccess) {
+            setFullAccessFromApi(isFullAccess);
             setMode('canvas');
           } else {
             setMode('legacy');
@@ -177,7 +181,7 @@ export default function PublicInvitationClient({
         <CanvasGuestPage 
           slug={slug} 
           shareUrl={shareUrl} 
-          fullAccess={true} // parent already decided based on fullAccess or canvas presence for paid invites
+          fullAccess={fullAccessFromApi || true} // 2026-07-30: parent chose canvas because fullAccess OR canvas present. fullAccess=true → clean page.
         />
       )}
     </div>

@@ -10,7 +10,19 @@ import type { InvitationCanvasDocument } from '@/lib/canvas/types';
 import { InvitationLayoutRouter } from '@/components/invitation-layouts/LayoutRouter'; // fallback only
 
 // Small helper component so that JSX stays clean
+// ═══════════════════════════════════════════════════════════════════════════
+// 2026-07-30 SACRED: WIZARD PREVIEW MUST USE CANVAS (same as public guest page)
+// Canvas is the ONLY renderer for new invitations (PRODUCT_MODEL_AND_RULES.md).
+// convertLegacyToCanvas here is a TEMPORARY bridge to populate the canvas doc
+// from wizard form data. It is NOT "legacy layout".
+// The fallback to InvitationLayoutRouter should NEVER be reached for flows
+// that go through create / ensureCanvasDocument.
+// Legacy section engine only for ancient pre-canvas rows.
+// ═══════════════════════════════════════════════════════════════════════════
 function WizardCanvasPreview({ draft, locale, fallbackPrice }: { draft: any; locale: string; fallbackPrice: number }) {
+  // Always render via canvas for new invitations. The converter is just data adapter.
+  // If it ever fails we still prefer to show *something* canvas-shaped rather than
+  // switching engines mid-flow (which owner explicitly hates).
   try {
     const canvasDoc: InvitationCanvasDocument = convertLegacyToCanvas({
       title: draft.title,
@@ -35,24 +47,19 @@ function WizardCanvasPreview({ draft, locale, fallbackPrice }: { draft: any; loc
           forceAnimations={false}
           shareUrl={undefined}
           locale={locale as 'ru' | 'kz'}
+          // fullAccess not known yet in preview, but preview intentionally shows watermark overlay
+          fullAccess={false}
         />
       </div>
     );
   } catch {
+    // Emergency bridge only — should be unreachable after ensureCanvasDocument at create time.
+    // Do NOT render full legacy LayoutRouter (that would re-introduce "шаблон меняется магически").
+    // Show a minimal canvas-shaped placeholder instead.
     return (
-      <InvitationLayoutRouter
-        slug="draft"
-        guestToken={null}
-        isEditing={false}
-        initialInvitation={draftToInvitationData(draft)}
-        isPublished={false}
-        backHref="/templates"
-        guestNames={[]}
-        guests={[]}
-        publishPriceKzt={fallbackPrice}
-        isLoggedIn={false}
-        suppressGuestChrome
-      />
+      <div className="w-full max-w-[390px] mx-auto p-8 text-center text-sm text-us-ink-muted border border-dashed rounded-xl">
+        Предпросмотр (canvas будет создан при сохранении)
+      </div>
     );
   }
 }

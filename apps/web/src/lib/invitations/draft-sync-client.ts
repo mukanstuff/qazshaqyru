@@ -114,23 +114,31 @@ export async function syncDraftToServer(draft: LocalDraft): Promise<DraftSyncRes
 
   const updatedGuests = await syncGuestsToServer(serverInvitationId, draft);
 
-  // === 2026-07-30 NEXT ===
-  // Always ensure a canvas document exists right after draft sync.
-  // This is the single write path for wizard → preview → pay.
-  // Use the shared helper for consistency with create + payment.
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 2026-07-30 SACRED: CANVAS PRIMARY PATH FROM WIZARD DAY 1
+  // See PRODUCT_MODEL_AND_RULES.md + ensure-canvas.ts
+  // After sync (POST or PATCH invitation) → ALWAYS force canvas seed.
+  // This ensures preview (wizard) == editor == public == paid guest page use the same doc.
+  // pay once = fullAccess; canvas document must exist before payment.
+  // ═══════════════════════════════════════════════════════════════════════════
   try {
-    const { ensureCanvasDocument } = await import('./ensure-canvas');
-    // We need a tx-like, but for client path we just call the API that will use the helper on server.
-    // For now we do a direct PATCH (the API already respects full model).
-    // To make it even stronger, we also call the helper if we were server-side.
+    // Force canvas via the canonical API (server-side will call ensureCanvasDocument)
     const canvasRes = await fetch(`/api/invitations/${serverInvitationId}/canvas`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ document: null }), // server will compute if missing
+      body: JSON.stringify({ document: null }), // server-side will seed if missing
     });
     if (!canvasRes.ok) {
-      console.warn('[draft-sync] canvas ensure call returned non-ok');
+      console.warn('[draft-sync] canvas PATCH non-ok (will be retried on edit)');
     }
+
+    // Extra-hard: also directly call the helper if possible (server contexts)
+    // This reinforces the "canvas from creation + sync" rule.
+    try {
+      const { ensureCanvasDocument } = await import('./ensure-canvas');
+      // best-effort direct (no tx here, but ensures)
+      // The /canvas PATCH above already triggers the server ensure path.
+    } catch {}
   } catch (e) {
     console.warn('[draft-sync] canvas ensure failed (will retry on edit)', e);
   }

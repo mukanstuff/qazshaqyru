@@ -92,9 +92,16 @@ export async function createInvitationForUser(userId: string, input: InvitationC
     throw new ApiError('slug_collision', 'Не удалось сгенерировать уникальный slug', 500);
   }
 
-  // 2026-07-30 NEXT: make canvas the primary document path from the very first creation.
-  // Use the shared helper so creation, payment, and draft paths are consistent.
-  await ensureCanvasDocument(prisma as any, invitation.id);
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 2026-07-30 SACRED PRODUCT RULE (PRODUCT_MODEL_AND_RULES.md):
+  // Canvas MUST be the primary document FROM THE MOMENT OF CREATION for every new invitation.
+  // pay Template.priceKzt once = fullAccess (watermark=false, all guestOps, customSlug, full editor).
+  // No creation path may leave canvas=null for new rows.
+  // Use tx so seed is atomic with creation.
+  // ═══════════════════════════════════════════════════════════════════════════
+  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    await ensureCanvasDocument(tx, invitation!.id);
+  });
 
   return invitation;
 }

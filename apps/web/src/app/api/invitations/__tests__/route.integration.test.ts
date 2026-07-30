@@ -6,7 +6,13 @@ const prismaMock = vi.hoisted(() => ({
     create: vi.fn(),
     findMany: vi.fn(),
     count: vi.fn(),
+    findUnique: vi.fn(),
+    update: vi.fn(),
   },
+  template: {
+    findUnique: vi.fn(),
+  },
+  $transaction: vi.fn(),
 }));
 
 const requireAuthMock = vi.hoisted(() => vi.fn().mockResolvedValue({ user: { id: 'user-1' } }));
@@ -45,7 +51,7 @@ describe('invitations API integration', () => {
   });
 
   it('creates invitation for authenticated user', async () => {
-    prismaMock.invitation.create.mockResolvedValue({
+    const createdInv = {
       id: 'inv-1',
       userId: 'user-1',
       slug: 'demo-slug',
@@ -67,6 +73,16 @@ describe('invitations API integration', () => {
       archivedAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
+      canvas: null,
+    };
+
+    prismaMock.invitation.create.mockResolvedValue(createdInv);
+    // ensureCanvasDocument runs inside createInvitationForUser using the same prisma
+    prismaMock.invitation.findUnique.mockResolvedValue(createdInv);
+    prismaMock.invitation.update.mockResolvedValue(createdInv);
+    // also satisfy the $transaction path used in ensureCanvasDocument when called with tx=prisma as any
+    prismaMock.$transaction = vi.fn().mockImplementation(async (cb: any) => {
+      return cb(prismaMock as any);
     });
 
     const request = createJsonPostRequest('http://localhost:3000/api/invitations', {
@@ -85,6 +101,8 @@ describe('invitations API integration', () => {
     expect(body.success).toBe(true);
     expect(resolveTemplateBySlugMock).toHaveBeenCalledWith('wedding-ivory-gold');
     expect(prismaMock.invitation.create).toHaveBeenCalled();
+    // ensureCanvasDocument path (canvas from creation) must be exercised
+    expect(prismaMock.invitation.findUnique).toHaveBeenCalled();
   });
 
   it('lists invitations for current user', async () => {

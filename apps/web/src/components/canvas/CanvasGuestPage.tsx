@@ -19,11 +19,23 @@ type State =
   | { loading: false; doc: InvitationCanvasDocument | null; error: string | null };
 
 /**
- * Canvas guest page: fetches canvas JSON and renders.
- * Used in tandem with a parent that decides whether to mount this or fall
- * back to the legacy LayoutRouter. For now this is a lightweight
- * implementation — a more thorough mobile-responsive version with
- * functional element interactivity comes in later stages.
+ * ═══════════════════════════════════════════════════════════════════════════
+ * CANVAS GUEST PAGE — CANONICAL FOR PAID / FULL ACCESS INVITATIONS
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 
+ * PRODUCT RULE (see PRODUCT_MODEL_AND_RULES.md + PRODUCT_DECISIONS_2026-07-30.md + AUDIT_ISSUES.md):
+ *   Pay Template.priceKzt once → fullAccess = true.
+ *   → NO watermark, full editor, all guest ops, clean public page.
+ *   Canvas is the ONLY renderer for new + paid invitations.
+ * 
+ * Legacy (InvitationLayoutRouter + ornate corners + section engine) is a
+ * migration fallback ONLY for ancient rows that predate canvas seeding.
+ * 
+ * fullAccess prop (passed from parent when hasPaidOrder or canvas exists)
+ * guarantees this page NEVER shows watermark or upsell.
+ * 
+ * Parent (public-invitation-client) aggressively chooses canvas for:
+ *   hasCanvas || fullAccess
  */
 export function CanvasGuestPage({ slug, shareUrl, fullAccess = false }: Props) {
   const [state, setState] = useState<State>({ loading: true, doc: null, error: null });
@@ -68,11 +80,23 @@ export function CanvasGuestPage({ slug, shareUrl, fullAccess = false }: Props) {
   const docWithDefaults = useMemo(() => {
     if (doc) return doc;
     if (state.loading) return null;
-    // If fetch says no canvas — fallback to a lightweight legacy converter
-    // so guests can still see something. In production this path should not
-    // be reached because the parent routes legacy invites to LayoutRouter.
+
+    // 2026-07-30 PRODUCT RULE (PRODUCT_MODEL_AND_RULES.md):
+    // For fullAccess (paid template order) we MUST render canvas.
+    // If we reached here without canvas on a fullAccess invite, it is a
+    // data inconsistency — the public canvas route + ensureCanvasDocument
+    // should have seeded it. We still render a converted doc (never legacy page).
+    // Legacy section-engine is unreachable for paid/fullAccess invites.
+    if (fullAccess) {
+      // paid → canvas always
+      return convertLegacyToCanvas({}); // bridge only; should be seeded
+    }
+
+    // Non-paid / legacy rows only: fall back for ancient data.
+    // Parent (public-invitation-client) already decided NOT to mount CanvasGuestPage
+    // when !hasCanvas && !fullAccess.
     return convertLegacyToCanvas({});
-  }, [doc, state.loading]);
+  }, [doc, state.loading, fullAccess]);
 
   if (state.loading) {
     return (
@@ -87,11 +111,19 @@ export function CanvasGuestPage({ slug, shareUrl, fullAccess = false }: Props) {
   return (
     <div className="min-h-screen bg-white">
       <div className="mx-auto max-w-[600px] relative">
+        {/* 
+          2026-07-30 PRODUCT MODEL (PRODUCT_MODEL_AND_RULES.md):
+          CanvasGuestPage is ONLY mounted for paid/fullAccess or already-canvas invites.
+          fullAccess=true ⇒ NEVER watermark, clean public page.
+          We explicitly pass fullAccess down so future elements (watermark, upsell)
+          inside the canvas tree can guard themselves.
+          Legacy watermark logic lives ONLY in section-engine / GuestInvitationPage.
+        */}
         <CanvasRenderer 
           document={docWithDefaults} 
           mode="guest" 
           shareUrl={shareUrl} 
-          // fullAccess paid invites never get watermark (the watermark component checks entitlements / hasPaidOrder upstream)
+          fullAccess={fullAccess}
         />
       </div>
       <FloatingShare shareUrl={shareUrl} />

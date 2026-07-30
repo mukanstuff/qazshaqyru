@@ -19,6 +19,7 @@ import { canvasDocumentSchema } from '@/lib/canvas/schemas';
 import { convertLegacyToCanvas } from '@/lib/canvas/legacy-converter';
 import { parseCanvasOrEmpty, validateCanvasDocument } from '@/lib/canvas/validation';
 import { getInvitationPricing } from '@/lib/invitations/invitation-pricing';
+import { ensureCanvasDocument } from '@/lib/invitations/ensure-canvas';
 import type { InvitationCanvasDocument } from '@/lib/canvas/types';
 
 export const dynamic = 'force-dynamic';
@@ -62,10 +63,26 @@ export async function GET(_req: NextRequest, { params }: RouteCtx) {
   try {
     const { id } = await params;
     const { inv } = await loadOwnedInvitation(id);
+
+    // 2026-07-30 PRODUCT RULE: Canvas is the primary document for all new flows.
+    // Ensure on read for owner paths too (defensive + early write).
+    if (!inv.canvas) {
+      await ensureCanvasDocument(prisma as any, id);
+      // re-fetch
+      const refreshed = await prisma.invitation.findUnique({
+        where: { id },
+        select: { canvas: true },
+      });
+      if (refreshed?.canvas) {
+        (inv as any).canvas = refreshed.canvas;
+      }
+    }
+
     let doc: InvitationCanvasDocument;
     if (inv.canvas) {
       doc = parseCanvasOrEmpty(inv.canvas);
     } else {
+      // last resort legacy bridge (should rarely hit now)
       doc = convertLegacyToCanvas({
         title: inv.title,
         eventType: inv.eventType,

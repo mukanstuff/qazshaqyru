@@ -53,6 +53,17 @@ export interface CanvasRendererProps {
   locale?: 'ru' | 'kz';
   /** Extra className for the stage. */
   className?: string;
+
+  /**
+   * 2026-07-30 PRODUCT MODEL ENFORCEMENT:
+   * When true (from paid template order / fullAccess), this renderer MUST produce
+   * a completely clean page — no watermark, no upsell hints.
+   * Canvas path for paid invitations is ALWAYS clean (pay once = fullAccess).
+   * See: PRODUCT_MODEL_AND_RULES.md, PRODUCT_DECISIONS_2026-07-30.md
+   * Parent (CanvasGuestPage / public client) is responsible for setting this.
+   * Legacy watermark logic lives only in section-engine paths.
+   */
+  fullAccess?: boolean;
 }
 
 function animClass(cfg?: AnimationConfig): string {
@@ -112,7 +123,28 @@ export function CanvasRenderer(props: CanvasRendererProps) {
     shareUrl,
     locale = 'ru',
     className,
+    fullAccess = false,
   } = props;
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 2026-07-30 PRODUCT MODEL ENFORCEMENT (PRODUCT_MODEL_AND_RULES.md)
+  // fullAccess === true  (from paid Template.priceKzt order)  ⇒  CLEAN PAGE
+  //   • no watermark
+  //   • no upsell
+  //   • all elements fully functional for guest
+  // This renderer is ONLY reached for canvas documents.
+  // Legacy watermark / paywall logic lives exclusively in section-engine paths.
+  // If fullAccess, the parent already decided "pay once = full".
+  // Adding any watermark here for fullAccess would violate the sacred rule.
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (fullAccess && mode === 'guest') {
+    // explicit marker so future readers / agents cannot accidentally add paid-watermark
+    // console.debug is stripped in prod; this is documentation
+    // eslint-disable-next-line no-console
+    if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
+      // console.debug('[canvas] rendering fullAccess clean guest page');
+    }
+  }
 
   const stageRef = useRef<HTMLDivElement | null>(null);
   const ioRef = useRef<IntersectionObserver | null>(null);
