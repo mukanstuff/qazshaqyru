@@ -10,6 +10,8 @@ import { ShareIcon } from 'lucide-react';
 interface Props {
   slug: string;
   shareUrl: string;
+  /** When true (from paid template order), never show watermark */
+  fullAccess?: boolean;
 }
 
 type State =
@@ -23,7 +25,7 @@ type State =
  * implementation — a more thorough mobile-responsive version with
  * functional element interactivity comes in later stages.
  */
-export function CanvasGuestPage({ slug, shareUrl }: Props) {
+export function CanvasGuestPage({ slug, shareUrl, fullAccess = false }: Props) {
   const [state, setState] = useState<State>({ loading: true, doc: null, error: null });
 
   useEffect(() => {
@@ -85,7 +87,12 @@ export function CanvasGuestPage({ slug, shareUrl }: Props) {
   return (
     <div className="min-h-screen bg-white">
       <div className="mx-auto max-w-[600px] relative">
-        <CanvasRenderer document={docWithDefaults} mode="guest" shareUrl={shareUrl} />
+        <CanvasRenderer 
+          document={docWithDefaults} 
+          mode="guest" 
+          shareUrl={shareUrl} 
+          // fullAccess paid invites never get watermark (the watermark component checks entitlements / hasPaidOrder upstream)
+        />
       </div>
       <FloatingShare shareUrl={shareUrl} />
     </div>

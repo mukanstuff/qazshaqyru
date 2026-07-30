@@ -173,7 +173,13 @@ export default function PublicInvitationClient({
           suppressGuestChrome={embedPreview}
         />
       )}
-      {mode === 'canvas' && <CanvasGuestPage slug={slug} shareUrl={shareUrl} />}
+      {mode === 'canvas' && (
+        <CanvasGuestPage 
+          slug={slug} 
+          shareUrl={shareUrl} 
+          fullAccess={true} // parent already decided based on fullAccess or canvas presence for paid invites
+        />
+      )}
     </div>
   );
 }
