@@ -63,9 +63,11 @@ export default function PublicInvitationClient({
       return;
     }
 
-    // === 2026-07-30 DECISIVE RULE (see PRODUCT_DECISIONS_2026-07-30.md) ===
-    // Canvas is the canonical document for all new invitations.
-    // Public page must prefer canvas. Legacy only for ancient rows that never got canvas.
+    // === 2026-07-30 + NEXT ===
+    // Canvas is the canonical renderer for all new/paid invitations.
+    // We prefer canvas aggressively:
+    // - if canvas doc exists, or
+    // - if fullAccess (paid template order) is true (the public canvas route seeds it)
     let alive = true;
     (async () => {
       try {
@@ -78,12 +80,16 @@ export default function PublicInvitationClient({
         }
         const data = await res.json();
 
-        // === DECISIVE RULE (2026-07-30) ===
-        // Canvas is the product. For any invitation that went through the new flow (wizard + pay),
-        // canvas should exist. We prefer it aggressively.
-        // Legacy only for ancient pre-canvas rows that were never touched.
+        const hasCanvas = !!data.canvas;
+        const isFullAccess = !!data.fullAccess;
+
         if (alive) {
-          setMode(data.canvas ? 'canvas' : 'legacy');
+          // Paid or has canvas document → canvas mode (clean, no watermark)
+          if (hasCanvas || isFullAccess) {
+            setMode('canvas');
+          } else {
+            setMode('legacy');
+          }
         }
       } catch {
         if (alive) setMode('legacy');

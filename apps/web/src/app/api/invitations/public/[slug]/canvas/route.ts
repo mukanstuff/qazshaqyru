@@ -84,6 +84,13 @@ export async function GET(_req: Request, { params }: Ctx) {
       }
     }
 
+    // Compute fullAccess for the guest renderer (no watermark for paid)
+    const templatePrice = inv.templateId
+      ? (await prisma.template.findUnique({ where: { id: inv.templateId }, select: { priceKzt: true } }))?.priceKzt ?? null
+      : null;
+    const priceKzt = resolvePublicationPriceKzt(templatePrice);
+    const hasPaidOrder = inv.orders.some((o: any) => isValidPaidOrder(o, inv.templateId, priceKzt));
+
     return NextResponse.json({
       id: inv.id,
       slug: inv.slug,
@@ -97,6 +104,7 @@ export async function GET(_req: Request, { params }: Ctx) {
       customText: inv.customText,
       canvas: (inv as any).canvas ?? null,
       mobileCanvas: (inv as any).mobileCanvas ?? null,
+      fullAccess: hasPaidOrder,
     });
   } catch (err) {
     // Graceful fallback for migration / transient errors
