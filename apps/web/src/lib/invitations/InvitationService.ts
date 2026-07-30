@@ -13,7 +13,7 @@ import { addGuests, type AddGuestsResult } from '@/lib/guests/service';
 import { findOwnedInvitationId } from '@/lib/invitations/repositories/invitation-repository';
 import type { InvitationCreateBody, InvitationUpdateBody } from '@/lib/invitations/schemas';
 import { nanoid } from 'nanoid';
-import { convertLegacyToCanvas } from '@/lib/canvas/legacy-converter';
+import { ensureCanvasDocument } from './ensure-canvas';
 
 function generateUniqueSlug(title: string): string {
   const base = title
@@ -93,35 +93,8 @@ export async function createInvitationForUser(userId: string, input: InvitationC
   }
 
   // 2026-07-30 NEXT: make canvas the primary document path from the very first creation.
-  // Wizard + draft-sync already write canvas early.
-  // Here we seed a canvas document on initial create so that:
-  // - /canvas page never needs lazy convert for new invites
-  // - preview = publish = guest uses the same document
-  // - fullAccess model is consistent from moment 0
-  try {
-    const canvasDoc = convertLegacyToCanvas({
-      title: input.title,
-      eventType: input.eventType,
-      eventDate: input.eventDate,
-      eventTime: input.eventTime,
-      eventPlace: input.eventPlace,
-      address: input.address,
-      eventTimezone: input.eventTimezone,
-      templateData: input.templateData || {},
-      musicUrl: input.musicUrl,
-      mapUrl: input.mapUrl,
-      customText: input.customText || {},
-    });
-
-    await prisma.invitation.update({
-      where: { id: invitation.id },
-      data: { canvas: canvasDoc as any },
-    });
-  } catch (e) {
-    // Non-fatal — canvas will be created on first edit / draft-sync.
-    // This keeps create fast and resilient.
-    console.warn('[InvitationService] failed to seed initial canvas (will be created later)', e);
-  }
+  // Use the shared helper so creation, payment, and draft paths are consistent.
+  await ensureCanvasDocument(prisma as any, invitation.id);
 
   return invitation;
 }
