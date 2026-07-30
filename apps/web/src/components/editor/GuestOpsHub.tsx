@@ -54,6 +54,12 @@ export interface GuestOpsHubProps {
   showPaymentFailed?: boolean;
   showPaymentInvalid?: boolean;
   showPaymentPending?: boolean;
+
+  /** 
+   * 2026-07-30 product model: true when user paid the template price.
+   * When true → full access (no upsells, all features unlocked).
+   */
+  fullAccess?: boolean;
 }
 
 async function copyText(text: string): Promise<void> {
@@ -203,9 +209,9 @@ export function GuestOpsHub(props: GuestOpsHubProps) {
 
   const statusLabel =
     props.status === 'published' ? t('dashboard.status.published') : t('dashboard.status.draft');
-  const planLabel = t('dashboard.guestOps.planLabel', {
-    plan: planDisplayName(props.planSku, t),
-  });
+  const planLabel = props.fullAccess 
+    ? 'Полный доступ (оплачен шаблон)' 
+    : t('dashboard.guestOps.planLabel', { plan: planDisplayName(props.planSku, t) });
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-[linear-gradient(180deg,var(--us-ivory),color-mix(in_srgb,var(--us-cream)_96%,white_4%))]">
@@ -371,7 +377,13 @@ export function GuestOpsHub(props: GuestOpsHubProps) {
                     </div>
                   </div>
 
-                  {!props.guestOpsUnlocked ? (
+                  {/* 
+                    2026-07-30 OWNER MODEL (PRODUCT_DECISIONS_2026-07-30.md):
+                    Pay template price ONCE → fullAccess = true for this invitation.
+                    NO Standard / Premium upsells in the regular single-invite journey.
+                    Everything (no watermark, guests, export, restaurant, custom slug, full editor) is available.
+                  */}
+                  {!props.fullAccess ? (
                     <div className="us-glass rounded-[1.75rem] border p-5 shadow-us-sm">
                       <div className="flex items-start gap-3">
                         <div className="rounded-full bg-us-accent/10 p-2 text-us-accent">
@@ -383,30 +395,24 @@ export function GuestOpsHub(props: GuestOpsHubProps) {
                               {t('dashboard.guestOps.guestsLockedTitle')}
                             </h2>
                             <p className="mt-1 text-sm text-us-ink-muted">
-                              {t('dashboard.guestOps.guestsLockedDesc', {
-                                price: PLAN_CATALOG.standard.priceKzt.toLocaleString('ru-RU'),
-                              })}
+                              После оплаты цены шаблона ({(props.priceKzt || 3990 /* admin fallback only; real price from getInvitationPricing */).toLocaleString('ru-RU')} ₸) у вас сразу полный доступ: без водяного знака, все функции гостей, своя ссылка, рассадка и экспорт.
                             </p>
                           </div>
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              disabled={busy === 'pay-standard'}
-                              onClick={() => void unlock('standard')}
-                            >
-                              {t('dashboard.guestOps.unlockStandard')}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              disabled={busy === 'pay-premium'}
-                              onClick={() => void unlock('premium')}
-                            >
-                              {t('dashboard.guestOps.unlockPremium')}
-                            </Button>
-                          </div>
+                          <Button
+                            disabled={busy === 'pay-standard'}
+                            onClick={() => void unlock('standard')}
+                            className="w-full"
+                          >
+                            Оплатить цену шаблона — получить полный доступ
+                          </Button>
                         </div>
                       </div>
                     </div>
-                  ) : null}
+                  ) : (
+                    <div className="us-glass rounded-[1.75rem] border p-4 text-sm text-us-accent">
+                      ✓ Полный доступ (оплата шаблона). Все функции гостей и редактирование доступны.
+                    </div>
+                  )}
                 </section>
 
                 <aside className="space-y-4">
@@ -465,91 +471,78 @@ export function GuestOpsHub(props: GuestOpsHubProps) {
                     </div>
                   ) : null}
 
-                  {props.guestOpsUnlocked ? (
-                    <div className="us-glass rounded-[1.75rem] border p-4 sm:p-5 shadow-us-sm">
-                      <div className="space-y-3">
-                        <div>
-                          <h2 className="font-display text-2xl">
-                            {t('dashboard.guestOps.moreActions')}
-                          </h2>
-                          <p className="mt-1 text-sm text-us-ink-muted">
-                            {t('dashboard.guestOps.moreActionsDesc')}
-                          </p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <Button variant="outline" asChild>
-                            <Link href={`${props.editHref}&panel=guests`}>
-                              {t('dashboard.guestOps.guestsFamilies')}
-                            </Link>
-                          </Button>
-                          <Button
-                            variant="outline"
-                            disabled={busy === 'csv'}
-                            onClick={() => void exportCsv()}
-                          >
-                            <Download size={16} />
-                            {t('dashboard.guestOps.exportList')}
-                          </Button>
-                          {props.restaurantLinkAllowed ? (
-                            <Button
-                              variant="outline"
-                              disabled={busy === 'restaurant'}
-                              onClick={() => void createRestaurantLink()}
-                            >
-                              <Building2 size={16} />
-                              {t('dashboard.guestOps.restaurant')}
-                            </Button>
-                          ) : null}
-                          <Button
-                            variant="outline"
-                            onClick={() => {
-                              void fetch(`/api/invitations/${props.invitationId}/remind`, {
-                                method: 'POST',
-                              })
-                                .then(async (r) => {
-                                  const d = await r.json().catch(() => ({}));
-                                  if (!r.ok) {
-                                    throw new Error(
-                                      resolveHostApiError(
-                                        d,
-                                        t,
-                                        'dashboard.guestOps.genericError'
-                                      )
-                                    );
-                                  }
-                                  const links = (
-                                    d.guests as Array<{ whatsappLink: string | null; name: string }>
-                                  )
-                                    .filter((g) => g.whatsappLink)
-                                    .map((g) => `${g.name}: ${g.whatsappLink}`)
-                                    .join('\n');
-                                  if (links) await copyText(links);
-                                  else setError(t('dashboard.guestOps.allConfirmed'));
-                                })
-                                .catch((err) =>
-                                  setError(
-                                    err instanceof Error
-                                      ? err.message
-                                      : t('dashboard.guestOps.genericError')
-                                  )
-                                );
-                            }}
-                          >
-                            <MessageCircle size={16} />
-                            {t('dashboard.guestOps.remindersWa')}
-                          </Button>
-                        </div>
-                        {restaurantUrl ? (
-                          <div className="break-all rounded-xl border border-us-border bg-us-cream px-3 py-2 font-mono text-xs">
-                            {restaurantUrl}
-                            <span className="mt-1 block text-us-ink-muted">
-                              {t('dashboard.guestOps.copiedBuffer')}
-                            </span>
-                          </div>
-                        ) : null}
+                  {/* Full access mode — show all ops unlocked (owner model) */}
+                  <div className="us-glass rounded-[1.75rem] border p-4 sm:p-5 shadow-us-sm">
+                    <div className="space-y-3">
+                      <div>
+                        <h2 className="font-display text-2xl">
+                          {t('dashboard.guestOps.moreActions')}
+                        </h2>
+                        <p className="mt-1 text-sm text-us-ink-muted">
+                          Всё доступно после оплаты шаблона.
+                        </p>
                       </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" asChild>
+                          <Link href={`${props.editHref}&panel=guests`}>
+                            {t('dashboard.guestOps.guestsFamilies')}
+                          </Link>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          disabled={busy === 'csv'}
+                          onClick={() => void exportCsv()}
+                        >
+                          <Download size={16} />
+                          {t('dashboard.guestOps.exportList')}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          disabled={busy === 'restaurant'}
+                          onClick={() => void createRestaurantLink()}
+                        >
+                          <Building2 size={16} />
+                          {t('dashboard.guestOps.restaurant')}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            void fetch(`/api/invitations/${props.invitationId}/remind`, {
+                              method: 'POST',
+                            })
+                              .then(async (r) => {
+                                const d = await r.json().catch(() => ({}));
+                                if (!r.ok) {
+                                  throw new Error(
+                                    resolveHostApiError(d, t, 'dashboard.guestOps.genericError')
+                                  );
+                                }
+                                const links = (d.guests as Array<{ whatsappLink: string | null; name: string }>)
+                                  .filter((g) => g.whatsappLink)
+                                  .map((g) => `${g.name}: ${g.whatsappLink}`)
+                                  .join('\n');
+                                if (links) await copyText(links);
+                                else setError(t('dashboard.guestOps.allConfirmed'));
+                              })
+                              .catch((err) =>
+                                setError(err instanceof Error ? err.message : t('dashboard.guestOps.genericError'))
+                              );
+                          }}
+                        >
+                          <MessageCircle size={16} />
+                          {t('dashboard.guestOps.remindersWa')}
+                        </Button>
+                      </div>
+                      {restaurantUrl ? (
+                        <div className="break-all rounded-xl border border-us-border bg-us-cream px-3 py-2 font-mono text-xs">
+                          {restaurantUrl}
+                          <span className="mt-1 block text-us-ink-muted">
+                            {t('dashboard.guestOps.copiedBuffer')}
+                          </span>
+                        </div>
+                      ) : null}
                     </div>
-                  ) : null}
+                  </div>
 
                   {error ? (
                     <p className="rounded-xl border border-us-accent/30 bg-us-accent/5 px-3 py-2 text-sm text-us-accent">

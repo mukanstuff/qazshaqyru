@@ -44,6 +44,10 @@ export default async function InvitationEditorPage({ params, searchParams }: Pro
 
   const pricing = await getInvitationPricing(invitation.id, ctx.user.id);
 
+  // 2026-07-30 decisive product model:
+  // template price paid once = full access for this invitation (no watermark, all ops, full editor).
+  const fullAccess = !!(pricing?.fullAccess ?? pricing?.hasPaidOrder ?? false);
+
   type InvitationGuestRow = {
     id: string;
     name: string;
@@ -85,13 +89,14 @@ export default async function InvitationEditorPage({ params, searchParams }: Pro
       templateKey={invitation.templateKey}
       status={invitation.status as 'draft' | 'published' | 'archived'}
       isPublished={invitation.status === 'published'}
-      priceKzt={pricing?.priceKzt ?? 3990}
+      priceKzt={pricing?.priceKzt ?? 3990 /* fallback only; real price from getInvitationPricing */}
       editHref={`/invitations/${encodeURIComponent(invitation.id)}/canvas`}
       planSku={entitlements?.planSku ?? 'free'}
       watermark={entitlements?.watermark ?? true}
       guestOpsUnlocked={entitlements?.guestOps ?? false}
       customSlugAllowed={entitlements?.customSlug ?? false}
       restaurantLinkAllowed={entitlements?.restaurantLink ?? false}
+      fullAccess={fullAccess}
       funnel={funnel}
       confirmedSeats={computeConfirmedHeadcount(headcountGuests)}
       expectedSeats={computeExpectedHeadcount(headcountGuests)}

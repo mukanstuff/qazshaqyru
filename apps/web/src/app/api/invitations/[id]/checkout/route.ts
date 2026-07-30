@@ -30,7 +30,7 @@ function getAppUrl(request: NextRequest): string {
 
 /**
  * POST /api/invitations/[id]/checkout
- * publish = freemium; pay/plan = unlock ladder SKU.
+ * publish = legacy freemium (being phased out). pay = template price purchase → full access.
  */
 export async function POST(
   request: NextRequest,

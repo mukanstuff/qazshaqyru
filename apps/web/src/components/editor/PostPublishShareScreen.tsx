@@ -176,7 +176,6 @@ export function PostPublishShareScreen({
               type="button"
               variant="outline"
               className="min-h-12 justify-start gap-2"
-              disabled={!guestOpsUnlocked || busy === 'csv'}
               onClick={() => onExportCsv?.()}
               data-testid="post-publish-csv"
             >
@@ -187,7 +186,6 @@ export function PostPublishShareScreen({
               type="button"
               variant="outline"
               className="min-h-12 justify-start gap-2"
-              disabled={!guestOpsUnlocked || busy === 'restaurant'}
               onClick={() => onRestaurantLink?.()}
               data-testid="post-publish-restaurant"
             >
@@ -204,6 +202,10 @@ export function PostPublishShareScreen({
               {t('postPublish.opsSeating')}
             </Button>
           </CardContent>
+          {/* 
+            2026-07-30 decision: after template payment, guestOpsUnlocked should be true.
+            This hint only shows for unpaid state.
+          */}
           {!guestOpsUnlocked ? (
             <p className="px-6 pb-4 font-body text-xs text-us-ink-muted">
               {t('postPublish.opsLockedHint')}

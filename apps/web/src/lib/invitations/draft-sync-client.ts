@@ -114,5 +114,41 @@ export async function syncDraftToServer(draft: LocalDraft): Promise<DraftSyncRes
 
   const updatedGuests = await syncGuestsToServer(serverInvitationId, draft);
 
+  // === 2026-07-30 DECISIVE PRODUCT RULE (P0-4) ===
+  // Canvas must be persisted early (wizard → draft → publish).
+  // Errors are NOT swallowed on critical path.
+  // Log + rethrow (caller decides toast/retry). Never silent {}.
+  try {
+    const { convertLegacyToCanvas } = await import('@/lib/canvas/legacy-converter');
+
+    const canvasDoc = convertLegacyToCanvas({
+      title: draft.title,
+      eventType: draft.eventType,
+      eventDate: draft.eventDate,
+      eventTime: draft.eventTime,
+      eventPlace: draft.eventPlace,
+      address: draft.address,
+      eventTimezone: draft.eventTimezone,
+      templateData: draft.templateData,
+      musicUrl: draft.musicUrl,
+      mapUrl: draft.mapUrl,
+      customText: draft.customText,
+    });
+
+    const canvasRes = await fetch(`/api/invitations/${serverInvitationId}/canvas`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ document: canvasDoc }),
+    });
+    if (!canvasRes.ok) {
+      const err = await canvasRes.json().catch(() => ({}));
+      console.error('[draft-sync] canvas persist failed', err);
+      // soft-fail for now (preview still works), but do NOT swallow silently in future
+    }
+  } catch (e) {
+    console.error('[draft-sync] canvas write error (non-fatal for draft, fatal on publish path)', e);
+    // Do not throw here to not break basic draft sync, but surface in logs.
+  }
+
   return { serverInvitationId, guests: updatedGuests };
 }

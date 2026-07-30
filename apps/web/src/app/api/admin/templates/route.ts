@@ -11,6 +11,10 @@ const createSchema = z.object({
   nameRu: z.string().min(1).max(120),
   nameKz: z.string().min(1).max(120).optional(),
   category: z.string().min(1).max(60).default('wedding'),
+  // 2026-07-30 ADMIN ONLY default. Real prices come from Template DB.
+  // Never hardcode in user-facing flows. See PRODUCT_MODEL_AND_RULES.md + PRODUCT_DECISIONS_2026-07-30.md
+  // 2026-07-30 OWNER MODEL (PRODUCT_MODEL_AND_RULES.md): default 3990 is admin-only fallback.
+  // Real price must be set on the Template record. Pay template.priceKzt once = fullAccess.
   priceKzt: z.number().int().min(0).default(3990),
 });
 

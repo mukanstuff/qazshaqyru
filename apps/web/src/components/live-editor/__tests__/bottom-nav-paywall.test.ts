@@ -9,8 +9,10 @@ describe('live editor mobile nav (paywall timing)', () => {
   });
 });
 
-describe('freemium publish', () => {
-  it('allows publish without payment (watermark path)', () => {
-    expect(canPublishWithoutPayment()).toBe(true);
+describe('freemium publish (P0-5 — owner model update)', () => {
+  it('NO freemium publish: canPublishWithoutPayment is false (pay template = full access)', () => {
+    // 2026-07-30: per PRODUCT_MODEL_AND_RULES.md — publish only after paying template price.
+    // canPublishWithoutPayment must return false for user paths.
+    expect(canPublishWithoutPayment()).toBe(false);
   });
 });

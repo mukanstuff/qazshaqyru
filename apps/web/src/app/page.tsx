@@ -18,7 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: 'Онлайн-приглашение на той — ответы гостей и рассадка | QazShaqyru',
     description:
-      'Электронное приглашение на той и свадьбу в Казахстане: шаблон за минуты, ответы гостей без звонков, семьи, рассадка и список для тойханы. Бесплатно с логотипом сервиса — от 3 990 ₸.',
+      'Электронное приглашение на той и свадьбу в Казахстане: шаблон за минуты, ответы гостей без звонков, семьи, рассадка и список для тойханы. Бесплатно с логотипом сервиса. Разовая оплата цены шаблона = полный доступ (без водяного знака + все функции).',
     alternates: buildLanguageAlternates('/', urlLocale),
   };
 }
@@ -35,6 +35,10 @@ export default async function HomePage() {
     orderBy: { priceKzt: 'asc' },
     select: { priceKzt: true },
   });
+  // 2026-07-30 OWNER MODEL (docs/PRODUCT_MODEL_AND_RULES.md + PRODUCT_DECISIONS_2026-07-30.md):
+  // Real price for users = the actual Template.priceKzt of the chosen template.
+  // This fallback is ONLY for when DB is empty (dev / first deploy).
+  // NEVER hardcode 3990 in user strings, CTAs, or marketing.
   const minTemplatePriceKzt = minTemplate?.priceKzt ?? 3_990;
 
   return (

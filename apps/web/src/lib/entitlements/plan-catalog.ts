@@ -1,6 +1,16 @@
 /**
  * Pure plan catalog — single source of truth for prices and feature matrices.
  * No Prisma / React imports.
+ *
+ * 2026-07-30 SACRED RULE (read docs/PRODUCT_MODEL_AND_RULES.md + PRODUCT_DECISIONS_2026-07-30.md + AUDIT_ISSUES.md before touching):
+ * For normal single-invite users: pay Template.priceKzt ONCE = fullAccess (no watermark, all guest ops, custom slug, full canvas editor).
+ * There is NO "Стандарт / Премиум" upsell in the regular user journey.
+ * 'standard'/'premium' SKUs are legacy baggage kept only for:
+ *   - Agency subscription
+ *   - Old rows / admin / entitlements engine
+ *   - Tests (which will be updated in a dedicated pass)
+ * NEVER surface ladder language ("после Стандарта", "3 990 ₸ за Стандарт", etc.) to end users.
+ * If you are thinking "just make it work with the old plan", STOP. This is exactly the infantilism the owner hates.
  */
 
 export const PLAN_SKUS = ['free', 'standard', 'premium', 'agency'] as const;
@@ -51,6 +61,10 @@ export const PLAN_CATALOG: Record<PlanSku, PlanDefinition> = {
     userLevel: false,
     features: ['publish', 'watermark'],
   },
+  // 2026-07-30: internal legacy value only.
+  // OWNER MODEL (PRODUCT_MODEL_AND_RULES.md): regular users pay Template.priceKzt once → fullAccess.
+  // 'standard' SKU is kept for agency/legacy entitlements engine and tests.
+  // NEVER surface "Стандарт 3 990" or "после Стандарта" to single-invite users.
   standard: {
     sku: 'standard',
     priceKzt: 3_990,
@@ -149,3 +163,10 @@ export const DEFAULT_UNLOCK_PLAN: PaidPlanSku = 'standard';
 
 /** Maps historical single-SKU publication fee to standard. */
 export const LEGACY_PUBLICATION_PRICE_KZT = PLAN_CATALOG.standard.priceKzt;
+
+/**
+ * 2026-07-30 OWNER MODEL (PRODUCT_DECISIONS_2026-07-30.md):
+ * For regular users the only meaningful "plan" is "I paid the template price for this invitation".
+ * This gives full access. The old ladder (standard/premium) is mostly legacy baggage now.
+ * Agency remains the only real subscription product.
+ */

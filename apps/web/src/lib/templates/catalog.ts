@@ -21,7 +21,9 @@ export function catalogLiveCount(): number {
 }
 
 /**
- * Standard entry stays 3 990 until catalog has enough choice.
- * Price change is a conscious product decision in plan-catalog.ts — not auto.
+ * 2026-07-30 PRODUCT MODEL (see docs/PRODUCT_MODEL_AND_RULES.md + PRODUCT_DECISIONS_2026-07-30.md):
+ * Real price is ALWAYS Template.priceKzt (resolved via resolvePublicationPriceKzt).
+ * This threshold is purely for when admin decides to lower the *minimum* catalog template price.
+ * Never hardcode 3990 in user-facing copy or CTAs.
  */
 export const CATALOG_PRICE_DROP_THRESHOLD = 15;

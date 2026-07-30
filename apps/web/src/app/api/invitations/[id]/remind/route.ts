@@ -40,10 +40,10 @@ export async function POST(
     if (!pricing) {
       throw new ApiError('not_found', 'Приглашение не найдено', 404);
     }
-    if (!pricing.entitlements.reminders) {
+    if (!pricing.fullAccess && !pricing.entitlements.reminders) {
       throw new ApiError(
         'plan_required',
-        'Напоминания доступны на тарифе Стандарт и выше',
+        'Напоминания доступны после оплаты цены шаблона',
         402
       );
     }

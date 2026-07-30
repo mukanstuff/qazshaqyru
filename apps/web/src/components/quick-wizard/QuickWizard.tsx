@@ -3,8 +3,59 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
-import { InvitationLayoutRouter } from '@/components/invitation-layouts/LayoutRouter';
+import { CanvasRenderer } from '@/components/canvas/CanvasRenderer';
+import { convertLegacyToCanvas } from '@/lib/canvas/legacy-converter';
 import type { InvitationData } from '@/components/invitation-layouts/types';
+import type { InvitationCanvasDocument } from '@/lib/canvas/types';
+import { InvitationLayoutRouter } from '@/components/invitation-layouts/LayoutRouter'; // fallback only
+
+// Small helper component so that JSX stays clean
+function WizardCanvasPreview({ draft, locale, fallbackPrice }: { draft: any; locale: string; fallbackPrice: number }) {
+  try {
+    const canvasDoc: InvitationCanvasDocument = convertLegacyToCanvas({
+      title: draft.title,
+      eventType: draft.eventType,
+      eventDate: draft.eventDate,
+      eventTime: draft.eventTime,
+      eventPlace: draft.eventPlace,
+      address: draft.address,
+      eventTimezone: draft.eventTimezone,
+      templateData: draft.templateData,
+      musicUrl: draft.musicUrl,
+      mapUrl: draft.mapUrl,
+      customText: draft.customText,
+    });
+    return (
+      <div className="w-full max-w-[390px] mx-auto">
+        <CanvasRenderer
+          document={canvasDoc}
+          mode="guest"
+          selectedId={undefined}
+          onSelect={() => {}}
+          forceAnimations={false}
+          shareUrl={undefined}
+          locale={locale as 'ru' | 'kz'}
+        />
+      </div>
+    );
+  } catch {
+    return (
+      <InvitationLayoutRouter
+        slug="draft"
+        guestToken={null}
+        isEditing={false}
+        initialInvitation={draftToInvitationData(draft)}
+        isPublished={false}
+        backHref="/templates"
+        guestNames={[]}
+        guests={[]}
+        publishPriceKzt={fallbackPrice}
+        isLoggedIn={false}
+        suppressGuestChrome
+      />
+    );
+  }
+}
 import { UploadButton } from '@/components/invitation-layouts/UploadButton';
 import { LoginModal } from '@/components/auth/LoginModal';
 import { PublishStepper } from '@/components/publish/PublishStepper';
@@ -30,7 +81,7 @@ import {
 } from '@/lib/invitations/draft-storage';
 import { syncDraftToServer } from '@/lib/invitations/draft-sync-client';
 import { checkoutInvitationClient } from '@/lib/payments/checkout-client';
-import { DEFAULT_PUBLICATION_PRICE_KZT } from '@/lib/invitations/invitation-pricing';
+import { resolvePublicationPriceKzt } from '@/lib/invitations/invitation-pricing';
 import { resolvePublishStep } from '@/lib/invitations/publish-flow';
 
 const TOTAL_STEPS = 6;
@@ -39,6 +90,7 @@ interface Props {
   templateKey: string;
   templateId: string;
   templateName: string;
+  templatePriceKzt?: number | null;
 }
 
 const EMPTY_FORM: QuickWizardFormData = {
@@ -49,6 +101,7 @@ const EMPTY_FORM: QuickWizardFormData = {
   eventPlace: '',
   address: '',
   coverPhoto: '',
+  colorScheme: undefined,
 };
 
 function formToDraft(
@@ -59,6 +112,21 @@ function formToDraft(
   language: 'ru' | 'kz'
 ): LocalDraft {
   const title = buildInvitationTitle(form.names) || templateName;
+
+  // Parse names for legacy + canvas compatibility
+  const names = (form.names || '').trim();
+  let groomName = '';
+  let brideName = '';
+  if (names) {
+    const parts = names.split(/[,/&+]| и | және /i).map((s) => s.trim()).filter(Boolean);
+    if (parts.length >= 2) {
+      groomName = parts[0];
+      brideName = parts[1];
+    } else if (parts.length === 1) {
+      groomName = parts[0];
+    }
+  }
+
   return {
     templateKey,
     templateId,
@@ -70,10 +138,15 @@ function formToDraft(
     address: form.address || null,
     mapUrl: null,
     musicUrl: null,
-    templateData: form.coverPhoto ? { coverPhoto: form.coverPhoto } : {},
+    templateData: {
+      ...(form.coverPhoto ? { coverPhoto: form.coverPhoto } : {}),
+      ...(form.colorScheme ? { colorScheme: form.colorScheme } : {}),
+    },
     customText: {
       greeting: form.names,
       invitationLocale: language,
+      groomName,
+      brideName,
     },
     guests: [],
     eventTimezone: 'Asia/Almaty',
@@ -105,7 +178,7 @@ function draftToInvitationData(draft: LocalDraft): InvitationData {
   };
 }
 
-export function QuickWizard({ templateKey, templateId, templateName }: Props) {
+export function QuickWizard({ templateKey, templateId, templateName, templatePriceKzt }: Props) {
   const router = useRouter();
   const { toast } = useToast();
   const { t, locale } = useI18n();
@@ -123,6 +196,8 @@ export function QuickWizard({ templateKey, templateId, templateName }: Props) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [serverInvitationId, setServerInvitationId] = useState<string | undefined>();
+
+  const publicationPrice = resolvePublicationPriceKzt(templatePriceKzt);
 
   useEffect(() => {
     try {
@@ -214,7 +289,7 @@ export function QuickWizard({ templateKey, templateId, templateName }: Props) {
     setIsPublishing(true);
     try {
       const invitationId = await ensureSaved(previewDraft);
-      const checkout = await checkoutInvitationClient(invitationId);
+      const checkout = await checkoutInvitationClient(invitationId, { intent: 'pay' });
       if (checkout.needsPayment && checkout.paymentUrl) {
         window.location.href = checkout.paymentUrl;
         return;
@@ -288,25 +363,18 @@ export function QuickWizard({ templateKey, templateId, templateName }: Props) {
           <p className="mb-6 max-w-md text-center font-body text-sm text-us-ink-muted">
             {t('quickWizard.checkoutMessage').replace(
               '{price}',
-              DEFAULT_PUBLICATION_PRICE_KZT.toLocaleString('ru-RU')
+              publicationPrice.toLocaleString('ru-RU')
             )}
           </p>
 
           <div className="relative w-full max-w-sm">
             <PreviewWatermark label={t('quickWizard.previewWatermark')} />
             <div className="overflow-hidden rounded-xl border border-us-border">
-              <InvitationLayoutRouter
-                slug="draft"
-                guestToken={null}
-                isEditing={false}
-                initialInvitation={draftToInvitationData(previewDraft)}
-                isPublished={false}
-                backHref="/templates"
-                guestNames={[]}
-                guests={[]}
-                publishPriceKzt={DEFAULT_PUBLICATION_PRICE_KZT}
-                isLoggedIn={isLoggedIn}
-                suppressGuestChrome
+              {/* P0-2: wizard preview now uses same canvas engine as published guest page */}
+              <WizardCanvasPreview
+                draft={previewDraft}
+                locale={locale}
+                fallbackPrice={publicationPrice}
               />
             </div>
           </div>
@@ -325,7 +393,7 @@ export function QuickWizard({ templateKey, templateId, templateName }: Props) {
                 ? t('common.saving')
                 : t('quickWizard.payToPublish').replace(
                     '{price}',
-                    DEFAULT_PUBLICATION_PRICE_KZT.toLocaleString('ru-RU')
+                    publicationPrice.toLocaleString('ru-RU')
                   )}
             </Button>
             <Button
@@ -335,7 +403,7 @@ export function QuickWizard({ templateKey, templateId, templateName }: Props) {
               onClick={() => void handleOpenConstructor()}
               disabled={isPublishing || isOpeningConstructor}
             >
-              {isOpeningConstructor ? 'Загрузка...' : 'Настроить детали в конструкторе'}
+              {isOpeningConstructor ? 'Загрузка...' : 'Настроить в конструкторе'}
             </Button>
           </div>
         </footer>

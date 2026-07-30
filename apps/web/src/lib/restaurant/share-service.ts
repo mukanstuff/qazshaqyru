@@ -25,7 +25,7 @@ export async function createOrRotateRestaurantShare(params: {
   if (!pricing.entitlements.restaurantLink) {
     throw new ApiError(
       'plan_required',
-      'Ссылка для ресторана доступна на тарифе Стандарт и выше',
+      'Ссылка для ресторана доступна после оплаты цены шаблона',
       402
     );
   }

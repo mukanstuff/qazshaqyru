@@ -30,6 +30,10 @@ type LandingPageProps = {
 export function LandingPage({
   publishedInvitations: _publishedInvitations = 0,
   isLoggedIn = false,
+  // 2026-07-30 OWNER MODEL (docs/PRODUCT_MODEL_AND_RULES.md + PRODUCT_DECISIONS_2026-07-30.md + AUDIT_ISSUES.md):
+  // Real value ALWAYS comes from DB (min active Template.priceKzt).
+  // This is ONLY a last-resort default for empty catalog in dev.
+  // Never let this number leak into user-visible strings or decisions.
   minTemplatePriceKzt = 3_990,
 }: LandingPageProps) {
   void _publishedInvitations;

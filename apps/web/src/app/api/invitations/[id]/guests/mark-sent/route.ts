@@ -40,8 +40,8 @@ export async function POST(
 
     const pricing = await getInvitationPricing(id, ctx.user.id);
     if (!pricing) throw new ApiError('not_found', 'Приглашение не найдено', 404);
-    if (!pricing.entitlements.guestOps) {
-      throw new ApiError('plan_required', 'Список гостей доступен на тарифе Стандарт и выше', 402);
+    if (!pricing.fullAccess && !pricing.entitlements.guestOps) {
+      throw new ApiError('plan_required', 'Операции с гостями доступны после оплаты цены шаблона', 402);
     }
 
     const raw = await request.json().catch(() => ({}));

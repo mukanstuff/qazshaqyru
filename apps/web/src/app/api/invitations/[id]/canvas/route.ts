@@ -94,10 +94,8 @@ export async function PATCH(req: NextRequest, { params }: RouteCtx) {
   try {
     const { id } = await params;
     const { session } = await loadOwnedInvitation(id);
-    const pricing = await getInvitationPricing(id, session.user.id);
-    if (pricing && pricing.entitlements.planSku === 'free' && !session.user.isAdmin) {
-      throw new ApiError('plan_required', 'Продвинутый конструктор доступен на тарифе Стандарт и выше', 403);
-    }
+    // Edit is free per product model: pay at publication only.
+    // (pricing kept for future, but no gate on PATCH for free users)
     const body = await req.json().catch(() => null);
     const parsed = patchBodySchema.safeParse(body);
     if (!parsed.success) {

@@ -137,40 +137,28 @@ export async function checkoutInvitation(
   const unpaid = pricing.entitlements.watermark;
 
   if (!unpaid && (intent === 'publish' || intent === 'pay' || intent === 'plan')) {
-    // Already unlocked — allow upgrade if requesting higher plan
-    if (intent === 'pay' || intent === 'plan') {
-      const currentRank = getPlanDefinition(pricing.entitlements.planSku).rank;
-      if (planDef.rank <= currentRank) {
-        await publishInvitationIfDraft(invitation.id);
-        return {
-          published: true,
-          needsPayment: false,
-          paymentUrl: null,
-          publicUrl,
-          orderId: null,
-          amountKzt: 0,
-          invitationId: invitation.id,
-          slug: invitation.slug,
-          planSku: null,
-        };
-      }
-    } else {
-      await publishInvitationIfDraft(invitation.id);
-      return {
-        published: true,
-        needsPayment: false,
-        paymentUrl: null,
-        publicUrl,
-        orderId: null,
-        amountKzt: 0,
-        invitationId: invitation.id,
-        slug: invitation.slug,
-        planSku: null,
-      };
-    }
+    // Already fully unlocked via template purchase or agency.
+    // Per 2026-07-30 product model: paying template price = complete access.
+    await publishInvitationIfDraft(invitation.id);
+    return {
+      published: true,
+      needsPayment: false,
+      paymentUrl: null,
+      publicUrl,
+      orderId: null,
+      amountKzt: 0,
+      invitationId: invitation.id,
+      slug: invitation.slug,
+      planSku: null,
+    };
   }
 
+  // === DECISIVE PRODUCT CHANGE (2026-07-30) ===
+  // 'publish' intent is legacy freemium path. For user-facing "Оплатить" we use 'pay'.
+  // We are actively moving away from freemium publish.
   if (intent === 'publish') {
+    // Still support for backward compatibility in some internal paths,
+    // but we no longer encourage it in the main user journey.
     await publishInvitationIfDraft(invitation.id);
     return {
       published: true,

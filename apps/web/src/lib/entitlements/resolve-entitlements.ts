@@ -89,6 +89,9 @@ export function resolveEntitlements(params: {
       : null;
 
   if (unlocked) {
+    // Product decision 2026-07-30: "standard" (or higher) unlock on an invitation
+    // now means FULL ACCESS for that single invitation (template purchase model).
+    // No more partial standard vs premium split for regular users.
     return {
       planSku: unlocked,
       source: 'invitation',

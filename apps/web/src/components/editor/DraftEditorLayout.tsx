@@ -397,7 +397,8 @@ export function DraftEditorLayout({ templateKey, templateId, templateName, price
         saveDraft(draftRef.current);
       }
 
-      const checkout = await checkoutInvitationClient(invitationId);
+      // 2026-07-30 P0-1: explicit intent:'pay' (default changed, but be explicit for user path)
+      const checkout = await checkoutInvitationClient(invitationId, { intent: 'pay' });
 
       if (checkout.published) {
         clearDraft();

@@ -17,10 +17,10 @@ async function buildBanquetCsv(invitationId: string, userId: string) {
   if (!pricing) {
     throw new ApiError('not_found', 'Приглашение не найдено', 404);
   }
-  if (!pricing.entitlements.csvExport) {
+  if (!pricing.fullAccess && !pricing.entitlements.csvExport) {
     throw new ApiError(
       'plan_required',
-      'Список для тойханы доступен на тарифе Стандарт и выше',
+      'Экспорт гостей доступен после оплаты цены шаблона',
       402
     );
   }

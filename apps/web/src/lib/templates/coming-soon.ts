@@ -140,6 +140,11 @@ export function comingSoonByProduct(product: ComingSoonProduct | 'all'): ComingS
   return COMING_SOON_TEMPLATES.filter((t) => t.product === product);
 }
 
+/**
+ * 2026-07-30 INTERNAL ONLY (for admin/coming-soon placeholders, not user surfaces).
+ * OWNER MODEL: Never show "Стандарт"/"Премиум" in single-invite user journey.
+ * See docs/PRODUCT_MODEL_AND_RULES.md — these labels are legacy baggage.
+ */
 export const PLAN_TIER_LABELS = {
   ru: { free: 'Бесплатно', standard: 'Стандарт', premium: 'Премиум' },
   kz: { free: 'Тегін', standard: 'Стандарт', premium: 'Премиум' },

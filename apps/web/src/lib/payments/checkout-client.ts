@@ -27,7 +27,7 @@ export async function checkoutInvitationClient(
 ): Promise<CheckoutResponse> {
   const options =
     typeof providerOrOptions === 'string' || providerOrOptions === undefined
-      ? { provider: providerOrOptions, intent: 'publish' as const }
+      ? { provider: providerOrOptions, intent: 'pay' as const }
       : providerOrOptions;
 
   const res = await fetch(`/api/invitations/${invitationId}/checkout`, {
@@ -35,7 +35,7 @@ export async function checkoutInvitationClient(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       ...(options.provider ? { provider: options.provider } : {}),
-      intent: options.intent ?? 'publish',
+      intent: options.intent ?? 'pay',
       ...(options.planSku ? { planSku: options.planSku } : {}),
     }),
   });

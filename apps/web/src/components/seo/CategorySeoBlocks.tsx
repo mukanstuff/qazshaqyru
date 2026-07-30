@@ -23,7 +23,7 @@ export function CategorySeoBlocks({ copy }: { copy: CategorySeoCopy }) {
               <>
                 Бағалар:{' '}
                 <LocaleLink href="/pricing" className="text-us-accent hover:underline">
-                  Стандарт 3 990 ₸-ден
+                  от цены шаблона (полный доступ после оплаты)
                 </LocaleLink>
                 . Сервис белгісімен жасау — тегін.
               </>
@@ -31,7 +31,7 @@ export function CategorySeoBlocks({ copy }: { copy: CategorySeoCopy }) {
               <>
                 Тарифы:{' '}
                 <LocaleLink href="/pricing" className="text-us-accent hover:underline">
-                  от 3 990 ₸ за Стандарт
+                  от цены шаблона (полный доступ после оплаты)
                 </LocaleLink>
                 . Сборка с логотипом сервиса — бесплатно.
               </>

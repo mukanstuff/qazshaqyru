@@ -58,10 +58,14 @@ export default function PublicInvitationClient({
 
   useEffect(() => {
     if (isDemo) {
-      // Demo always uses legacy renderer for now.
+      // Demo keeps legacy for historical screenshots / marketing
       setMode('legacy');
       return;
     }
+
+    // === 2026-07-30 DECISIVE RULE (see PRODUCT_DECISIONS_2026-07-30.md) ===
+    // Canvas is the canonical document for all new invitations.
+    // Public page must prefer canvas. Legacy only for ancient rows that never got canvas.
     let alive = true;
     (async () => {
       try {
@@ -73,7 +77,14 @@ export default function PublicInvitationClient({
           return;
         }
         const data = await res.json();
-        if (alive) setMode(data.canvas ? 'canvas' : 'legacy');
+
+        // === DECISIVE RULE (2026-07-30) ===
+        // Canvas is the product. For any invitation that went through the new flow (wizard + pay),
+        // canvas should exist. We prefer it aggressively.
+        // Legacy only for ancient pre-canvas rows that were never touched.
+        if (alive) {
+          setMode(data.canvas ? 'canvas' : 'legacy');
+        }
       } catch {
         if (alive) setMode('legacy');
       }

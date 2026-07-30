@@ -115,10 +115,19 @@ function dividerEl(id: string, y: number): CanvasElement {
  * we approximate its layout closely enough to look familiar.
  */
 export function convertLegacyToCanvas(inv: LegacyInvitationLike): InvitationCanvasDocument {
-  const doc = createEmptyDocument(390, { type: 'solid', color: LUXURY_BG });
   const td = (inv.templateData || {}) as Record<string, string | undefined>;
   const ct = (inv.customText || {}) as Record<string, string | undefined>;
 
+  // Respect colorScheme if provided (from wizard step 6)
+  const scheme = td.colorScheme || 'bordeaux-gold';
+  const bg = scheme === 'bordeaux-gold' ? LUXURY_BG :
+             scheme === 'rose-gold' ? '#fdf2f4' :
+             scheme === 'classic-mono' ? '#f8f8f8' :
+             scheme === 'emerald-gold' ? '#f0f7f2' :
+             scheme === 'oriental' ? '#fffaf0' : '#f9f7f4';
+  const primary = scheme === 'bordeaux-gold' || scheme === 'oriental' ? LUXURY_PRIMARY : '#3a2a2f';
+
+  const doc = createEmptyDocument(390, { type: 'solid', color: bg });
   const elements: CanvasElement[] = [];
   let y = 80;
   const z = () => elements.length + 1;

@@ -76,6 +76,11 @@ export async function GET(
     const hasPaidOrder = invitation.orders.some((order: PublicOrderRow) =>
       isValidPaidOrder(order, templateId, priceKzt)
     );
+
+    // 2026-07-30 P0-2: use fullAccess (paid template order) for watermark, same as getInvitationPricing + hub.
+    // fullAccess takes precedence over legacy entitlements.watermark.
+    const fullAccess = hasPaidOrder;
+
     const entitlements = resolveEntitlements({
       now: new Date(),
       user: {
@@ -86,12 +91,14 @@ export async function GET(
         unlockedPlanSku: mapPlanSku(invitation.unlockedPlanSku),
       },
     });
+
     const showWatermark =
       invitation.status === 'published' &&
       shouldShowPublishWatermark({
         priceKzt,
         hasPaidOrder,
         entitlements,
+        fullAccess,
       });
 
     const safeInvitation = {

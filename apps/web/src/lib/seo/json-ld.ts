@@ -70,7 +70,7 @@ export function buildSoftwareApplicationSchema() {
       '@type': 'Offer',
       price: '0',
       priceCurrency: 'KZT',
-      description: 'Публикация с логотипом сервиса бесплатно; Стандарт от 3 990 ₸ без логотипа + список гостей',
+      description: 'Публикация с логотипом сервиса бесплатно; после оплаты цены шаблона — полный доступ без водяного знака + все функции гостей',
     },
     url: getSiteOrigin(),
     provider: { '@id': orgId() },
@@ -97,6 +97,11 @@ export function buildServiceSchema(opts: {
     offers: {
       '@type': 'Offer',
       priceCurrency: 'KZT',
+      // 2026-07-30: this is a placeholder price in schema for the *minimum* template price.
+      // Real price is always Template.priceKzt. Never use in user CTAs.
+      // 2026-07-30 OWNER MODEL (PRODUCT_MODEL_AND_RULES.md): placeholder only.
+      // Real price = Template.priceKzt. Never hardcode or show 3990 in user CTAs.
+      // Use resolvePublicationPriceKzt for real flows.
       price: '3990',
       url: absoluteUrl('/pricing'),
     },

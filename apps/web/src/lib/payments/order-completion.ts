@@ -112,6 +112,42 @@ export async function completeOrderPayment(
       await applyPlanUnlockInTx(tx, paidOrder);
     }
 
+    // === 2026-07-30 Product model enforcement ===
+    // After successful template payment, ensure the invitation has a canvas document
+    // if it doesn't yet (for legacy wizard flows that hit payment directly).
+    // This guarantees the guest page and editor see the same document.
+    if (invitationId) {
+      try {
+        const inv = await tx.invitation.findUnique({
+          where: { id: invitationId },
+          select: { canvas: true, title: true, eventType: true, eventDate: true, eventTime: true, eventPlace: true, address: true, eventTimezone: true, templateData: true, musicUrl: true, mapUrl: true, customText: true },
+        });
+        if (inv && !inv.canvas) {
+          // Lazy import to avoid loading canvas in every tx
+          const { convertLegacyToCanvas } = await import('@/lib/canvas/legacy-converter');
+          const doc = convertLegacyToCanvas({
+            title: inv.title,
+            eventType: inv.eventType,
+            eventDate: inv.eventDate,
+            eventTime: inv.eventTime,
+            eventPlace: inv.eventPlace,
+            address: inv.address,
+            eventTimezone: inv.eventTimezone || 'Asia/Almaty',
+            templateData: inv.templateData as any,
+            musicUrl: inv.musicUrl,
+            mapUrl: inv.mapUrl,
+            customText: inv.customText as any,
+          });
+          await tx.invitation.update({
+            where: { id: invitationId },
+            data: { canvas: doc as any },
+          });
+        }
+      } catch {
+        // non-fatal
+      }
+    }
+
     return { ok: true as const };
   });
 

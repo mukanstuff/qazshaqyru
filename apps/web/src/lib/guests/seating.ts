@@ -21,10 +21,10 @@ export type SeatingTableDto = {
 async function assertSeatingEntitled(invitationId: string, userId: string): Promise<void> {
   const pricing = await getInvitationPricing(invitationId, userId);
   if (!pricing) throw new ApiError('not_found', 'Приглашение не найдено', 404);
-  if (!pricing.entitlements.seating) {
+  if (!pricing.fullAccess && !pricing.entitlements.seating) {
     throw new ApiError(
       'plan_required',
-      'Рассадка доступна на тарифе Стандарт и выше',
+      'Рассадка доступна после оплаты цены шаблона',
       402
     );
   }

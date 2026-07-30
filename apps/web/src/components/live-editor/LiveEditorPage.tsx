@@ -379,7 +379,8 @@ export function LiveEditorPage({
         toast({ title: 'Сначала сохраните и войдите', variant: 'destructive' });
         return;
       }
-      const checkout = await checkoutInvitationClient(id);
+      // 2026-07-30 P0-1: explicit pay (no freemium publish default in user paths)
+      const checkout = await checkoutInvitationClient(id, { intent: 'pay' });
       if (checkout.needsPayment && checkout.paymentUrl) {
         window.location.href = checkout.paymentUrl;
         return;

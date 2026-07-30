@@ -14,7 +14,12 @@ import {
 import { resolveTemplateBySlug } from '@/lib/templates/template-resolve';
 import { isValidPaidOrder } from '@/lib/payments/pricing-integrity';
 
-/** @deprecated Prefer getPlanPriceKzt('standard') — kept for existing imports. */
+/** @deprecated Internal clamp only.
+ * 2026-07-30 OWNER MODEL (PRODUCT_MODEL_AND_RULES.md + PRODUCT_DECISIONS_2026-07-30.md):
+ * Real price for users = Template.priceKzt (via resolvePublicationPriceKzt + getInvitationPricing).
+ * This DEFAULT is ONLY a last-resort fallback for broken DB rows or admin creation.
+ * Never show "3990" or "Стандарт" in user CTAs, wizard, post-pay, public, SEO.
+ */
 export const PUBLICATION_PRICE_MIN_KZT = 2_990;
 export const PUBLICATION_PRICE_MAX_KZT = 4_990;
 export const DEFAULT_PUBLICATION_PRICE_KZT = LEGACY_PUBLICATION_PRICE_KZT;
@@ -22,13 +27,19 @@ export const DEFAULT_PUBLICATION_PRICE_KZT = LEGACY_PUBLICATION_PRICE_KZT;
 export interface InvitationPricing {
   templateId: string | null;
   templateSlug: string;
-  /** Standard unlock price (default pay intent). */
+  /** Price of the template (what user actually pays for full access). */
   priceKzt: number;
   templateNameRu: string;
   hasPaidOrder: boolean;
   editingFree: boolean;
   unlockedPlanSku: PlanSku | null;
   entitlements: ResolvedEntitlements;
+
+  /** 
+   * 2026-07-30 product model: true when the user has paid the template price
+   * for this invitation → full access (no watermark, all guest ops, full editor).
+   */
+  fullAccess?: boolean;
 }
 
 /**
@@ -110,15 +121,20 @@ export async function getInvitationPricing(
     : DEFAULT_PUBLICATION_PRICE_KZT;
 
   type PricingOrderRow = { id: string; status: 'pending' | 'paid' | 'cancelled' | 'refunded'; templateId: string; amountKzt: number };
-  const unlockedFromOrders = invitation.orders.some((order: PricingOrderRow) =>
+
+  // === DECISIVE 2026-07-30 OWNER MODEL (see PRODUCT_DECISIONS_2026-07-30.md) ===
+  // Paying the template's real priceKzt ONCE = FULL ACCESS for this single invitation.
+  // No more "free publish → pay for Standard → pay for Premium".
+  // fullAccess = true → no watermark + all guest ops + custom slug + full editor.
+  const paidTemplateOrder = invitation.orders.some((order: PricingOrderRow) =>
     isValidPaidOrder(order, templateId, priceKzt)
   );
 
   const unlockedPlanSku =
     mapDbPlanSku(invitation.unlockedPlanSku) ??
-    (unlockedFromOrders ? DEFAULT_UNLOCK_PLAN : null);
+    (paidTemplateOrder ? DEFAULT_UNLOCK_PLAN : null);
 
-  const entitlements = resolveEntitlements({
+  let entitlements = resolveEntitlements({
     now: new Date(),
     user: {
       planSku: mapDbPlanSku(invitation.user.planSku),
@@ -127,7 +143,25 @@ export async function getInvitationPricing(
     invitation: { unlockedPlanSku },
   });
 
-  const hasPaidOrder = !entitlements.watermark;
+  const hasPaidOrder = paidTemplateOrder;
+  const fullAccess = paidTemplateOrder;
+
+  if (fullAccess) {
+    // Force the real product behavior regardless of old ladder logic
+    entitlements = {
+      ...entitlements,
+      watermark: false,
+      guestOps: true,
+      funnel: true,
+      reminders: true,
+      seating: true,
+      household: true,
+      csvExport: true,
+      restaurantLink: true,
+      customSlug: true,
+      priority: false, // not part of single template price
+    };
+  }
 
   return {
     templateId,
@@ -138,6 +172,7 @@ export async function getInvitationPricing(
     editingFree: true,
     unlockedPlanSku,
     entitlements,
+    fullAccess,
   };
 }
 

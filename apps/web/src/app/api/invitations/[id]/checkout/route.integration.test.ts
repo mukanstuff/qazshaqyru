@@ -15,6 +15,7 @@ const checkoutInvitationMock = vi.hoisted(() =>
     paymentUrl: 'http://localhost:3000/mock-payment?orderId=order-1&token=pay-1',
     publicUrl: null,
     orderId: 'order-1',
+    // 2026-07-30: test uses a placeholder amount. Real amount comes from resolvePublicationPriceKzt(template.priceKzt) + fullAccess model.
     amountKzt: 3990,
     invitationId: 'inv-1',
     slug: 'demo-slug',

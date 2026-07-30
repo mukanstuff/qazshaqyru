@@ -15,7 +15,8 @@ export function useInvitationPublish(invitationId: string) {
   const handlePublish = useCallback(async (): Promise<boolean> => {
     setIsPublishing(true);
     try {
-      const checkout = await checkoutInvitationClient(invitationId);
+      // 2026-07-30: explicit intent:'pay' (P0-1). No freemium publish default.
+      const checkout = await checkoutInvitationClient(invitationId, { intent: 'pay' });
       if (checkout.published) {
         router.replace(`/invitations/${invitationId}?published=1`);
         return true;

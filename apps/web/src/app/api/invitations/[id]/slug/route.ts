@@ -53,8 +53,12 @@ export async function PATCH(
 
     const pricing = await getInvitationPricing(id, ctx.user.id);
     if (!pricing) throw new ApiError('not_found', 'Приглашение не найдено', 404);
-    if (!pricing.entitlements.customSlug) {
-      throw new ApiError('plan_required', 'Своя ссылка доступна на Премиум и тарифе для тойхан', 402);
+
+    // 2026-07-30 P0-3: gate via fullAccess (template pay) || customSlug.
+    // Message: "after template price payment" — no Premium/Standard.
+    const canCustomSlug = pricing.fullAccess || pricing.entitlements.customSlug;
+    if (!canCustomSlug) {
+      throw new ApiError('plan_required', 'Своя ссылка доступна после оплаты цены шаблона', 402);
     }
 
     const raw = await request.json().catch(() => ({}));

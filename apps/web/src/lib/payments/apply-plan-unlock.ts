@@ -53,6 +53,11 @@ export async function applyPlanUnlockInTx(
   const next = comparePlans(sku, current) >= 0 ? sku : current;
   if (next === 'free') return;
 
+  // Product decision 2026-07-30:
+  // When a user pays the template price (standard plan on an invitation),
+  // it means "full access for this single invitation".
+  // We still write 'standard' (or higher) to unlockedPlanSku for backward compat,
+  // but the entitlements + hasPaidOrder logic now treat it as complete unlock.
   await tx.invitation.update({
     where: { id: order.invitationId },
     data: {

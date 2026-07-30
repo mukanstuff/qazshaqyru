@@ -36,8 +36,9 @@ export async function GET(_request: NextRequest, { params }: Props) {
     redirect('/dashboard?payment=not_found');
   }
 
-  // Already paid
+  // Already paid — 2026-07-30 model: template payment = full access
   if (order.status === 'paid' && order.invitation) {
+    // Always send to the hub with published flag so the user sees clean link + full ops
     redirect(`/invitations/${order.invitation.id}?published=1`);
   }
 

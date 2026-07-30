@@ -19,6 +19,9 @@ export function TemplateBuilderClient({ templateId }: Props) {
   const [nameRu, setNameRu] = useState('');
   const [nameKz, setNameKz] = useState('');
   const [category, setCategory] = useState('wedding');
+  // 2026-07-30 OWNER MODEL: 3990 is ONLY admin/dev default.
+  // Real price = Template.priceKzt from DB (see docs/PRODUCT_MODEL_AND_RULES.md).
+  // Never surface hardcoded 3990 in user CTAs, wizard, pricing surfaces.
   const [priceKzt, setPriceKzt] = useState(3990);
   const [saving, setSaving] = useState(false);
 

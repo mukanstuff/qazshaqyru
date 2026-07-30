@@ -25,6 +25,7 @@ export default async function CreatePage({ searchParams }: Props) {
       templateKey={template.slug}
       templateId={template.id}
       templateName={template.nameRu}
+      templatePriceKzt={template.priceKzt}
     />
   );
 }
