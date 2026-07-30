@@ -5,6 +5,9 @@
  */
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/shared/db';
+import { ensureCanvasDocument } from '@/lib/invitations/ensure-canvas';
+import { isValidPaidOrder } from '@/lib/payments/pricing-integrity';
+import { resolvePublicationPriceKzt } from '@/lib/invitations/invitation-pricing';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,18 +18,7 @@ interface Ctx {
 export async function GET(_req: Request, { params }: Ctx) {
   const { slug } = await params;
   try {
-    // Canvas column is typed as `Json?` in Prisma. When the migration hasn't
-    // been applied yet this query will 500; the client already treats errors
-    // as "use legacy renderer" so no try/catch fallback is needed — but we
-    // still need this to degrade gracefully during the migration window.
-    const inv = await (prisma as unknown as {
-      invitation: {
-        findUnique: (args: {
-          where: { slug: string };
-          select: Record<string, boolean>;
-        }) => Promise<Record<string, unknown> | null>;
-      };
-    }).invitation.findUnique({
+    const inv = await prisma.invitation.findUnique({
       where: { slug },
       select: {
         id: true,
@@ -42,6 +34,14 @@ export async function GET(_req: Request, { params }: Ctx) {
         status: true,
         canvas: true,
         mobileCanvas: true,
+        templateId: true,
+        templateKey: true,
+        orders: {
+          where: { status: 'paid', orderType: 'self' },
+          select: { id: true, templateId: true, amountKzt: true },
+          orderBy: { paidAt: 'desc' },
+          take: 1,
+        },
       },
     });
 
@@ -51,6 +51,39 @@ export async function GET(_req: Request, { params }: Ctx) {
     if (inv.status !== 'published') {
       return NextResponse.json({ error: 'not_published' }, { status: 403 });
     }
+
+    // 2026-07-30 NEXT: for published + paid invitations, ensure canvas exists.
+    // This makes the public guest experience always canvas-first.
+    let hasCanvas = !!inv.canvas;
+
+    if (!hasCanvas) {
+      const templatePrice = inv.templateId
+        ? (await prisma.template.findUnique({ where: { id: inv.templateId }, select: { priceKzt: true } }))?.priceKzt ?? null
+        : null;
+
+      const priceKzt = resolvePublicationPriceKzt(templatePrice);
+      const hasPaid = inv.orders.some((o: any) => isValidPaidOrder(o, inv.templateId, priceKzt));
+
+      if (hasPaid) {
+        // Seed canvas so guest page and editor are consistent.
+        // We use a light tx here (public read path).
+        await prisma.$transaction(async (tx: any) => {
+          await ensureCanvasDocument(tx, inv.id);
+        });
+
+        // Re-fetch to get the newly seeded canvas
+        const refreshed = await prisma.invitation.findUnique({
+          where: { id: inv.id },
+          select: { canvas: true, mobileCanvas: true },
+        });
+        if (refreshed?.canvas) {
+          hasCanvas = true;
+          (inv as any).canvas = refreshed.canvas;
+          (inv as any).mobileCanvas = refreshed.mobileCanvas;
+        }
+      }
+    }
+
     return NextResponse.json({
       id: inv.id,
       slug: inv.slug,
@@ -62,12 +95,11 @@ export async function GET(_req: Request, { params }: Ctx) {
       address: inv.address,
       eventTimezone: inv.eventTimezone,
       customText: inv.customText,
-      canvas: inv.canvas ?? null,
-      mobileCanvas: inv.mobileCanvas ?? null,
+      canvas: (inv as any).canvas ?? null,
+      mobileCanvas: (inv as any).mobileCanvas ?? null,
     });
   } catch (err) {
-    // Migration not applied yet or transient DB error — signal client to
-    // fall back to legacy renderer rather than showing an error to guests.
+    // Graceful fallback for migration / transient errors
     return NextResponse.json({ canvas: null });
   }
 }
