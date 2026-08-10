@@ -3,17 +3,19 @@ import {
   type PlanSku,
   maxPlan,
   planHasFeature,
+  isLegacyPlanSku,
+  type LegacyPlanSku,
 } from '@/lib/entitlements/plan-catalog';
 
 export type EntitlementSource = 'free' | 'invitation' | 'user';
 
 export interface UserEntitlementSnapshot {
-  planSku: PlanSku | null;
+  planSku: PlanSku | LegacyPlanSku | null;
   planExpiresAt: Date | null;
 }
 
 export interface InvitationEntitlementSnapshot {
-  unlockedPlanSku: PlanSku | null;
+  unlockedPlanSku: PlanSku | LegacyPlanSku | null;
 }
 
 export interface ResolvedEntitlements {
@@ -38,6 +40,9 @@ function activeUserPlan(
   now: Date
 ): { sku: PlanSku; expiresAt: Date } | null {
   if (!user.planSku || user.planSku === 'free') return null;
+  // Only agency is a real user-level subscription now; legacy standard/premium
+  // rows are kept as historical reference but never auto-active.
+  if (user.planSku !== 'agency') return null;
   if (!user.planExpiresAt || user.planExpiresAt.getTime() <= now.getTime()) return null;
   return { sku: user.planSku, expiresAt: user.planExpiresAt };
 }
@@ -89,15 +94,16 @@ export function resolveEntitlements(params: {
       : null;
 
   if (unlocked) {
-    // Product decision 2026-07-30: "standard" (or higher) unlock on an invitation
+    // Product decision 2026-07-30: any unlocked paid plan on an invitation
     // now means FULL ACCESS for that single invitation (template purchase model).
     // No more partial standard vs premium split for regular users.
+    const planSku: PlanSku = isLegacyPlanSku(unlocked) ? 'agency' : unlocked;
     return {
-      planSku: unlocked,
+      planSku,
       source: 'invitation',
       expiresAt: null,
       watermark: planHasFeature(unlocked, 'watermark'),
-      ...featureFlags(unlocked),
+      ...featureFlags(planSku),
     };
   }
 

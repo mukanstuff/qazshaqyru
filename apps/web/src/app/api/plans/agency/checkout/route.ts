@@ -13,6 +13,8 @@ import { checkoutInvitation } from '@/lib/payments/checkout';
 
 const bodySchema = z.object({
   provider: z.enum(['kaspi', 'freedom', 'mock']).optional(),
+  intent: z.enum(['plan', 'agency']).optional(),
+  planSku: z.string().min(1).max(64).optional(),
 });
 
 function getAppUrl(request: NextRequest): string {

@@ -1,11 +1,11 @@
 import { describeCaptchaConfig } from '@/lib/shared/captcha';
 import { getKaspiWebhookUrl, isKaspiWebhookReady } from '@/lib/payments/payment-provider-config';
 import { describeUploadStorage } from '@/lib/uploads/upload-storage';
-import { formatSmsConfigError, isSmsProviderReady } from '@/lib/shared/sms';
+import { isWhatsappOtpReady, formatWhatsappConfigError } from '@/lib/auth/otp-channel';
 
 export interface ProductionStartupSummary {
-  smsReady: boolean;
-  smsMessage: string;
+  whatsappOtpReady: boolean;
+  whatsappOtpMessage: string;
   kaspiWebhookReady: boolean;
   kaspiWebhookUrl: string | null;
   uploadMode: 'local' | 's3';
@@ -21,8 +21,8 @@ export function getProductionStartupSummary(env: NodeJS.ProcessEnv = process.env
   const captcha = describeCaptchaConfig(env);
 
   return {
-    smsReady: isSmsProviderReady(env),
-    smsMessage: formatSmsConfigError(env),
+    whatsappOtpReady: isWhatsappOtpReady(env),
+    whatsappOtpMessage: formatWhatsappConfigError(env),
     kaspiWebhookReady: isKaspiWebhookReady(env),
     kaspiWebhookUrl: appUrl ? getKaspiWebhookUrl(appUrl) : null,
     uploadMode: upload.mode,
@@ -40,7 +40,9 @@ export function logProductionStartupSummary(env: NodeJS.ProcessEnv = process.env
   const summary = getProductionStartupSummary(env);
 
   console.log('[startup] Production services:');
-  console.log(`[startup]   SMS: ${summary.smsReady ? 'ready' : 'NOT READY'} — ${summary.smsMessage}`);
+  console.log(
+    `[startup]   WhatsApp OTP: ${summary.whatsappOtpReady ? 'ready' : 'NOT READY'} — ${summary.whatsappOtpMessage}`
+  );
 
   if (env.PAYMENT_PROVIDER === 'kaspi' || env.KASPI_API_KEY) {
     if (summary.kaspiWebhookUrl) {

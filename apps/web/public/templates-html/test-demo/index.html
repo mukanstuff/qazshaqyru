@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Тест-шаблон</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      min-height: 100dvh;
+      font-family: system-ui, sans-serif;
+      color: #1a1a2e;
+      background: #f5f0e8;
+      display: grid;
+      place-items: center;
+    }
+    .card {
+      max-width: 420px;
+      width: 100%;
+      background: #fff;
+      border-radius: 16px;
+      padding: 32px;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    }
+    .eyebrow {
+      font-size: 0.75rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #c8a96a;
+      margin: 0 0 12px;
+    }
+    h1 {
+      font-size: clamp(1.8rem, 6vw, 2.2rem);
+      margin: 0 0 16px;
+      font-weight: 600;
+    }
+    .info {
+      font-size: 1rem;
+      color: #5a4a3a;
+      margin: 8px 0;
+    }
+    .note {
+      margin-top: 20px;
+      font-size: 0.85rem;
+      color: #8a7a6a;
+      border-top: 1px solid #e0d8c8;
+      padding-top: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card" data-template="test-demo">
+    <p class="eyebrow" data-i18n-kk="Тест шаблон" data-i18n-ru="Тестовый шаблон">Тестовый шаблон</p>
+    <h1 data-bind="couple"></h1>
+    <p class="info" data-bind="eventDate"></p>
+    <p class="info" data-bind="eventTime"></p>
+    <p class="info" data-bind="eventPlace"></p>
+    <p class="note" data-i18n-kk="Бұл — тест, нағыз шаблон емес." data-i18n-ru="Это тестовый шаблон, не настоящий.">Это тестовый шаблон, не настоящий.</p>
+  </div>
+</body>
+</html>

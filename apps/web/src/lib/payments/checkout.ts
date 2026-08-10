@@ -4,25 +4,23 @@ type PrismaTx = any;
 
 import prisma from '@/lib/shared/db';
 import { ApiError } from '@/lib/shared/api';
-import {
-  assertPaidPlanSku,
-  getInvitationPricing,
-  resolvePlanCheckoutAmount,
-} from '@/lib/invitations/invitation-pricing';
+import { getInvitationPricing } from '@/lib/invitations/invitation-pricing';
 import { getPaymentProvider } from '@/lib/payments';
 import { KaspiPaymentError } from '@/lib/payments/kaspi-errors';
 import { isStalePendingOrder } from '@/lib/payments/pricing-integrity';
+import {
+  AGENCY_ORDER_PLAN_SKU,
+  determineCheckout,
+  type CheckoutIntent,
+  type CheckoutRouting,
+} from '@/lib/payments/pricing';
 import type { SessionUser } from '@/lib/shared/api';
 import {
   resolveCheckoutProvider,
   type PaymentProviderName,
 } from '@/lib/payments/payment-provider-config';
 import { publishInvitationIfDraft } from '@/lib/invitations/invitation-publish';
-import {
-  AGENCY_DURATION_DAYS,
-  getPlanDefinition,
-  type PaidPlanSku,
-} from '@/lib/entitlements';
+import { type LegacyPlanSku, type PaidPlanSku } from '@/lib/entitlements';
 
 export interface CheckoutResult {
   published: boolean;
@@ -33,7 +31,7 @@ export interface CheckoutResult {
   amountKzt: number;
   invitationId: string | null;
   slug: string | null;
-  planSku: PaidPlanSku | null;
+  planSku: LegacyPlanSku | PaidPlanSku | null;
 }
 
 function buildMockPaymentUrl(orderId: string, paymentId: string): string {
@@ -58,7 +56,7 @@ function buildNeedsPaymentResult(
   order: { id: string; amountKzt: number },
   invitation: { id: string; slug: string } | null,
   paymentUrl: string | null,
-  planSku: PaidPlanSku
+  planSku: LegacyPlanSku | PaidPlanSku
 ): CheckoutResult {
   return {
     published: false,
@@ -73,12 +71,18 @@ function buildNeedsPaymentResult(
   };
 }
 
-export type CheckoutIntent = 'publish' | 'pay' | 'plan';
+export type { CheckoutIntent } from '@/lib/payments/pricing';
 
 /**
  * Checkout flow:
- * - publish: freemium publish with watermark
- * - pay / plan: create/resume order for planSku (standard|premium|agency)
+ * - intent 'pay' | 'publish' (admin): one-time TEMPLATE_PURCHASE → charge template.priceKzt,
+ *   planScope='invitation', planDurationDays=null. NEVER activates agency.
+ * - intent 'agency' | 'plan' + planSku='agency': AGENCY subscription → charge agency price,
+ *   planScope='user', planDurationDays=AGENCY_DURATION_DAYS.
+ *
+ * Routing is decided by determineCheckout() (lib/payments/pricing.ts). The legacy
+ * assertPaidPlanSku fallback that defaulted missing planSku to 'agency' is intentionally
+ * NOT used here — that was the bug that charged 20,000 KZT for any template purchase.
  */
 export async function checkoutInvitation(
   invitationId: string | null,
@@ -90,19 +94,22 @@ export async function checkoutInvitation(
     planSku?: string | null;
   }
 ): Promise<CheckoutResult> {
-  // HOTFIX: default to 'pay' (template price = fullAccess) for all user paths.
-  // 'publish' (freemium) is legacy and should only be used explicitly by admin/internal.
   const intent = options.intent ?? 'pay';
-  const planSku = assertPaidPlanSku(options.planSku);
-  const planDef = getPlanDefinition(planSku);
   const providerName = resolveCheckoutProvider(options.provider);
 
-  // Agency can be purchased without an invitation.
-  if (intent === 'plan' && planSku === 'agency') {
+  // Agency is purchased WITHOUT an invitation, so we can route it before requiring one.
+  if (intent === 'agency' || (intent === 'plan' && options.planSku === 'agency')) {
+    const routing = determineCheckout({
+      intent,
+      requestedPlanSku: options.planSku,
+      // Agency doesn't charge a template price, but the routing API requires it.
+      templatePriceKzt: 0,
+      templateName: '',
+    });
     return checkoutAgency(user, {
       appUrl: options.appUrl,
       providerName,
-      planSku,
+      routing,
     });
   }
 
@@ -165,22 +172,35 @@ export async function checkoutInvitation(
         400
       );
     }
-    // Admin legacy path only
-    await publishInvitationIfDraft(invitation.id);
-    return {
-      published: true,
-      needsPayment: unpaid,
-      paymentUrl: null,
+    // Admin legacy path only — still charge the template price.
+    const routing = determineCheckout({
+      intent: 'publish',
+      requestedPlanSku: options.planSku,
+      templatePriceKzt: pricing.priceKzt,
+      templateName: pricing.templateNameRu,
+    });
+    return runTemplateCheckout({
+      invitation,
+      user,
+      options,
+      pricing,
+      providerName,
+      routing,
       publicUrl,
-      orderId: null,
-      amountKzt: pricing.priceKzt,
-      invitationId: invitation.id,
-      slug: invitation.slug,
-      planSku: unpaid ? 'standard' : null,
-    };
+    });
   }
 
-  // intent pay | plan (invitation-level)
+  // Regular user path: 'pay' for template purchase.
+  // Reject 'plan' here — only the agency branch above accepts 'plan'.
+  if (intent === 'plan') {
+    throw new ApiError(
+      'validation_error',
+      'Для покупки тарифа используйте intent: "agency" или прямой endpoint /api/plans/agency/checkout.',
+      400
+    );
+  }
+
+  // intent: 'pay' (template purchase)
   if (!pricing.templateId) {
     throw new ApiError(
       'validation_error',
@@ -189,12 +209,140 @@ export async function checkoutInvitation(
     );
   }
 
-  const amountKzt = resolvePlanCheckoutAmount(planSku, undefined);
-  // Prefer template override only for standard
-  const chargeAmount =
-    planSku === 'standard'
-      ? pricing.priceKzt
-      : amountKzt;
+  const routing = determineCheckout({
+    intent: 'pay',
+    requestedPlanSku: options.planSku,
+    templatePriceKzt: pricing.priceKzt,
+    templateName: pricing.templateNameRu,
+  });
+
+  return runTemplateCheckout({
+    invitation,
+    user,
+    options,
+    pricing,
+    providerName,
+    routing,
+    publicUrl,
+  });
+}
+
+async function checkoutAgency(
+  user: SessionUser,
+  options: {
+    appUrl: string;
+    providerName: PaymentProviderName;
+    routing: CheckoutRouting;
+  }
+): Promise<CheckoutResult> {
+  const { providerName, routing, appUrl } = options;
+
+  // Need a templateId for Order FK — use any active template
+  const template = await prisma.template.findFirst({
+    where: { isActive: true },
+    select: { id: true, nameRu: true },
+    orderBy: { sortOrder: 'asc' },
+  });
+  if (!template) {
+    throw new ApiError('validation_error', 'Нет активных шаблонов для оформления тарифа', 500);
+  }
+
+  const checkoutState = await prisma.$transaction(async (tx: PrismaTx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`checkout:agency:${user.id}`}))`;
+
+    let pendingOrder = await tx.order.findFirst({
+      where: {
+        userId: user.id,
+        status: 'pending',
+        orderType: 'self',
+        planSku: AGENCY_ORDER_PLAN_SKU,
+        invitationId: null,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (pendingOrder && pendingOrder.amountKzt !== routing.chargeAmountKzt) {
+      await tx.order.update({
+        where: { id: pendingOrder.id },
+        data: { status: 'cancelled', cancelledAt: new Date() },
+      });
+      pendingOrder = null;
+    }
+
+    if (pendingOrder?.paymentId && pendingOrder.paymentProvider) {
+      return { order: pendingOrder, resumePayment: true as const };
+    }
+
+    let order = pendingOrder;
+    if (!order) {
+      order = await tx.order.create({
+        data: {
+          userId: user.id,
+          templateId: template.id,
+          invitationId: null,
+          amountKzt: routing.chargeAmountKzt,
+          customerPhone: user.phone,
+          customerName: user.name,
+          status: 'pending',
+          orderType: 'self',
+          paymentProvider: providerName,
+          planSku: AGENCY_ORDER_PLAN_SKU,
+          planScope: 'user',
+          planDurationDays: routing.planDurationDays,
+        },
+      });
+    }
+
+    if (order.paymentProvider !== providerName) {
+      order = await tx.order.update({
+        where: { id: order.id },
+        data: { paymentProvider: providerName, paymentId: null, paymentUrl: null },
+      });
+    }
+
+    return { order, resumePayment: false as const };
+  });
+
+  return finalizeProviderCheckout({
+    order: checkoutState.order,
+    resumePayment: checkoutState.resumePayment,
+    invitation: null,
+    user,
+    appUrl,
+    providerName,
+    planSku: AGENCY_ORDER_PLAN_SKU,
+    chargeAmount: routing.chargeAmountKzt,
+    description: routing.description,
+    failUrl: `${appUrl}/dashboard?payment=failed`,
+  });
+}
+
+async function runTemplateCheckout(args: {
+  invitation: {
+    id: string;
+    slug: string;
+    status: string;
+    title: string;
+    eventDate: Date;
+    eventType: string;
+  };
+  user: SessionUser;
+  options: {
+    appUrl: string;
+    provider?: PaymentProviderName;
+  };
+  pricing: {
+    templateId: string | null;
+    priceKzt: number;
+    templateNameRu: string;
+  };
+  providerName: PaymentProviderName;
+  routing: CheckoutRouting;
+  publicUrl: string;
+}): Promise<CheckoutResult> {
+  const { invitation, user, options, pricing, providerName, routing, publicUrl } = args;
+  const chargeAmount = routing.chargeAmountKzt;
+  const planSku = routing.orderPlanSku;
 
   type PrismaTx = any;
   const checkoutState = await prisma.$transaction(async (tx: PrismaTx) => {
@@ -209,18 +357,6 @@ export async function checkoutInvitation(
       },
       orderBy: { createdAt: 'desc' },
     });
-
-    if (!pendingOrder && planSku === 'standard') {
-      pendingOrder = await tx.order.findFirst({
-        where: {
-          invitationId: invitation.id,
-          status: 'pending',
-          orderType: 'self',
-          planSku: null,
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-    }
 
     if (
       pendingOrder &&
@@ -257,12 +393,13 @@ export async function checkoutInvitation(
             customerPhone: user.phone,
             customerName: user.name,
             eventDate: invitation.eventDate,
-            eventType: invitation.eventType,
+            eventType: invitation.eventType as 'wedding' | 'toy' | 'betashar' | 'kyz_uzatu' | 'sundet_toy' | 'tusau_keser' | 'birthday' | 'anniversary' | 'corporate' | 'other',
             status: 'pending',
             orderType: 'self',
             paymentProvider: providerName,
             planSku,
-            planScope: 'invitation',
+            planScope: routing.planScope,
+            planDurationDays: routing.planDurationDays,
           },
         });
       } catch (error) {
@@ -287,8 +424,9 @@ export async function checkoutInvitation(
         where: { id: order.id },
         data: {
           planSku,
-          planScope: 'invitation',
+          planScope: routing.planScope,
           amountKzt: chargeAmount,
+          planDurationDays: routing.planDurationDays,
         },
       });
     }
@@ -316,99 +454,8 @@ export async function checkoutInvitation(
     providerName,
     planSku,
     chargeAmount,
-    description: `QazShaqyru ${planSku}: «${pricing.templateNameRu}»`,
+    description: routing.description,
     failUrl: `${options.appUrl}/invitations/${invitation.id}?payment=failed`,
-  });
-}
-
-async function checkoutAgency(
-  user: SessionUser,
-  options: {
-    appUrl: string;
-    providerName: PaymentProviderName;
-    planSku: PaidPlanSku;
-  }
-): Promise<CheckoutResult> {
-  const { providerName, planSku, appUrl } = options;
-  const amountKzt = getPlanDefinition(planSku).priceKzt;
-
-  // Need a templateId for Order FK — use any active template
-  const template = await prisma.template.findFirst({
-    where: { isActive: true },
-    select: { id: true, nameRu: true },
-    orderBy: { sortOrder: 'asc' },
-  });
-  if (!template) {
-    throw new ApiError('validation_error', 'Нет активных шаблонов для оформления тарифа', 500);
-  }
-
-  const checkoutState = await prisma.$transaction(async (tx: PrismaTx) => {
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`checkout:agency:${user.id}`}))`;
-
-    let pendingOrder = await tx.order.findFirst({
-      where: {
-        userId: user.id,
-        status: 'pending',
-        orderType: 'self',
-        planSku: 'agency',
-        invitationId: null,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    if (pendingOrder && pendingOrder.amountKzt !== amountKzt) {
-      await tx.order.update({
-        where: { id: pendingOrder.id },
-        data: { status: 'cancelled', cancelledAt: new Date() },
-      });
-      pendingOrder = null;
-    }
-
-    if (pendingOrder?.paymentId && pendingOrder.paymentProvider) {
-      return { order: pendingOrder, resumePayment: true as const };
-    }
-
-    let order = pendingOrder;
-    if (!order) {
-      order = await tx.order.create({
-        data: {
-          userId: user.id,
-          templateId: template.id,
-          invitationId: null,
-          amountKzt,
-          customerPhone: user.phone,
-          customerName: user.name,
-          status: 'pending',
-          orderType: 'self',
-          paymentProvider: providerName,
-          planSku: 'agency',
-          planScope: 'user',
-          planDurationDays: AGENCY_DURATION_DAYS,
-        },
-      });
-    }
-
-    if (order.paymentProvider !== providerName) {
-      order = await tx.order.update({
-        where: { id: order.id },
-        data: { paymentProvider: providerName, paymentId: null, paymentUrl: null },
-      });
-    }
-
-    return { order, resumePayment: false as const };
-  });
-
-  return finalizeProviderCheckout({
-    order: checkoutState.order,
-    resumePayment: checkoutState.resumePayment,
-    invitation: null,
-    user,
-    appUrl,
-    providerName,
-    planSku,
-    chargeAmount: amountKzt,
-    description: `QazShaqyru Agency — ${AGENCY_DURATION_DAYS} дней`,
-    failUrl: `${appUrl}/dashboard?payment=failed`,
   });
 }
 
@@ -425,7 +472,7 @@ async function finalizeProviderCheckout(params: {
   user: SessionUser;
   appUrl: string;
   providerName: PaymentProviderName;
-  planSku: PaidPlanSku;
+  planSku: LegacyPlanSku | PaidPlanSku;
   chargeAmount: number;
   description: string;
   failUrl: string;
@@ -472,6 +519,13 @@ async function finalizeProviderCheckout(params: {
     }
 
     const provider = getPaymentProvider(providerName);
+    if (!user.phone) {
+      throw new ApiError(
+        'phone_required',
+        'Для оплаты нужен номер телефона. Укажите его в настройках.',
+        400
+      );
+    }
     let payment;
     try {
       payment = await provider.createPayment({

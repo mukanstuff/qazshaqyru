@@ -41,6 +41,16 @@
 
 Вход из API валидируется через zod `canvasDocumentSchema` (`schemas.ts`). XSS-жёсткость: все URL-атрибуты проходят через `mediaSrc` / `safeUrl` — запрещены `javascript:`, `vbscript:`, `data:`, `blob:`; внешние ссылки — только `http(s)`.
 
+## ⚠️ Известная проблема (2026-08-05)
+
+**13 готовых секций в `sections.ts` (Hero / Дата-время / Место / Фото / Программа / Пожелания / RSVP / Dress Code / Подарки / Countdown / Текстовый блок / Hashtag / Спасибо) скрыты от обычного юзера.**
+
+Причина: `ElementPalette.tsx:128` — `{isTemplateBuilder && (...)}`. Условие `isTemplateBuilder` срабатывает только если вызван из `/admin/templates/builder`. Юзер на `/invitations/[id]/canvas` не видит этих секций.
+
+**Inspector обрабатывает только 4 из 17 типов** (`InspectorPanel.tsx:104-114`): text, heading, image, button, shape. После вставки countdown / rsvp-form / wishes / music / gift / map / qr / program / ornament / divider / lottie / video-bg / couple-names пользователь видит только PositionSection и CommonActions — то есть не может настроить 13 feature-rich элементов.
+
+Фикс — этап 0 аудита: убрать `isTemplateBuilder` гард + добавить Inspector-секции для остальных 13 типов.
+
 ## Заметки по текущему состоянию
 
 - Реализованы все 10 этапов по техническому заданию (v2):

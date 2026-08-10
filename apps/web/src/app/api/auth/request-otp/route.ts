@@ -10,7 +10,12 @@ import {
   getClientIpFromHeaders,
   hashOTP,
 } from '@/lib/auth';
-import { sendOTP, isSmsProviderReady, formatSmsConfigError } from '@/lib/shared/sms';
+import {
+  isWhatsappOtpReady,
+  formatWhatsappConfigError,
+  sendOtp,
+  getOtpChannel,
+} from '@/lib/auth/otp-channel';
 import {
   ApiError,
   apiErrorResponse,
@@ -31,8 +36,8 @@ export async function POST(request: NextRequest) {
       throw new ApiError('forbidden', 'Неверный origin', 403);
     }
 
-    if (process.env.NODE_ENV === 'production' && !isSmsProviderReady()) {
-      throw new ApiError('sms_not_configured', formatSmsConfigError(), 503);
+    if (!isWhatsappOtpReady()) {
+      throw new ApiError('whatsapp_disabled', formatWhatsappConfigError(), 503);
     }
 
     const body = await request.json().catch(() => {
@@ -47,9 +52,7 @@ export async function POST(request: NextRequest) {
     if (!validatePhone(normalizedPhone)) {
       throw new ApiError(
         'invalid_phone',
-        process.env.NODE_ENV === 'production'
-          ? 'Номер телефона должен быть в формате +77XXXXXXXXX (Казахстан)'
-          : 'Номер телефона должен быть в формате +77XXXXXXXXX (Казахстан) или +79XXXXXXXXX (Россия, только dev)',
+        'Номер телефона должен быть в формате +77XXXXXXXXX (Казахстан)',
         400
       );
     }
@@ -118,23 +121,24 @@ export async function POST(request: NextRequest) {
       }),
     ]);
 
-    const sent = await sendOTP(normalizedPhone, code);
+    const channel = getOtpChannel();
+    const sent = await channel.sendOtp(normalizedPhone, code);
     if (!sent) {
-      // Roll back pending OTP so the user can request a new code immediately.
       await prisma.oTPToken.updateMany({
         where: { phone: normalizedPhone, usedAt: null },
         data: { usedAt: new Date() },
       });
-      const smsHint =
-        process.env.NODE_ENV === 'production' && !isSmsProviderReady()
-          ? formatSmsConfigError()
-          : 'Не удалось отправить SMS. Попробуйте позже.';
-      throw new ApiError('sms_failed', smsHint, 500);
+      throw new ApiError(
+        'otp_send_failed',
+        'Не удалось отправить код. Попробуйте позже.',
+        500
+      );
     }
 
     return NextResponse.json({
       success: true,
       message: 'Код отправлен',
+      channel: channel.name,
       expiresIn: otpExpiryMinutes * 60,
       isKazakh: isKazakhPhone(normalizedPhone),
       ...(process.env.NODE_ENV === 'development' && process.env.ALLOW_DEV_OTP_CODE === 'true'

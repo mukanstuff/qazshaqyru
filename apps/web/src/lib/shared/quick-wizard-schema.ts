@@ -62,24 +62,18 @@ export function validateQuickWizardStep(
   step: number,
   data: Partial<QuickWizardFormData>
 ): { success: true } | { success: false; errors: Record<string, string> } {
-  const schemas = [
-    quickWizardStep1Schema,
-    quickWizardStep2Schema,
-    quickWizardStep3Schema,
-    quickWizardStep4Schema,
-    quickWizardStep5Schema,
-    quickWizardStep6Schema,
-  ];
-  const schema = schemas[step - 1];
-  if (!schema) return { success: true };
-
-  const result = schema.safeParse(data);
-  if (result.success) return { success: true };
-
-  const errors: Record<string, string> = {};
-  for (const issue of result.error.issues) {
-    const key = issue.path[0]?.toString() ?? 'form';
-    if (!errors[key]) errors[key] = issue.message;
+  // Step 1 is the unified form (all required fields on one screen).
+  if (step === 1) {
+    const result = quickWizardFormSchema.safeParse(data);
+    if (result.success) return { success: true };
+    const errors: Record<string, string> = {};
+    for (const issue of result.error.issues) {
+      const key = issue.path[0]?.toString() ?? 'form';
+      if (!errors[key]) errors[key] = issue.message;
+    }
+    return { success: false, errors };
   }
-  return { success: false, errors };
+
+  // Step 2 (preview) and beyond — no client-side validation.
+  return { success: true };
 }

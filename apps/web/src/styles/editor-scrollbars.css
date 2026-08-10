@@ -22,3 +22,29 @@
 .editor-scroll-surface::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(180deg, rgba(120, 89, 62, 0.9), rgba(182, 136, 98, 0.74));
 }
+
+/*
+ * Preview workbench — device frame scrollbar.
+ * Visible on desktop, transparent on touch (mobile).
+ */
+.us-device-frame__screen {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--us-deep) 18%, transparent) transparent;
+}
+
+.us-device-frame__screen::-webkit-scrollbar {
+  width: 6px;
+}
+
+.us-device-frame__screen::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.us-device-frame__screen::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--us-deep) 18%, transparent);
+  border-radius: 999px;
+}
+
+.us-device-frame__screen::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--us-deep) 32%, transparent);
+}

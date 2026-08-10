@@ -4,6 +4,7 @@
  */
 import type { InvitationCanvasDocument, CanvasElement } from './types';
 import type { QuickWizardFormData } from '@/lib/shared/quick-wizard-schema';
+import { splitCoupleNames } from '@/lib/shared/name-split';
 
 export function applyWizardToCanvasDocument(
   doc: InvitationCanvasDocument,
@@ -13,18 +14,18 @@ export function applyWizardToCanvasDocument(
   const elements = doc.elements.map((el): CanvasElement => {
     if (!el.placeholderKey) return el;
 
-    if (el.placeholderKey === 'coupleNames' || el.placeholderKey === 'groomName' || el.placeholderKey === 'brideName') {
-      if (!form.names) return el;
-      if (el.type === 'text' || el.type === 'heading') {
-        return { ...el, text: form.names };
-      }
+    if (el.placeholderKey === 'groomName' || el.placeholderKey === 'brideName') {
+      const parts = form.names ? splitCoupleNames(form.names) : [];
+      const value = el.placeholderKey === 'groomName' ? parts[0] : parts[1];
+      if (!value) return el;
+      if (el.type === 'text' || el.type === 'heading') return { ...el, text: value };
+    }
+
+    if (el.placeholderKey === 'coupleNames' && form.names) {
+      if (el.type === 'text' || el.type === 'heading') return { ...el, text: form.names };
       if (el.type === 'couple-names') {
-        const parts = form.names.split(/&|и|және/i).map((s) => s.trim());
-        return {
-          ...el,
-          first: parts[0] || form.names,
-          second: parts[1] || '',
-        };
+        const parts = splitCoupleNames(form.names);
+        return { ...el, first: parts[0] || '', second: parts[1] || '' };
       }
     }
 

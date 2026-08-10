@@ -5,13 +5,14 @@ import { LocaleLink } from '@/components/seo/LocaleLink';
 import { ArrowRight } from 'lucide-react';
 import { PublicShell } from '@/components/shared/PublicShell';
 import {
+  BlankCanvasCta,
   TemplateCatalogCard,
   TemplatePreviewModal,
-  TemplatesPageHero,
+  TemplatesFilterBar,
+  TemplatesResultsSummary,
+  TemplatesSeoBlock,
 } from '@/components/templates';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useI18n } from '@/i18n';
 import {
   categoryDbKeyFromRoute,
@@ -57,46 +58,39 @@ export function CategoryTemplatesClient({
     [previewSlug, templates],
   );
 
+  const hasActiveFilter = searchQuery.trim().length > 0;
+
   return (
     <PublicShell isLoggedIn={isLoggedIn}>
-      <TemplatesPageHero
-        overline={t('categoryPage.label')}
-        title={t(`categoryPage.${routeSlug}.title` as 'categoryPage.wedding.title')}
-        subtitle={t(`categoryPage.${routeSlug}.subtitle` as 'categoryPage.wedding.subtitle')}
-        stats={[
-          {
-            value: filteredTemplates.length,
-            label: t('landing.templatesTitle'),
-          },
-          { value: 1, label: categoryLabel },
+      <TemplatesFilterBar
+        categories={[
+          { key: 'all', label: t('templatesPage.allTemplates') },
+          { key: dbCategory, label: categoryLabel, count: templates.length },
         ]}
+        active={dbCategory}
+        onSelect={() => undefined}
+        query={searchQuery}
+        onQueryChange={setSearchQuery}
+        searchLabel={t('landing.templatesSearchLabel')}
+        className="top-[4.75rem] md:top-[5.5rem]"
       />
 
       {seoSlot}
 
-      <section className="py-6">
-        <div className="us-container max-w-xl">
-          <Label htmlFor="category-templates-search" className="sr-only">
-            {t('landing.templatesSearchLabel')}
-          </Label>
-          <Input
-            id="category-templates-search"
-            type="search"
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder={t('landing.templatesSearchLabel')}
-            aria-label={t('landing.templatesSearchLabel')}
-            data-testid="category-templates-search-input"
+      <section className="pb-16 pt-6">
+        <div className="us-container space-y-8">
+          <TemplatesResultsSummary
+            count={filteredTemplates.length}
+            categoryLabel={categoryLabel}
+            hasActiveFilter={hasActiveFilter}
+            onReset={() => setSearchQuery('')}
           />
-        </div>
-      </section>
 
-      <section className="pb-16">
-        <div className="us-container space-y-10">
           {filteredTemplates.length > 0 ? (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-4 sm:gap-5 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {filteredTemplates.map((template) => {
-                const displayName = (locale === 'kz' ? template.nameKz : template.nameRu) ?? template.nameRu;
+                const displayName =
+                  (locale === 'kz' ? template.nameKz : template.nameRu) ?? template.nameRu;
                 return (
                   <TemplateCatalogCard
                     key={template.id}
@@ -114,8 +108,8 @@ export function CategoryTemplatesClient({
             <div className="mx-auto max-w-lg space-y-4 py-12 text-center">
               <p className="font-display text-2xl text-us-ink">
                 {templates.length === 0
-                  ? `Шаблоны для «${categoryLabel}» скоро`
-                  : t('errors.tryAgain')}
+                  ? t('templatesPage.comingSoon')
+                  : t('templatesPage.noResults')}
               </p>
               {templates.length === 0 ? (
                 <p className="font-body text-sm text-us-ink-muted">
@@ -124,7 +118,10 @@ export function CategoryTemplatesClient({
               ) : null}
               <div className="flex flex-wrap justify-center gap-3">
                 <Button asChild>
-                  <LocaleLink href="/templates">Все шаблоны</LocaleLink>
+                  <LocaleLink href="/templates">{t('landing.allTemplates')}</LocaleLink>
+                </Button>
+                <Button variant="ghost" asChild>
+                  <LocaleLink href="/">{t('errors.goHome')}</LocaleLink>
                 </Button>
               </div>
             </div>
@@ -137,20 +134,28 @@ export function CategoryTemplatesClient({
                 <ArrowRight className="h-4 w-4" />
               </LocaleLink>
             </Button>
-            <Button variant="ghost" asChild>
-              <LocaleLink href="/">{t('errors.goHome')}</LocaleLink>
-            </Button>
           </div>
         </div>
       </section>
 
-      {previewTemplate && (
+      <section className="pb-16">
+        <div className="us-container">
+          <BlankCanvasCta />
+        </div>
+      </section>
+
+      <TemplatesSeoBlock />
+
+      {previewTemplate ? (
         <TemplatePreviewModal
           template={previewTemplate}
-          displayName={(locale === 'kz' ? previewTemplate.nameKz : previewTemplate.nameRu) ?? previewTemplate.nameRu}
+          displayName={
+            (locale === 'kz' ? previewTemplate.nameKz : previewTemplate.nameRu) ??
+            previewTemplate.nameRu
+          }
           onClose={() => setPreviewSlug(null)}
         />
-      )}
+      ) : null}
     </PublicShell>
   );
 }

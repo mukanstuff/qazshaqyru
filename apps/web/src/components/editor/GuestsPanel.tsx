@@ -1,13 +1,31 @@
 'use client';
 
-import { Loader2, UserPlus } from 'lucide-react';
+import { Loader2, UserPlus, Search } from 'lucide-react';
 import { useI18n } from '@/i18n';
 import { GuestAnalyticsBar } from '@/components/dashboard/GuestAnalyticsBar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useMemo, useState } from 'react';
 import type { EditorGuestInfo } from './types';
 import { EditorPanelShell } from './EditorPanelShell';
+
+type StatusFilter =
+  | 'all'
+  | 'responded'
+  | 'pending'
+  | 'attending'
+  | 'not_attending'
+  | 'attending_plus_one';
+
+const FILTER_OPTIONS: Array<{ value: StatusFilter; labelKey: string }> = [
+  { value: 'all', labelKey: 'invitation.guests.filterAll' },
+  { value: 'responded', labelKey: 'invitation.guests.filterResponded' },
+  { value: 'pending', labelKey: 'invitation.guests.filterPending' },
+  { value: 'attending', labelKey: 'invitation.guests.filterAttending' },
+  { value: 'not_attending', labelKey: 'invitation.guests.filterNotAttending' },
+  { value: 'attending_plus_one', labelKey: 'invitation.guests.filterAttendingPlusOne' },
+];
 
 export interface GuestsPanelProps {
   displayGuests: EditorGuestInfo[];
@@ -96,6 +114,25 @@ export function GuestsPanel({
   onClose,
 }: GuestsPanelProps) {
   const { t } = useI18n();
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const matchesStatus = (g: EditorGuestInfo, filter: StatusFilter): boolean => {
+    if (filter === 'all') return true;
+    const status = g.responseStatus;
+    if (filter === 'pending') return !status || status === 'pending';
+    if (filter === 'responded') return Boolean(status) && status !== 'pending';
+    return status === filter;
+  };
+
+  const filteredGuests = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return displayGuests.filter((g) => {
+      if (!matchesStatus(g, statusFilter)) return false;
+      if (q && !g.name.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [displayGuests, statusFilter, searchQuery]);
 
   return (
     <EditorPanelShell title={t('invitation.guests.guestListTitle')} onClose={onClose}>
@@ -107,6 +144,38 @@ export function GuestsPanel({
             }))}
             t={t}
           />
+        </div>
+      )}
+
+      {displayGuests.length > 0 && (
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Search
+              size={14}
+              className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-us-ink-muted"
+              aria-hidden
+            />
+            <Input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t('invitation.guests.searchPlaceholder')}
+              className="pl-8"
+              aria-label={t('invitation.guests.searchPlaceholder')}
+            />
+          </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+            className="h-10 rounded-md border border-us-border bg-us-surface px-3 font-body text-sm text-us-ink shadow-us-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-us-accent"
+            aria-label={t('invitation.guests.filterLabel')}
+          >
+            {FILTER_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {t(opt.labelKey)}
+              </option>
+            ))}
+          </select>
         </div>
       )}
 
@@ -191,9 +260,9 @@ export function GuestsPanel({
         </Button>
       </div>
 
-      {displayGuests.length > 0 && (
+      {filteredGuests.length > 0 ? (
         <ul className="divide-y divide-us-border rounded-md border border-us-border">
-          {displayGuests.map((g, i) => (
+          {filteredGuests.map((g, i) => (
             <li
               key={g.id ?? `${g.name}-${i}`}
               className="flex items-start justify-between gap-2 p-3"
@@ -253,7 +322,11 @@ export function GuestsPanel({
             </li>
           ))}
         </ul>
-      )}
+      ) : displayGuests.length > 0 ? (
+        <p className="rounded-md border border-dashed border-us-border p-3 text-center font-body text-xs text-us-ink-muted">
+          {t('invitation.guests.emptyFiltered')}
+        </p>
+      ) : null}
 
       <div className="space-y-3">
         {!personalLinksMode ? (

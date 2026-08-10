@@ -1,10 +1,14 @@
-/** Maps old invitation templateKey values to the single active template. */
+/**
+ * Maps legacy / removed invitation templateKey values to the active Phase-1 template.
+ * Single-template Phase 1: every legacy slug points to `luxe-gold` until the catalog grows.
+ */
 export const LEGACY_TEMPLATE_MAP: Record<string, string> = {
-  classic: 'wedding-luxury',
-  elegant: 'wedding-luxury',
-  golden: 'wedding-luxury',
-  nature: 'wedding-luxury',
-  romantic: 'wedding-luxury',
-  modern: 'wedding-luxury',
-  'starter-blank': 'wedding-luxury',
+  classic: 'luxe-gold',
+  elegant: 'luxe-gold',
+  golden: 'luxe-gold',
+  nature: 'luxe-gold',
+  romantic: 'luxe-gold',
+  modern: 'luxe-gold',
+  'starter-blank': 'luxe-gold',
+  'wedding-rose-blush': 'luxe-gold',
 };

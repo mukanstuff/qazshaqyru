@@ -4,6 +4,8 @@ import { normalizePhone } from '@/lib/auth';
 
 export interface DraftSyncResult {
   serverInvitationId: string;
+  /** Public guest URL slug for redirect after wizard completes. */
+  slug: string;
   /** Updated guest list with serverGuestId mappings */
   guests?: LocalDraft['guests'];
 }
@@ -87,6 +89,7 @@ export async function syncDraftToServer(draft: LocalDraft): Promise<DraftSyncRes
   }
 
   let serverInvitationId: string;
+  let slug: string;
 
   if (draft.serverInvitationId) {
     const res = await fetch(`/api/invitations/${draft.serverInvitationId}`, {
@@ -99,6 +102,10 @@ export async function syncDraftToServer(draft: LocalDraft): Promise<DraftSyncRes
       throw new Error(data.message || 'Не удалось сохранить черновик');
     }
     serverInvitationId = draft.serverInvitationId;
+    slug = data.invitation?.slug ?? '';
+    if (!slug) {
+      throw new Error('Сервер не вернул slug приглашения');
+    }
   } else {
     const res = await fetch('/api/invitations', {
       method: 'POST',
@@ -110,6 +117,10 @@ export async function syncDraftToServer(draft: LocalDraft): Promise<DraftSyncRes
       throw new Error(data.message || 'Не удалось сохранить черновик');
     }
     serverInvitationId = data.invitation.id as string;
+    slug = data.invitation.slug as string;
+    if (!slug) {
+      throw new Error('Сервер не вернул slug приглашения');
+    }
   }
 
   const updatedGuests = await syncGuestsToServer(serverInvitationId, draft);
@@ -130,5 +141,5 @@ export async function syncDraftToServer(draft: LocalDraft): Promise<DraftSyncRes
     console.warn('[draft-sync] canvas ensure via GET failed (will retry on edit)', e);
   }
 
-  return { serverInvitationId, guests: updatedGuests };
+  return { serverInvitationId, slug, guests: updatedGuests };
 }

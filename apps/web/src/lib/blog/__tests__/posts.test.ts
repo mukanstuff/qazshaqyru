@@ -13,8 +13,8 @@ describe('blog markdown', () => {
   it('lists starter posts for ru and kz', () => {
     const ru = listBlogPosts('ru');
     const kz = listBlogPosts('kz');
-    expect(ru.length).toBeGreaterThanOrEqual(12);
-    expect(kz.length).toBeGreaterThanOrEqual(12);
+    expect(ru.length).toBeGreaterThanOrEqual(11);
+    expect(kz.length).toBeGreaterThanOrEqual(11);
     expect(ru.map((p) => p.slug)).toEqual(
       expect.arrayContaining([
         'send-whatsapp',
@@ -23,7 +23,6 @@ describe('blog markdown', () => {
         'betashar-kudalyk',
         'tusaukeser-text',
         'kaspi-payment-refund',
-        'honest-comparison',
       ])
     );
   });

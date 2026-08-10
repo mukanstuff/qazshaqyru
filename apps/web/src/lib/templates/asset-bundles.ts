@@ -6,13 +6,6 @@ export function asset(slug: string, filename: string): string {
 }
 
 /* ─── Combinatorial asset bundles (wedding-luxury structure) ─── */
-const FRAME_CORNERS = {
-  flowerTl: 'ornaments/corner-01.png',
-  flowerTr: 'ornaments/corner-02.png',
-  flowerBl: 'ornaments/corner-03.png',
-  flowerBr: 'ornaments/corner-04.png',
-} as const;
-
 const FLAT_CORNERS = {
   flowerTl: 'flower-tl.png',
   flowerTr: 'flower-tr.png',
@@ -32,7 +25,6 @@ export function frameAssets(opts: FrameBundleOpts): TemplateConfig['assets'] {
   return {
     bgTexture: opts.bgTexture,
     bgCover: opts.bgCover,
-    ...FRAME_CORNERS,
     divider: opts.divider ?? 'dividers/divider-01.png',
     dividerThin: opts.dividerThin ?? 'dividers/divider-02.png',
     frameInner: opts.frameInner ?? 'ornaments/frame-01.png',

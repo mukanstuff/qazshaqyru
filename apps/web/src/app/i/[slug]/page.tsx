@@ -1,12 +1,24 @@
 import { Metadata } from 'next';
 import PublicInvitationClient from './public-invitation-client';
+import HtmlGuestPage from './HtmlGuestPage';
 import prisma from '@/lib/shared/db';
 import { notFound } from 'next/navigation';
 import { verifyPreviewToken } from '@/lib/invitations/preview-token';
+import { getCurrentSession } from '@/lib/shared/api';
+import { getHtmlTemplateDescriptor } from '@/lib/templates/manifests/index';
+import { generateHtmlTemplateMetadata } from './HtmlGuestPage';
+import type { Locale } from '@/lib/templates/html-engine/types';
 
 interface PageProps {
   params: { slug: string };
-  searchParams: Promise<{ guest?: string; layout?: string; family?: string; preview?: string; embed?: string }>;
+  searchParams: Promise<{
+    guest?: string;
+    layout?: string;
+    family?: string;
+    preview?: string;
+    embed?: string;
+    locale?: string;
+  }>;
 }
 
 async function loadInvitationForMetadata(slug: string) {
@@ -17,6 +29,22 @@ async function loadInvitationForMetadata(slug: string) {
       include: {
         user: { select: { language: true, name: true } },
         template: { select: { nameRu: true, nameKz: true, previewImageUrl: true, config: true } },
+      },
+    });
+    return invitation;
+  } catch {
+    return null;
+  }
+}
+
+async function loadInvitationForPage(slug: string) {
+  if (slug === 'demo') return null;
+  try {
+    const invitation = await prisma.invitation.findUnique({
+      where: { slug },
+      include: {
+        user: { select: { language: true } },
+        template: { select: { slug: true } },
       },
     });
     return invitation;
@@ -48,12 +76,26 @@ function buildShareDescription(
   return `Приглашаем вас: ${title} · ${dateStr}${timePart}${placePart}`;
 }
 
-export async function generateMetadata({ params, searchParams }: PageProps): Promise<Metadata> {
-  const { slug } = params;
-  const { preview, family } = await searchParams;
-  const familyToken = family || preview || null;
-
+/** Determine the effective templateKey for the invitation. */
+async function resolveTemplateKey(
+  slug: string,
+  explicitLayout?: string | null,
+): Promise<{ templateKey: string; invitationLanguage: Locale } | null> {
   if (slug === 'demo') {
+    const templateKey = explicitLayout ?? 'luxe-gold';
+    return { templateKey, invitationLanguage: 'ru' };
+  }
+
+  const invitation = await loadInvitationForPage(slug);
+  if (!invitation) return null;
+  return { templateKey: invitation.templateKey, invitationLanguage: invitation.user?.language ?? 'ru' };
+}
+
+export async function generateMetadata({ params, searchParams }: PageProps): Promise<Metadata> {
+  const { preview, family, layout } = await searchParams;
+  const rawSlug = params.slug;
+
+  if (rawSlug === 'demo') {
     const futureDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     const dateStr = futureDate.toLocaleDateString('ru-RU', {
       day: 'numeric',
@@ -96,7 +138,28 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
     };
   }
 
-  const invitation = await loadInvitationForMetadata(slug);
+  // Determine templateKey and check if it's an HTML-engine template.
+  const resolved = await resolveTemplateKey(rawSlug, layout);
+  if (!resolved) {
+    return { title: 'Приглашение не найдено', robots: { index: false, follow: false } };
+  }
+
+  const { templateKey } = resolved;
+
+  // HTML-engine templates get their own metadata generation.
+  if (getHtmlTemplateDescriptor(templateKey)) {
+    return generateHtmlTemplateMetadata({
+      slug: rawSlug,
+      templateKey,
+      isDemo: false,
+      locale: 'ru',
+    });
+  }
+
+  // Legacy React-sections metadata (existing behavior).
+  const decodedSlug = decodeURIComponent(rawSlug);
+  const invitation = await loadInvitationForMetadata(decodedSlug);
+  const familyToken = family || preview || null;
 
   if (familyToken && invitation && verifyPreviewToken(familyToken, invitation.previewTokenHash)) {
     return {
@@ -114,7 +177,11 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
 
   const baseUrl = process.env.APP_URL || '';
   const eventDate = new Date(invitation.eventDate);
-  const dateStr = eventDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+  const dateStr = eventDate.toLocaleDateString('ru-RU', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
   const pageTitle = `${invitation.title} — ${dateStr}`;
   const shareTitle = invitation.title;
   const description = buildShareDescription(
@@ -124,8 +191,8 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
     invitation.eventPlace,
   );
 
-  const ogImageUrl = getOgImageUrl(baseUrl, slug);
-  const pageUrl = resolveAbsoluteUrl(baseUrl, `/i/${slug}`);
+  const ogImageUrl = getOgImageUrl(baseUrl, decodedSlug);
+  const pageUrl = resolveAbsoluteUrl(baseUrl, `/i/${decodedSlug}`);
   const locale = invitation.user?.language === 'kz' ? 'kk_KZ' : 'ru_RU';
 
   return {
@@ -159,24 +226,51 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
 }
 
 export default async function PublicInvitationPage({ params, searchParams }: PageProps) {
-  const { guest, layout, family, preview, embed } = await searchParams;
+  const { guest, layout, family, preview, embed, locale: localeParam } = await searchParams;
   const familyToken = family || preview || null;
+  const rawSlug = params.slug;
 
-  if (params.slug !== 'demo') {
-    const invitation = await loadInvitationForMetadata(params.slug);
-    if (!invitation) {
-      notFound();
-    }
+  // 1. Determine templateKey.
+  const resolved = await resolveTemplateKey(rawSlug, layout);
+  if (!resolved) notFound();
+  const { templateKey, invitationLanguage } = resolved!;
+
+  // 2. Auth check for non-demo invitations.
+  if (rawSlug !== 'demo') {
+    const decodedSlug = decodeURIComponent(rawSlug);
+    const invitation = await loadInvitationForPage(decodedSlug);
+    if (!invitation) notFound();
     if (invitation.status !== 'published') {
-      if (!familyToken || !verifyPreviewToken(familyToken, invitation.previewTokenHash)) {
+      const session = await getCurrentSession();
+      const isOwner = session?.user.id === invitation.userId;
+      if (!isOwner && (!familyToken || !verifyPreviewToken(familyToken, invitation.previewTokenHash))) {
         notFound();
       }
     }
   }
 
+  // 3. Check if template is an HTML-engine template.
+  if (getHtmlTemplateDescriptor(templateKey)) {
+    const locale: Locale =
+      localeParam === 'kz' || localeParam === 'ru'
+        ? localeParam
+        : invitationLanguage;
+
+    return (
+      <HtmlGuestPage
+        slug={rawSlug}
+        templateKey={templateKey}
+        isDemo={rawSlug === 'demo'}
+        locale={locale}
+        embed={embed === '1'}
+      />
+    );
+  }
+
+  // 4. Fallback to React-sections renderer.
   return (
     <PublicInvitationClient
-      slug={params.slug}
+      slug={rawSlug}
       guestToken={guest || null}
       familyToken={familyToken}
       demoLayout={layout}
@@ -184,3 +278,5 @@ export default async function PublicInvitationPage({ params, searchParams }: Pag
     />
   );
 }
+
+export const dynamic = 'force-dynamic';

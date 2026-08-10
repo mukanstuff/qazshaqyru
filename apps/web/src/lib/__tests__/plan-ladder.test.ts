@@ -1,13 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   PLAN_CATALOG,
-  comparePlans,
-  getPlanPriceKzt,
   isPaidPlanSku,
-  maxPlan,
   planHasFeature,
 } from '@/lib/entitlements/plan-catalog';
 import { resolveEntitlements } from '@/lib/entitlements/resolve-entitlements';
+import { resolvePaidTemplateOrder } from '@/lib/invitations/invitation-pricing';
 import { computeGuestFunnel } from '@/lib/guests/guest-funnel';
 import {
   createRestaurantShareToken,
@@ -19,26 +17,21 @@ import { buildRestaurantPortalPayload } from '@/lib/restaurant/portal-data';
 import { shouldShowPublishWatermark } from '@/lib/invitations/publish-watermark';
 
 describe('plan catalog', () => {
-  it('defines ladder prices', () => {
-    expect(getPlanPriceKzt('standard')).toBe(3990);
-    expect(getPlanPriceKzt('premium')).toBe(4990);
-    expect(getPlanPriceKzt('agency')).toBe(20000);
+  it('keeps agency as only subscription plan', () => {
+    expect(PLAN_CATALOG.agency.priceKzt).toBe(20000);
     expect(PLAN_CATALOG.agency.billingPeriod).toBe('monthly');
+    expect(PLAN_CATALOG.agency.userLevel).toBe(true);
+    expect(isPaidPlanSku('agency')).toBe(true);
   });
 
-  it('ranks premium above standard', () => {
-    expect(comparePlans('premium', 'standard')).toBeGreaterThan(0);
-    expect(maxPlan('standard', 'premium')).toBe('premium');
-  });
-
-  it('gates features correctly', () => {
-    expect(planHasFeature('free', 'guest_ops')).toBe(false);
-    expect(planHasFeature('standard', 'guest_ops')).toBe(true);
-    expect(planHasFeature('standard', 'custom_slug')).toBe(false);
-    expect(planHasFeature('premium', 'custom_slug')).toBe(true);
+  it('resolves invitation payment as full access', () => {
     expect(planHasFeature('agency', 'unlimited_invitations')).toBe(true);
-    expect(isPaidPlanSku('standard')).toBe(true);
-    expect(isPaidPlanSku('free')).toBe(false);
+    expect(shouldShowPublishWatermark({
+      priceKzt: 14900,
+      hasPaidOrder: true,
+      fullAccess: true,
+      entitlements: { watermark: true },
+    })).toBe(false);
   });
 });
 
@@ -56,7 +49,12 @@ describe('resolveEntitlements', () => {
     expect(e.guestOps).toBe(false);
   });
 
-  it('uses invitation unlock', () => {
+  it('uses paid template flag for full access expectations', () => {
+    expect(resolvePaidTemplateOrder(true, null)).toBe(true);
+    expect(resolvePaidTemplateOrder(false, null)).toBe(false);
+  });
+
+  it('uses invitation unlock only as legacy migration input', () => {
     const e = resolveEntitlements({
       now,
       user: { planSku: null, planExpiresAt: null },

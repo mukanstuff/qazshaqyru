@@ -32,6 +32,9 @@ export const customTextSchema = z
     familyPreviewTokenHash: z.string().max(128).optional(),
     /** Raw token for family preview link (draft sharing). */
     familyPreviewToken: z.string().max(128).optional(),
+    /** Parsed name halves from the wizard "groomName & brideName" input. */
+    groomName: z.string().max(120).optional(),
+    brideName: z.string().max(120).optional(),
   })
   .strict();
 

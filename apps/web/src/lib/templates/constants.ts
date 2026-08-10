@@ -1,8 +1,7 @@
 /**
- * Internal decor-profile key set. Name is legacy — not product "flagship" copy.
- * `wedding-luxury` is a temporary catalog bridge only (not a quality baseline).
+ * Internal decor-profile key set — Phase 1 ships a single HTML-engine template (`luxe-gold`).
  */
-export const FLAGSHIP_TEMPLATE_SLUGS = ['wedding-luxury'] as const;
+export const FLAGSHIP_TEMPLATE_SLUGS = ['luxe-gold'] as const;
 
 /* ─── Fonts available in the app ─── */
 export const FONT_FAMILIES = {

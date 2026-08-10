@@ -2,7 +2,7 @@
 
 /**
  * @deprecated Legacy editor shell — unrouted. Do not revive as second product path.
- * Live Editor: `/invitations/edit` + `LiveEditorPage`.
+ * Legacy editor: `/invitations/edit` redirects to QuickWizard or canvas.
  */
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';

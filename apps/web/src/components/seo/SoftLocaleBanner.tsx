@@ -84,7 +84,7 @@ export function SoftLocaleBanner() {
               onClick={() => go('kk')}
               className={`min-h-11 rounded-full px-4 py-2 text-sm transition-colors ${
                 kkPrimary
-                  ? 'bg-us-accent text-us-cream hover:bg-us-accent-strong'
+                  ? 'bg-us-accent text-white hover:bg-us-accent-strong'
                   : 'border border-us-accent/25 text-us-ink hover:border-us-accent/45'
               }`}
             >
@@ -95,7 +95,7 @@ export function SoftLocaleBanner() {
               onClick={() => go('ru')}
               className={`min-h-11 rounded-full px-4 py-2 text-sm transition-colors ${
                 ruPrimary
-                  ? 'bg-us-accent text-us-cream hover:bg-us-accent-strong'
+                  ? 'bg-us-accent text-white hover:bg-us-accent-strong'
                   : 'border border-us-accent/25 text-us-ink hover:border-us-accent/45'
               }`}
             >

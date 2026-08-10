@@ -3,11 +3,12 @@ import { ALL_TEMPLATE_SLUGS, getTemplate } from '@/lib/templates';
 import { DEFAULT_TEMPLATE_SLUG } from '@/lib/templates/catalog';
 import { DEFAULT_BODY_KZ, DEFAULT_BODY_RU } from '@/lib/templates/manifest-fields';
 import { applyRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/shared/api';
+import { listHtmlTemplateSlugs } from '@/lib/templates/manifests/index';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * GET ?layout=wedding-luxury
+ * GET ?layout=luxe-gold
  * Demo invitation for catalog preview at /i/demo.
  */
 export async function GET(request: NextRequest) {
@@ -28,8 +29,13 @@ export async function GET(request: NextRequest) {
     locale = 'ru';
   }
 
-  const validSlug = ALL_TEMPLATE_SLUGS.includes(layout) ? layout : DEFAULT_TEMPLATE_SLUG;
-  const templateConfig = getTemplate(validSlug);
+  // Also allow HTML-engine template slugs (registered in manifests/index.ts).
+  const htmlSlugs = listHtmlTemplateSlugs();
+  const isHtmlEngine = htmlSlugs.includes(layout);
+  const validSlug = isHtmlEngine || ALL_TEMPLATE_SLUGS.includes(layout)
+    ? layout
+    : DEFAULT_TEMPLATE_SLUG;
+  const templateConfig = isHtmlEngine ? null : getTemplate(validSlug);
   const futureDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
   const brideName = locale === 'kz' ? 'Айгерім' : 'Айгерим';
@@ -66,10 +72,10 @@ export async function GET(request: NextRequest) {
       eventTimezone: 'Asia/Almaty',
       templateKey: validSlug,
       templateData: {
-        backgroundImage: templateConfig.coverUrl,
+        backgroundImage: templateConfig?.coverUrl,
         coverPhoto: `/assets/templates/${validSlug}/hero/hero-01.webp`,
       },
-      musicUrl: templateConfig.defaultMusicUrl ?? null,
+      musicUrl: templateConfig?.defaultMusicUrl ?? null,
       mapUrl: 'https://2gis.kz/almaty',
       address: locale === 'kz' ? 'г. Алматы, мейрамхана «Жарық»' : 'г. Алматы, ресторан «Жарық»',
       eventPlace: locale === 'kz' ? 'Мейрамхана «Жарық»' : 'Ресторан «Жарық»',

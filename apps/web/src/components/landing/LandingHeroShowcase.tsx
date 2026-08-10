@@ -2,26 +2,22 @@
 
 import Image from 'next/image';
 import { LocaleLink } from '@/components/seo/LocaleLink';
-import { useState } from 'react';
 import { motion } from 'motion/react';
 
 import { useI18n } from '@/i18n';
 import {
   LANDING_DEMO_HREF,
   LANDING_HERO_IPHONE_MOCKUP,
-  LANDING_HERO_IPHONE_MOCKUP_PNG,
   LANDING_HERO_IPHONE_SCREEN_INSET,
-  LANDING_TOY_PHOTOS,
 } from '@/lib/landing/assets';
 
 type LandingHeroShowcaseProps = {
   prefersReducedMotion: boolean;
 };
 
-/** Clean iPhone frame — invitation preview in the screen hole. No floating chips. */
+/** Empty iPhone mockup frame — screen left blank for future invitation photo. */
 export function LandingHeroShowcase({ prefersReducedMotion }: LandingHeroShowcaseProps) {
   const { t } = useI18n();
-  const [mockupSrc, setMockupSrc] = useState(LANDING_HERO_IPHONE_MOCKUP);
   const screen = LANDING_HERO_IPHONE_SCREEN_INSET;
 
   return (
@@ -29,8 +25,8 @@ export function LandingHeroShowcase({ prefersReducedMotion }: LandingHeroShowcas
       <motion.div
         initial={false}
         animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
-        transition={{ duration: 0.75, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
-        className="relative z-10 mx-auto w-full max-w-[13.5rem] sm:max-w-[15.5rem] md:max-w-[17.5rem] lg:max-w-[19.5rem]"
+        transition={{ duration: 0.75, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+        className="relative z-10 mx-auto w-full max-w-[28rem] sm:max-w-[32rem] md:max-w-[36rem] lg:max-w-[40rem] xl:max-w-[44rem]"
         data-testid="hero-product-frame"
       >
         <LocaleLink
@@ -39,59 +35,41 @@ export function LandingHeroShowcase({ prefersReducedMotion }: LandingHeroShowcas
           aria-label={t('landing.v2.hero.ctaSecondary')}
         >
           <div
-            className="relative w-full transition-transform duration-500 ease-out group-hover:-translate-y-1.5"
-            style={{ aspectRatio: '1570 / 2932' }}
+            className="relative w-full transition-transform duration-500 ease-out group-hover:-translate-y-1"
+            style={{ aspectRatio: '1857 / 3096' }}
           >
+            {/* Soft drop-shadow plate behind the phone, makes the giant frame feel grounded */}
             <div
-              className="absolute overflow-hidden bg-[#1a1214]"
+              className="absolute inset-0 -z-10 translate-y-6 blur-3xl"
+              style={{
+                background:
+                  'radial-gradient(closest-side, rgba(22,163,74,0.28), rgba(22,163,74,0) 70%)',
+              }}
+              aria-hidden
+            />
+
+            {/* Empty screen hole — leaves space for the future invitation photo to be dropped in */}
+            <div
+              className="absolute"
               style={{
                 top: screen.top,
                 right: screen.right,
                 bottom: screen.bottom,
                 left: screen.left,
                 borderRadius: screen.radius,
+                backgroundColor: 'transparent',
               }}
-            >
-              <Image
-                src={LANDING_TOY_PHOTOS.astanaWedding}
-                alt=""
-                fill
-                priority
-                className="object-cover object-[center_22%] transition-transform duration-700 ease-out group-hover:scale-[1.04]"
-                sizes="(max-width: 768px) 240px, 340px"
-              />
-              <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-black/70" />
-              <div className="absolute inset-x-0 bottom-0 flex flex-col items-center px-3.5 pb-6 pt-12 text-center text-white sm:px-4 sm:pb-7">
-                <p className="text-[9px] font-medium uppercase tracking-[0.2em] text-white/75 sm:text-[10px]">
-                  {t('landing.v2.card.invite')}
-                </p>
-                <p className="mt-2 font-display text-[1.15rem] leading-tight tracking-wide sm:mt-2.5 sm:text-[1.35rem]">
-                  Айгерим &amp; Данияр
-                </p>
-                <p className="mt-2 text-[9px] leading-snug text-white/80 sm:text-[10px]">
-                  {t('landing.v2.card.date')}
-                </p>
-                <p className="mt-0.5 text-[9px] leading-snug text-white/65 sm:text-[10px]">
-                  {t('landing.v2.card.venue')}
-                </p>
-                <span className="mt-3.5 inline-flex rounded-full bg-white px-3.5 py-1.5 text-[9px] font-semibold text-us-accent shadow-sm sm:mt-4 sm:px-4 sm:text-[10px]">
-                  {t('landing.v2.card.rsvp')}
-                </span>
-              </div>
-            </div>
+              aria-hidden
+            />
 
+            {/* iPhone frame (empty mockup) */}
             <Image
-              src={mockupSrc}
+              src={LANDING_HERO_IPHONE_MOCKUP}
               alt={t('landing.v2.hero.demoTitle')}
               fill
               priority
-              className="pointer-events-none z-10 object-contain drop-shadow-[0_32px_64px_-20px_rgba(0,0,0,0.65)]"
-              sizes="(max-width: 768px) 250px, 360px"
-              onError={() => {
-                if (mockupSrc !== LANDING_HERO_IPHONE_MOCKUP_PNG) {
-                  setMockupSrc(LANDING_HERO_IPHONE_MOCKUP_PNG);
-                }
-              }}
+              className="pointer-events-none z-10 object-contain"
+              sizes="(max-width: 768px) 420px, 640px"
             />
           </div>
         </LocaleLink>

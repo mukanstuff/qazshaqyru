@@ -4,7 +4,39 @@
  * Covers Kazakh-specific glyphs: Ә, Ө, Ұ, Ң, Ғ, Қ, І (via cyrillic-ext + cyrillic ranges).
  */
 
-/* ─── Body serif: Cormorant Garamond ─── */
+/* ─── Display sans (headings + body): Onest — full Cyrillic + Kazakh extended ─── */
+@font-face {
+  font-family: 'KZ Onest';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/onest-cyrillic-ext.woff2') format('woff2');
+  unicode-range:
+    U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+
+@font-face {
+  font-family: 'KZ Onest';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/onest-cyrillic.woff2') format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+
+@font-face {
+  font-family: 'KZ Onest';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/onest-latin.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+    U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215,
+    U+FEFF, U+FFFD;
+}
+
+/* ─── Display serif: Cormorant Garamond (kept for ceremonial guest invitation) ─── */
 @font-face {
   font-family: 'KZ Cormorant';
   font-style: normal;
@@ -125,16 +157,17 @@
 }
 
 :root {
-  --font-body: 'KZ Montserrat', system-ui, -apple-system, sans-serif;
-  --font-display: 'KZ Cormorant', Georgia, serif;
+  /* Site chrome (marketing, dashboard, editor) — single modern sans */
+  --font-body: 'KZ Onest', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'KZ Onest', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-script: 'KZ Marck', cursive;
-  --font-ceremonial: 'KZ Unbounded', system-ui, sans-serif;
+  --font-ceremonial: 'KZ Onest', 'KZ Unbounded', system-ui, sans-serif;
 }
 
-/* Template-scoped font variables (wedding-luxury) */
-.inv-manifest--wedding-luxury {
+/* Template-scoped font variables (luxe-gold) — guest invitation keeps serif/script */
+.inv-manifest--luxe-gold {
   --inv-font-body: 'KZ Cormorant', var(--font-body), Georgia, serif;
   --inv-font-display: 'KZ Marck', var(--font-script), cursive;
-  --inv-font-ceremonial: 'KZ Unbounded', 'KZ Montserrat', var(--font-body), system-ui, sans-serif;
-  --inv-font-label: 'KZ Montserrat', var(--font-body), system-ui, sans-serif;
+  --inv-font-ceremonial: 'KZ Unbounded', 'KZ Onest', system-ui, sans-serif;
+  --inv-font-label: 'KZ Onest', var(--font-body), system-ui, sans-serif;
 }

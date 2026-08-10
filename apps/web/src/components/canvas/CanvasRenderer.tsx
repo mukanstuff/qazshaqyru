@@ -9,15 +9,18 @@
  */
 'use client';
 
-import { useEffect, useRef, type CSSProperties } from 'react';
+import { forwardRef, useEffect, useRef, type CSSProperties } from 'react';
 import { cn } from '@/lib/shared/utils';
 import type {
   AnimationConfig,
   CanvasElement,
   InvitationCanvasDocument,
+  TextElement,
+  HeadingElement,
 } from '@/lib/canvas/types';
 import { TextElementView } from './elements/TextElementView';
 import { HeadingElementView } from './elements/HeadingElementView';
+import { EditableTextView } from './elements/EditableTextView';
 import { ImageElementView } from './elements/ImageElementView';
 import { ButtonElementView } from './elements/ButtonElementView';
 import { ShapeElementView } from './elements/ShapeElementView';
@@ -64,6 +67,25 @@ export interface CanvasRendererProps {
    * Legacy watermark logic lives only in section-engine paths.
    */
   fullAccess?: boolean;
+
+  /**
+   * 2026-08-09: in-place text editing plumbing.
+   *
+   * Editor-only. When provided, the renderer routes text/heading elements
+   * through EditableTextView which:
+   *  - reacts to dblclick by entering edit mode
+   *  - shows a floating toolbar (B/I/КАПС/size/align/color)
+   *  - calls back with `onTextPatch(id, patch)` for property changes and
+   *    `onTextChange(id, { text })` for live typing
+   *
+   * Both callbacks are wrapped through HistoryStack by the parent so undo
+   * works naturally — typing creates a new snapshot on commit (blur/Esc).
+   */
+  editingTextId?: string | null;
+  onStartTextEdit?: (id: string) => void;
+  onStopTextEdit?: (id: string) => void;
+  onTextChange?: (id: string, patch: { text: string }) => void;
+  onTextPatch?: (id: string, patch: Partial<import('@/lib/canvas/types').TextProps>) => void;
 }
 
 function animClass(cfg?: AnimationConfig): string {
@@ -112,7 +134,7 @@ function translateHack(_w: number, _pxPct: number): string {
   return 'translate3d(0,0,0)';
 }
 
-export function CanvasRenderer(props: CanvasRendererProps) {
+export const CanvasRenderer = forwardRef<HTMLDivElement, CanvasRendererProps>(function CanvasRenderer(props, forwardedRef) {
   const {
     document: doc,
     mode = 'guest',
@@ -124,6 +146,11 @@ export function CanvasRenderer(props: CanvasRendererProps) {
     locale = 'ru',
     className,
     fullAccess = false,
+    editingTextId = null,
+    onStartTextEdit,
+    onStopTextEdit,
+    onTextChange,
+    onTextPatch,
   } = props;
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -199,7 +226,11 @@ export function CanvasRenderer(props: CanvasRendererProps) {
 
   return (
     <div
-      ref={stageRef}
+      ref={(node) => {
+        stageRef.current = node;
+        if (typeof forwardedRef === 'function') forwardedRef(node);
+        else if (forwardedRef) forwardedRef.current = node;
+      }}
       className={cn('relative overflow-hidden select-none', className)}
       style={{
         width: '100%',
@@ -209,6 +240,7 @@ export function CanvasRenderer(props: CanvasRendererProps) {
         ...bgStyle,
       }}
       data-canvas-width={doc.width}
+      data-canvas-export-preview="true"
       onClick={(e) => {
         if (mode === 'editor' && onSelect) {
           // Click on stage background clears selection.
@@ -217,7 +249,18 @@ export function CanvasRenderer(props: CanvasRendererProps) {
       }}
     >
       {doc.elements.map((el) => {
-        const inner = renderElement(el, { mode, shareUrl, locale, width: doc.width });
+        const inner = renderElement(el, {
+          mode,
+          shareUrl,
+          locale,
+          width: doc.width,
+          editing: editingTextId === el.id,
+          selected: selectedId === el.id,
+          onStartEdit: onStartTextEdit ? () => onStartTextEdit(el.id) : undefined,
+          onStopEdit: onStopTextEdit ? () => onStopTextEdit(el.id) : undefined,
+          onTextChange: onTextChange ? (patch) => onTextChange(el.id, patch) : undefined,
+          onTextPatch: onTextPatch ? (patch) => onTextPatch(el.id, patch) : undefined,
+        });
         const cls = cn(
           animClass(el.animation),
           selectedId === el.id ? 'canvas-selected' : undefined
@@ -242,7 +285,7 @@ export function CanvasRenderer(props: CanvasRendererProps) {
       })}
     </div>
   );
-}
+});
 
 export function bgToCss(doc: InvitationCanvasDocument): CSSProperties {
   const b = doc.background;
@@ -269,8 +312,36 @@ export function bgToCss(doc: InvitationCanvasDocument): CSSProperties {
 
 function renderElement(
   el: CanvasElement,
-  ctx: { mode: RendererMode; shareUrl?: string; locale?: 'ru' | 'kz'; width: number }
+  ctx: {
+    mode: RendererMode;
+    shareUrl?: string;
+    locale?: 'ru' | 'kz';
+    width: number;
+    editing?: boolean;
+    selected?: boolean;
+    onStartEdit?: () => void;
+    onStopEdit?: () => void;
+    onTextChange?: (patch: { text: string }) => void;
+    onTextPatch?: (patch: Partial<import('@/lib/canvas/types').TextProps>) => void;
+  }
 ): React.ReactNode {
+  // In editor mode, route text/heading through the editable surface.
+  // Guest mode always uses the read-only view.
+  if (ctx.mode === 'editor' && ctx.onStartEdit && ctx.onStopEdit && ctx.onTextChange && ctx.onTextPatch) {
+    if (el.type === 'text' || el.type === 'heading') {
+      return (
+        <EditableTextView
+          el={el as TextElement | HeadingElement}
+          editing={!!ctx.editing}
+          selected={!!ctx.selected}
+          onStartEdit={ctx.onStartEdit}
+          onStopEdit={ctx.onStopEdit}
+          onChange={ctx.onTextChange}
+          onPatch={ctx.onTextPatch}
+        />
+      );
+    }
+  }
   switch (el.type) {
     case 'text': return <TextElementView el={el} />;
     case 'heading': return <HeadingElementView el={el} />;
@@ -280,7 +351,7 @@ function renderElement(
     case 'divider': return <DividerElementView el={el} />;
     case 'couple-names': return <CoupleNamesElementView el={el} />;
     case 'countdown': return <CountdownElementView el={el} />;
-    case 'rsvp-form': return <RsvpFormElementView el={el} shareUrl={ctx.shareUrl} mode={ctx.mode} />;
+    case 'rsvp-form': return <RsvpFormElementView el={el} shareUrl={ctx.shareUrl} mode={ctx.mode} locale={ctx.locale} />;
     case 'wishes': return <WishesElementView el={el} shareUrl={ctx.shareUrl} mode={ctx.mode} />;
     case 'map': return <MapElementView el={el} />;
     case 'music': return <MusicPlayerElementView el={el} />;

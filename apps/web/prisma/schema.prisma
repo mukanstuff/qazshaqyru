@@ -102,7 +102,12 @@ enum TemplateCategory {
 
 model User {
   id              String    @id @default(uuid())
-  phone           String    @unique
+  /// Optional. Required for SMS/WhatsApp login, null for OAuth-only users.
+  phone           String?
+  /// Optional. Required for OAuth login (Google), null for phone-only users.
+  email           String?   @unique
+  /// Profile photo from OAuth provider.
+  avatarUrl       String?
   name            String?
   language        Language  @default(ru)
   isAdmin         Boolean   @default(false)
@@ -113,12 +118,32 @@ model User {
   sessions        Session[]
   invitations     Invitation[]
   orders          Order[]
+  identities      Identity[]
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
   @@index([phone])
+  @@index([email])
   @@index([isAdmin])
   @@index([planSku, planExpiresAt])
+}
+
+model Identity {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Auth provider: 'google' | 'whatsapp' | 'phone'.
+  provider      String
+  /// Stable provider-side subject identifier (Google 'sub', E.164 phone for phone/whatsapp).
+  providerId    String
+  /// Cached email from provider (for Google). May be null for phone-only.
+  providerEmail String?
+  createdAt     DateTime  @default(now())
+  lastUsedAt    DateTime?
+
+  @@unique([provider, providerId])
+  @@index([userId])
+  @@index([providerEmail])
 }
 
 model Session {

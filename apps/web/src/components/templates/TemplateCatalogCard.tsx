@@ -78,6 +78,11 @@ export function TemplateCatalogCard({
         <div className="absolute inset-x-3 bottom-3 min-w-0 text-white">
           <h3 className="truncate font-display text-lg leading-tight drop-shadow-sm">{displayName}</h3>
           <p className="mt-0.5 line-clamp-1 text-xs text-white/80">{signature}</p>
+          {(locale === 'kz' ? template.descriptionKz : template.descriptionRu) && (
+            <p className="mt-1 line-clamp-2 text-xs text-white/85">
+              {locale === 'kz' ? template.descriptionKz : template.descriptionRu}
+            </p>
+          )}
           <span className="mt-2 inline-flex items-center gap-1.5 font-body text-xs text-white/90">
             <Maximize2 className="h-3.5 w-3.5" aria-hidden />
             {t('templatesPage.previewTemplate')}

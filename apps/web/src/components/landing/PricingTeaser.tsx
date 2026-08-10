@@ -12,6 +12,8 @@ interface PricingTeaserProps {
 const TIMELINE_KEYS = ['timeline1', 'timeline2', 'timeline3'] as const;
 const BULLET_KEYS = ['bullet1', 'bullet2', 'bullet3'] as const;
 
+const TIMELINE_COLORS = ['#16A34A', '#F59E0B', '#F97316'];
+
 /** Short pricing block for the landing — from {MIN} ₸ per invitation. */
 export function PricingTeaser({ minTemplatePriceKzt }: PricingTeaserProps) {
   const { t } = useI18n();
@@ -19,28 +21,35 @@ export function PricingTeaser({ minTemplatePriceKzt }: PricingTeaserProps) {
 
   return (
     <div className="mx-auto max-w-3xl text-center" data-testid="pricing-teaser">
-      <div className="rounded-[2rem] border border-black/[0.06] bg-[#faf8f5] px-6 py-10 shadow-sm md:px-10 md:py-12">
-        <p className="text-sm font-medium text-us-ink-muted">{t('landing.v2.pricing.teaser.freeNote')}</p>
-        <p className="mt-2 font-display text-5xl text-us-ink md:text-6xl" data-testid="pricing-teaser-hero-price">
-          <span className="text-us-accent">
+      <div className="relative overflow-hidden rounded-[2rem] border border-[#1F3A2E]/10 bg-gradient-to-br from-white to-[#FFFBEB] px-6 py-10 shadow-lg md:px-10 md:py-12">
+        {/* Decorative gradient orb */}
+        <div className="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full bg-[#16A34A]/10 blur-3xl" aria-hidden />
+        <div className="pointer-events-none absolute -left-12 -bottom-12 h-40 w-40 rounded-full bg-[#F59E0B]/10 blur-3xl" aria-hidden />
+        
+        <p className="text-sm font-medium text-[#6B8A92]">{t('landing.v2.pricing.teaser.freeNote')}</p>
+        <p className="mt-2 font-display text-5xl text-[#1F3A2E] md:text-6xl" data-testid="pricing-teaser-hero-price">
+          <span className="text-[#16A34A]">
             {t('landing.v2.pricing.teaser.heroPrice', { price: formattedMin })}
           </span>
         </p>
-        <p className="mt-1 text-base text-us-ink-muted">{t('landing.v2.pricing.teaser.priceLabel')}</p>
+        <p className="mt-1 text-base text-[#6B8A92]">{t('landing.v2.pricing.teaser.priceLabel')}</p>
 
-        <ol className="mt-8 grid gap-4 text-left sm:grid-cols-3 sm:gap-3">
+        <ol className="relative mt-8 grid gap-4 text-left sm:grid-cols-3 sm:gap-3">
           {TIMELINE_KEYS.map((key, index) => (
             <li
               key={key}
-              className="rounded-2xl border border-black/[0.05] bg-white px-4 py-4 shadow-sm"
+              className="relative overflow-hidden rounded-2xl border border-[#1F3A2E]/8 bg-white px-4 py-4 shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg"
             >
-              <span className="mb-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-us-accent/10 text-sm font-semibold text-us-accent">
+              <span 
+                className="mb-2 inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold text-white"
+                style={{ backgroundColor: TIMELINE_COLORS[index] }}
+              >
                 {index + 1}
               </span>
-              <p className="font-display text-base text-us-ink">
+              <p className="font-display text-base text-[#1F3A2E]">
                 {t(`landing.v2.pricing.teaser.${key}Title`)}
               </p>
-              <p className="mt-1 text-sm leading-relaxed text-us-ink-muted">
+              <p className="mt-1 text-sm leading-relaxed text-[#6B8A92]">
                 {t(`landing.v2.pricing.teaser.${key}Desc`)}
               </p>
             </li>
@@ -49,8 +58,8 @@ export function PricingTeaser({ minTemplatePriceKzt }: PricingTeaserProps) {
 
         <ul className="mt-8 flex flex-col gap-2 text-left sm:mx-auto sm:max-w-md">
           {BULLET_KEYS.map((key) => (
-            <li key={key} className="flex items-start gap-2 text-sm text-us-ink-muted">
-              <Check className="mt-0.5 h-4 w-4 shrink-0 text-us-accent" aria-hidden />
+            <li key={key} className="flex items-start gap-2 text-sm text-[#6B8A92]">
+              <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#16A34A]" aria-hidden />
               <span>{t(`landing.v2.pricing.teaser.${key}`)}</span>
             </li>
           ))}
@@ -58,13 +67,13 @@ export function PricingTeaser({ minTemplatePriceKzt }: PricingTeaserProps) {
 
         <LocaleLink
           href="/pricing"
-          className="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-us-accent hover:underline"
+          className="group mt-8 inline-flex items-center gap-2 text-sm font-medium text-[#16A34A] transition-all hover:underline"
         >
           {t('landing.v2.pricing.teaser.allPlans')}
-          <ArrowRight className="h-4 w-4" aria-hidden />
+          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden />
         </LocaleLink>
       </div>
-      <p className="mt-4 text-xs text-us-ink-muted">
+      <p className="mt-4 text-xs text-[#6B8A92]">
         {t('landing.v2.pricing.teaser.kaspiNote')}
       </p>
     </div>

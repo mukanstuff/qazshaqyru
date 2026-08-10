@@ -3,13 +3,6 @@
 import { boundField, type SectionProps } from './types';
 import { CouplePhotoPlaceholder } from './CouplePhotoPlaceholder';
 
-const CORNER_ASSETS = {
-  tl: '/assets/templates/wedding-luxury/ornaments/corner-01.png',
-  tr: '/assets/templates/wedding-luxury/ornaments/corner-02.png',
-  bl: '/assets/templates/wedding-luxury/ornaments/corner-03.png',
-  br: '/assets/templates/wedding-luxury/ornaments/corner-04.png',
-} as const;
-
 export function CoverPhotoSection({ ctx, bindings, sectionProps }: SectionProps) {
   const photo = boundField(bindings, 'photo', ctx.fields);
   const optional = sectionProps?.optional === true;
@@ -39,18 +32,6 @@ export function CoverPhotoSection({ ctx, bindings, sectionProps }: SectionProps)
           <div className="inv-manifest-cover__frame inv-manifest-cover__frame--ornate">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={photo} alt="" />
-            {(Object.entries(CORNER_ASSETS) as [keyof typeof CORNER_ASSETS, string][]).map(
-              ([pos, src]) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  key={pos}
-                  src={src}
-                  alt=""
-                  className={`inv-manifest-cover__corner inv-manifest-cover__corner--${pos}`}
-                  aria-hidden
-                />
-              ),
-            )}
             {ctx.isEditing && ctx.onPhotoSave ? (
               <button
                 type="button"

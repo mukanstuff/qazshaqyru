@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { getKzSmsMissingCredentials } from '@/lib/shared/sms';
 import { describeUploadStorage } from '@/lib/uploads/upload-storage';
 import { validateS3UrlSeparation } from '@/lib/uploads/s3';
 import { getKaspiWebhookUrl, isKaspiWebhookReady } from '@/lib/payments/payment-provider-config';
@@ -12,13 +11,15 @@ const envSchema = z.object({
   TRUST_PROXY: z.enum(['true', 'false']).optional(),
   OTP_EXPIRY_MINUTES: z.string().optional(),
   OTP_MAX_ATTEMPTS: z.string().optional(),
-  SMS_PROVIDER: z.enum(['mock', 'twilio', 'kz']).optional(),
-  KZ_SMS_API_KEY: z.string().optional(),
-  KZ_SMS_API_URL: z.string().url().optional(),
-  KZ_SMS_SENDER: z.string().optional(),
-  TWILIO_ACCOUNT_SID: z.string().optional(),
-  TWILIO_AUTH_TOKEN: z.string().optional(),
-  TWILIO_PHONE_NUMBER: z.string().optional(),
+  WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
+  WHATSAPP_ACCESS_TOKEN: z.string().optional(),
+  WHATSAPP_AUTH_TEMPLATE_NAME: z.string().optional(),
+  WHATSAPP_AUTH_TEMPLATE_LANGUAGE: z.string().optional(),
+  AUTH_WHATSAPP_ENABLED: z.enum(['true', 'false']).optional(),
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_REDIRECT_URI: z.string().url().optional(),
+  NEXT_PUBLIC_GOOGLE_CLIENT_ID: z.string().optional(),
   KASPI_API_KEY: z.string().optional(),
   KASPI_API_URL: z.string().url().optional(),
   KASPI_WEBHOOK_SECRET: z.string().optional(),
@@ -205,26 +206,31 @@ export function auditProductionEnv(env: NodeJS.ProcessEnv = process.env): EnvChe
     pushCheck(items, 'ADMIN_API_KEY', 'ok', 'ADMIN_API_KEY length OK');
   }
 
-  if (env.SMS_PROVIDER === 'mock') {
-    pushCheck(items, 'SMS_PROVIDER', 'error', 'SMS_PROVIDER=mock is not allowed in production');
-  } else if (!env.SMS_PROVIDER) {
-    pushCheck(items, 'SMS_PROVIDER', 'warn', 'SMS_PROVIDER not set — OTP login will not work');
-  } else if (env.SMS_PROVIDER === 'kz') {
-    const missing = getKzSmsMissingCredentials(env);
-    if (missing.length > 0) {
-      pushCheck(items, 'SMS_PROVIDER', 'error', `Missing KZ SMS credentials: ${missing.join(', ')}`);
-    } else {
-      pushCheck(items, 'SMS_PROVIDER', 'ok', 'KZ SMS configured');
-    }
-  } else if (env.SMS_PROVIDER === 'twilio') {
-    const missing = ['TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_PHONE_NUMBER'].filter(
+  if (env.AUTH_WHATSAPP_ENABLED === 'true') {
+    const missing = ['WHATSAPP_PHONE_NUMBER_ID', 'WHATSAPP_ACCESS_TOKEN', 'WHATSAPP_AUTH_TEMPLATE_NAME'].filter(
       (k) => !envValue(env, k)
     );
     if (missing.length > 0) {
-      pushCheck(items, 'SMS_PROVIDER', 'error', `Missing Twilio credentials: ${missing.join(', ')}`);
+      pushCheck(items, 'AUTH_WHATSAPP_ENABLED', 'error', `WhatsApp OTP enabled but missing: ${missing.join(', ')}`);
     } else {
-      pushCheck(items, 'SMS_PROVIDER', 'ok', 'Twilio SMS configured');
+      pushCheck(items, 'AUTH_WHATSAPP_ENABLED', 'ok', 'WhatsApp OTP configured');
     }
+  } else {
+    pushCheck(items, 'AUTH_WHATSAPP_ENABLED', 'warn', 'AUTH_WHATSAPP_ENABLED != true — phone login disabled; users must use Google');
+  }
+
+  const googleId = envValue(env, 'GOOGLE_CLIENT_ID');
+  const googleSecret = envValue(env, 'GOOGLE_CLIENT_SECRET');
+  const googleRedirect = envValue(env, 'GOOGLE_REDIRECT_URI');
+  if (!googleId || !googleSecret || !googleRedirect) {
+    pushCheck(
+      items,
+      'GOOGLE_OAUTH',
+      'error',
+      'GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REDIRECT_URI are required — see docs/google-oauth-setup.md'
+    );
+  } else {
+    pushCheck(items, 'GOOGLE_OAUTH', 'ok', `Google OAuth redirect: ${googleRedirect}`);
   }
 
   const paymentProvider = resolvePaymentProvider(env);

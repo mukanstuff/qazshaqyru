@@ -1,19 +1,20 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { LocaleLink } from '@/components/seo/LocaleLink';
 import { useSearchParams } from 'next/navigation';
-import { Search } from 'lucide-react';
 import { PublicShell } from '@/components/shared/PublicShell';
 import {
+  BlankCanvasCta,
   TemplateCatalogCard,
-  TemplateFilterChip,
   TemplatePreviewModal,
+  TemplatesFilterBar,
+  type FilterCategory,
   TemplatesPageHero,
+  TemplatesResultsSummary,
+  TemplatesSeoBlock,
 } from '@/components/templates';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { LocaleLink } from '@/components/seo/LocaleLink';
 import { useI18n } from '@/i18n';
 import { templateMatchesSearch } from '@/lib/shared/ux-guided-flow';
 import type { Template } from '@prisma/client';
@@ -60,162 +61,149 @@ export function TemplatesClient({
     [templates, previewSlug],
   );
 
-  const liveTemplates = templates;
-
   const grouped = useMemo(
     () =>
       CATEGORY_ORDER.reduce<Record<string, Template[]>>((acc, cat) => {
-        const items = liveTemplates.filter((tpl) => tpl.category === cat);
+        const items = templates.filter((tpl) => tpl.category === cat);
         if (items.length) acc[cat] = items;
         return acc;
       }, {}),
-    [liveTemplates],
+    [templates],
   );
 
-  const totalTemplates = liveTemplates.length;
+  const totalTemplates = templates.length;
 
-  const visibleGroups = useMemo(() => {
-    if (activeCategory === 'all') return grouped;
-    return grouped[activeCategory] ? { [activeCategory]: grouped[activeCategory] } : {};
-  }, [activeCategory, grouped]);
-
-  const filteredGroups = useMemo(
-    () =>
-      Object.entries(visibleGroups).reduce<Record<string, Template[]>>((acc, [category, items]) => {
-        const categoryLabel = t(`events.${category}` as 'events.wedding');
-        const filtered = items.filter((template) =>
-          templateMatchesSearch({
-            template,
-            query: searchQuery,
-            locale,
-            categoryLabel,
-          }),
-        );
-        if (filtered.length > 0) {
-          acc[category] = filtered;
-        }
-        return acc;
-      }, {}),
-    [locale, searchQuery, t, visibleGroups],
+  const presentCategories = useMemo(
+    () => CATEGORY_ORDER.filter((cat) => templates.some((tpl) => tpl.category === cat)),
+    [templates],
   );
 
-  const hasVisibleTemplates = Object.values(filteredGroups).some((items) => items.length > 0);
+  const filterCategories = useMemo<FilterCategory[]>(
+    () => [
+      { key: 'all', label: t('templatesPage.allTemplates') },
+      ...presentCategories.map((cat) => ({
+        key: cat,
+        label: t(`events.${cat}` as 'events.wedding'),
+        count: grouped[cat]?.length ?? 0,
+      })),
+    ],
+    [grouped, presentCategories, t],
+  );
 
-  const liveCountShown =
-    Object.values(filteredGroups).reduce((n, items) => n + items.length, 0);
+  const filteredItems = useMemo(() => {
+    const source =
+      activeCategory === 'all'
+        ? templates
+        : grouped[activeCategory] ?? [];
+    if (!source.length) return [];
+    return source.filter((template) => {
+      const categoryLabel = t(`events.${template.category}` as 'events.wedding');
+      return templateMatchesSearch({
+        template,
+        query: searchQuery,
+        locale,
+        categoryLabel,
+      });
+    });
+  }, [activeCategory, grouped, locale, searchQuery, t, templates]);
+
+  const hasActiveFilter = activeCategory !== 'all' || searchQuery.trim().length > 0;
+
+  const handleReset = () => {
+    setActiveCategory('all');
+    setSearchQuery('');
+  };
+
+  const activeCategoryLabel =
+    activeCategory === 'all'
+      ? undefined
+      : t(`events.${activeCategory}` as 'events.wedding');
 
   return (
     <PublicShell isLoggedIn={isLoggedIn}>
       <TemplatesPageHero
-        overline={t('templatesPage.overline')}
-        title={t('templatesPage.title')}
-        subtitle={t('templatesPage.subtitle')}
+        variant="compact"
+        eyebrow={t('templatesPage.overline')}
+        breadcrumb={[{ label: t('templatesPage.compactBreadcrumb'), href: '/' }]}
+        current={t('templatesPage.compactBreadcrumbCurrent')}
         stats={[
-          { value: totalTemplates, label: t('templatesPage.totalTemplates') },
-          { value: CATEGORY_ORDER.length, label: t('templatesPage.categoryCount') },
+          { value: totalTemplates, label: t('templatesPage.compactStatsLabel') },
+          { value: presentCategories.length, label: t('templatesPage.categoryCount') },
         ]}
       />
 
-      <section className="border-b border-us-border/60 py-4">
-        <div className="us-container flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden">
-          <TemplateFilterChip
-            active={activeCategory === 'all'}
-            onClick={() => setActiveCategory('all')}
-            label={t('templatesPage.allTemplates')}
+      <TemplatesFilterBar
+        categories={filterCategories}
+        active={activeCategory}
+        onSelect={setActiveCategory}
+        query={searchQuery}
+        onQueryChange={setSearchQuery}
+        searchLabel={t('landing.templatesSearchLabel')}
+      />
+
+      <section className="pb-16 pt-6">
+        <div className="us-container space-y-8">
+          <TemplatesResultsSummary
+            count={filteredItems.length}
+            categoryLabel={activeCategoryLabel}
+            hasActiveFilter={hasActiveFilter}
+            onReset={handleReset}
           />
-          {CATEGORY_ORDER.map((cat) => {
-            const count = grouped[cat]?.length ?? 0;
-            return (
-              <TemplateFilterChip
-                key={cat}
-                active={activeCategory === cat}
-                onClick={() => setActiveCategory(cat)}
-                label={`${t(`events.${cat}` as 'events.wedding')}${count ? ` · ${count}` : ''}`}
-              />
-            );
-          })}
-        </div>
-      </section>
 
-      <section className="py-6">
-        <div className="us-container max-w-xl">
-          <Label htmlFor="templates-search-input" className="sr-only">
-            {t('landing.templatesSearchLabel')}
-          </Label>
-          <div className="relative">
-            <Search
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-us-ink-muted"
-              aria-hidden
-            />
-            <Input
-              id="templates-search-input"
-              type="search"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder={t('landing.templatesSearchLabel')}
-              aria-label={t('landing.templatesSearchLabel')}
-              data-testid="templates-search-input"
-              className="border-us-border/80 pl-9 shadow-none focus-visible:ring-us-accent/30"
-            />
-          </div>
-        </div>
-      </section>
+          {filteredItems.length > 0 ? (
+            <div className="grid grid-cols-2 gap-4 sm:gap-5 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              {filteredItems.map((template) => (
+                <TemplateCatalogCard
+                  key={template.id}
+                  template={template}
+                  displayName={(locale === 'kz' ? template.nameKz : template.nameRu) ?? template.nameRu}
+                  categoryLabel={t(`events.${template.category}` as 'events.wedding')}
+                  onPreview={() => setPreviewSlug(template.slug)}
+                />
+              ))}
+            </div>
+          ) : null}
 
-      <section className="pb-16">
-        <div className="us-container space-y-12">
-          <p className="font-body text-sm text-us-ink-muted" data-testid="templates-count-label">
-            {t('templatesPage.showingCount').replace('{count}', String(liveCountShown))}
-          </p>
-
-          {Object.entries(filteredGroups).map(([category, items]) => (
-            <section key={category}>
-              {activeCategory === 'all' && (
-                <h2 className="mb-6 font-display text-2xl font-medium text-us-ink">
-                  {t(`events.${category}` as 'events.wedding')}
-                </h2>
-              )}
-
-              <div className="grid gap-6 grid-cols-[repeat(auto-fill,minmax(280px,1fr))]">
-                {items.map((template) => (
-                  <TemplateCatalogCard
-                    key={template.id}
-                    template={template}
-                    displayName={(locale === 'kz' ? template.nameKz : template.nameRu) ?? template.nameRu}
-                    categoryLabel={t(`events.${template.category}` as 'events.wedding')}
-                    onPreview={() => setPreviewSlug(template.slug)}
-                  />
-                ))}
-              </div>
-            </section>
-          ))}
-
-          {!hasVisibleTemplates && templates.length > 0 && (
+          {filteredItems.length === 0 && templates.length > 0 ? (
             <div className="flex flex-col items-center gap-4 py-12 text-center">
               <p className="font-body text-us-ink-muted">{t('templatesPage.noResults')}</p>
-              <Button type="button" variant="outline" onClick={() => setSearchQuery('')}>
-                {t('templatesPage.clearSearch')}
+              <Button type="button" variant="outline" onClick={handleReset}>
+                {t('templatesPage.resultsReset')}
               </Button>
             </div>
-          )}
+          ) : null}
 
-          {templates.length === 0 && (
+          {templates.length === 0 ? (
             <div className="flex flex-col items-center gap-4 py-12 text-center">
               <p className="font-body text-us-ink-muted">{t('templatesPage.empty')}</p>
               <Button variant="outline" asChild>
                 <LocaleLink href="/">{t('templatesPage.backHome')}</LocaleLink>
               </Button>
             </div>
-          )}
+          ) : null}
         </div>
       </section>
 
-      {previewTemplate && (
+      <section className="pb-16">
+        <div className="us-container">
+          <BlankCanvasCta />
+        </div>
+      </section>
+
+      <TemplatesSeoBlock />
+
+      {showManaged ? null : null}
+
+      {previewTemplate ? (
         <TemplatePreviewModal
           template={previewTemplate}
-          displayName={(locale === 'kz' ? previewTemplate.nameKz : previewTemplate.nameRu) ?? previewTemplate.nameRu}
+          displayName={
+            (locale === 'kz' ? previewTemplate.nameKz : previewTemplate.nameRu) ??
+            previewTemplate.nameRu
+          }
           onClose={() => setPreviewSlug(null)}
         />
-      )}
+      ) : null}
     </PublicShell>
   );
 }

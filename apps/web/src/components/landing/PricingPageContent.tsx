@@ -69,13 +69,13 @@ export function PricingPageContent({ minTemplatePriceKzt }: PricingPageContentPr
 
         {/* Card 2 — Agency */}
         <article
-          className="flex flex-col rounded-2xl border border-us-accent/35 bg-us-accent p-6 text-us-cream shadow-us-md ring-1 ring-us-accent/20"
+          className="flex flex-col rounded-2xl border border-us-accent/35 bg-us-accent p-6 text-white shadow-us-md ring-1 ring-us-accent/20"
           data-testid="pricing-plan-agency"
         >
-          <p className="mb-3 inline-flex w-fit rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-us-gold">
+          <p className="mb-3 inline-flex w-fit rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white">
             {locale === 'kz' ? 'Кәсіпқойларға' : 'Профессионалам'}
           </p>
-          <p className="text-xs font-semibold uppercase tracking-widest text-us-gold">
+          <p className="text-xs font-semibold uppercase tracking-widest text-white">
             {locale === 'kz' ? 'Агенттіктерге' : 'Для агентств'}
           </p>
           <div className="mt-1 font-display text-4xl">
@@ -90,7 +90,7 @@ export function PricingPageContent({ minTemplatePriceKzt }: PricingPageContentPr
           <ul className="mt-5 flex-1 space-y-2">
             {(['1', '2', '3'] as const).map((key) => (
               <li key={key} className="flex items-start gap-2 text-sm text-white/85">
-                <Check className="mt-0.5 h-4 w-4 shrink-0 text-us-gold" aria-hidden />
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-white" aria-hidden />
                 <span>
                   {locale === 'kz'
                     ? key === '1'

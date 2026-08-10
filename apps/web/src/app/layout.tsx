@@ -34,6 +34,10 @@ export const metadata = {
     title: 'Онлайн-приглашение на той — ответы гостей и рассадка | QazShaqyru',
     description:
       'Цифровое приглашение на той и свадьбу: ответы гостей, семьи, рассадка и список для тойханы. Разовая оплата цены шаблона = полный доступ без водяного знака.',
+    images: [
+      { url: '/og-default.png', width: 1200, height: 630, alt: 'QazShaqyru — цифровые приглашения для тои и торжеств' },
+    ],
+    alternateLocale: ['kk_KZ'],
   },
   twitter: {
     card: 'summary_large_image',

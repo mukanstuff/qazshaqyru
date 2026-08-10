@@ -18,6 +18,7 @@ export const RATE_LIMITS = {
   OTP_REQUEST_PER_IP: { windowMs: 60 * 1000, maxRequests: 10, blockDurationMs: 60 * 1000 },
   OTP_VERIFY_PER_PHONE: { windowMs: 60 * 1000, maxRequests: 10, blockDurationMs: 5 * 60 * 1000 },
   OTP_VERIFY_PER_IP: { windowMs: 60 * 1000, maxRequests: 20, blockDurationMs: 5 * 60 * 1000 },
+  GOOGLE_OAUTH_PER_IP: { windowMs: 60 * 1000, maxRequests: 30, blockDurationMs: 5 * 60 * 1000 },
   API_GENERAL: { windowMs: 60 * 1000, maxRequests: 60 },
   API_INVITATION_CREATE: { windowMs: 60 * 60 * 1000, maxRequests: 20 },
   API_INVITATION_SEND: { windowMs: 60 * 60 * 1000, maxRequests: 30 },

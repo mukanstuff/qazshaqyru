@@ -26,23 +26,20 @@ beforeEach(() => {
 });
 
 describe('normalizeTemplateSlug', () => {
-  it('maps legacy classic to wedding-luxury', () => {
-    expect(normalizeTemplateSlug('classic')).toBe('wedding-luxury');
-  });
-
-  it('maps removed catalog slugs to wedding-luxury', () => {
-    expect(normalizeTemplateSlug('wedding-rose-blush')).toBe('wedding-luxury');
-    expect(normalizeTemplateSlug('starter-blank')).toBe('wedding-luxury');
+  it('maps legacy slugs to default luxe-gold template', () => {
+    expect(normalizeTemplateSlug('classic')).toBe('luxe-gold');
+    expect(normalizeTemplateSlug('wedding-rose-blush')).toBe('luxe-gold');
+    expect(normalizeTemplateSlug('starter-blank')).toBe('luxe-gold');
   });
 
   it('passes through active slug unchanged', () => {
-    expect(normalizeTemplateSlug('wedding-luxury')).toBe('wedding-luxury');
+    expect(normalizeTemplateSlug('luxe-gold')).toBe('luxe-gold');
   });
 
   it('queries active template by normalized slug', async () => {
     findFirst.mockResolvedValueOnce({
       id: 'tpl-1',
-      slug: 'wedding-luxury',
+      slug: 'luxe-gold',
       priceKzt: 3990,
       nameRu: 'Свадебная роскошь',
     });
@@ -50,7 +47,7 @@ describe('normalizeTemplateSlug', () => {
     const result = await resolveTemplateBySlug('classic');
 
     expect(findFirst).toHaveBeenCalledWith({
-      where: { slug: 'wedding-luxury', isActive: true },
+      where: { slug: 'luxe-gold', isActive: true },
       select: { id: true, slug: true, priceKzt: true, nameRu: true },
     });
     expect(result?.id).toBe('tpl-1');
@@ -63,10 +60,9 @@ describe('normalizeTemplateSlug', () => {
 });
 
 describe('template catalog', () => {
-  it('sales catalog is wedding-luxury only; wiring-stub resolves via configs', () => {
-    expect([...CATALOG_TEMPLATE_SLUGS]).toEqual(['wedding-luxury']);
-    expect(ALL_TEMPLATE_SLUGS).toContain('wedding-luxury');
-    expect(ALL_TEMPLATE_SLUGS).toContain('wiring-stub');
+  it('sales catalog is luxe-gold only', () => {
+    expect([...CATALOG_TEMPLATE_SLUGS]).toEqual(['luxe-gold']);
+    expect(ALL_TEMPLATE_SLUGS).toContain('luxe-gold');
   });
 });
 
@@ -76,6 +72,6 @@ describe('quickWizardHref', () => {
   });
 
   it('encodes template slug per card', () => {
-    expect(quickWizardHref('wedding-luxury')).toBe('/create?template=wedding-luxury');
+    expect(quickWizardHref('luxe-gold')).toBe('/create?template=luxe-gold');
   });
 });

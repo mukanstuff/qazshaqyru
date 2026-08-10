@@ -4,7 +4,7 @@ import { getCurrentSession } from '@/lib/shared/api';
 import { PublicShell } from '@/components/shared/PublicShell';
 import { AgencyPlanCard } from '@/components/dashboard/AgencyPlanCard';
 import { PLAN_CATALOG } from '@/lib/entitlements/plan-catalog';
-import { resolveEntitlements } from '@/lib/entitlements';
+import { resolveEntitlements, type LegacyPlanSku, type PlanSku } from '@/lib/entitlements';
 import prisma from '@/lib/shared/db';
 import { Button } from '@/components/ui/button';
 import { getWhatsappHref } from '@/lib/site/legal-config';
@@ -28,7 +28,7 @@ export default async function AgencyPage() {
     const entitlements = resolveEntitlements({
       now: new Date(),
       user: {
-        planSku: (user?.planSku as 'standard' | 'premium' | 'agency' | null) ?? null,
+        planSku: (user?.planSku as PlanSku | LegacyPlanSku | null) ?? null,
         planExpiresAt: user?.planExpiresAt ?? null,
       },
     });

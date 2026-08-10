@@ -90,3 +90,53 @@ export function snapElementPosition(
     guides,
   };
 }
+
+/**
+ * Stage 1 — snap to document-center and sibling edges with a tighter
+ * threshold. Invoked once on drag-end to give the release a clean final
+ * position (no guides shown, just a one-shot pull).
+ */
+export function snapFinal(
+  id: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  elements: CanvasElement[],
+  options: { docWidth?: number; thresholdX?: number; thresholdY?: number } = {}
+): { x: number; y: number } {
+  const thresholdX = options.thresholdX ?? 0.6;
+  const thresholdY = options.thresholdY ?? 3;
+  const docCenterX = 50 - w / 2; // percent
+  const heightPx = typeof h === 'number' ? h : 40;
+
+  let newX = x;
+  let newY = y;
+
+  // 1. Document-center snap (vertical axis — percent)
+  if (Math.abs(x - docCenterX) < thresholdX) {
+    newX = docCenterX;
+  }
+
+  // 2. Sibling edges / centers
+  for (const el of elements) {
+    if (el.id === id || el.hidden) continue;
+
+    const elCenterX = el.x + el.w / 2;
+    const elRightX = el.x + el.w;
+    const elHeight = typeof el.h === 'number' ? el.h : 40;
+    const elCenterY = el.y + elHeight / 2;
+
+    if (Math.abs(newX - el.x) < thresholdX) newX = el.x;
+    else if (Math.abs(newX + w / 2 - elCenterX) < thresholdX) newX = elCenterX - w / 2;
+    else if (Math.abs(newX + w - elRightX) < thresholdX) newX = elRightX - w;
+
+    if (Math.abs(newY - el.y) < thresholdY) newY = el.y;
+    else if (Math.abs(newY + heightPx / 2 - elCenterY) < thresholdY) newY = elCenterY - heightPx / 2;
+  }
+
+  return {
+    x: Math.max(0, Math.min(100 - w, newX)),
+    y: Math.max(-200, newY),
+  };
+}

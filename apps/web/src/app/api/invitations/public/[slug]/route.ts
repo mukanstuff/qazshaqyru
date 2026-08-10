@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/shared/db';
-import { ApiError, apiErrorResponse, applyRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/shared/api';
+import { ApiError, apiErrorResponse, applyRateLimit, rateLimitResponse, RATE_LIMITS, getCurrentSession } from '@/lib/shared/api';
 import { isEventPast } from '@/lib/shared/event-datetime';
 import { isOpenRsvpEnabled } from '@/lib/guests/open-rsvp-config';
 import { verifyPreviewToken } from '@/lib/invitations/preview-token';
@@ -8,9 +8,9 @@ import { shouldShowPublishWatermark } from '@/lib/invitations/publish-watermark'
 import { resolvePublicationPriceKzt } from '@/lib/invitations/invitation-pricing';
 import { resolveTemplateBySlug } from '@/lib/templates/template-resolve';
 import { isValidPaidOrder } from '@/lib/payments/pricing-integrity';
-import { resolveEntitlements, type PlanSku } from '@/lib/entitlements';
+import { resolveEntitlements, type LegacyPlanSku, type PlanSku } from '@/lib/entitlements';
 
-function mapPlanSku(value: string | null | undefined): PlanSku | null {
+function mapPlanSku(value: string | null | undefined): PlanSku | LegacyPlanSku | null {
   if (value === 'standard' || value === 'premium' || value === 'agency') return value;
   return null;
 }
@@ -57,7 +57,11 @@ export async function GET(
       verifyPreviewToken(previewToken, invitation.previewTokenHash);
 
     if (invitation.status !== 'published' && !isFamilyPreview) {
-      throw new ApiError('not_found', 'Приглашение не найдено', 404);
+      const session = await getCurrentSession();
+      const isOwner = session?.user.id === invitation.userId;
+      if (!isOwner) {
+        throw new ApiError('not_found', 'Приглашение не найдено', 404);
+      }
     }
 
     const customText = invitation.customText as Record<string, unknown> | null;

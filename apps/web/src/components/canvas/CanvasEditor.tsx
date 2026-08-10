@@ -13,13 +13,19 @@ import { PresetLibraryModal } from './PresetLibraryModal';
 import { useDrag } from './hooks/useDrag';
 import { useResize } from './hooks/useResize';
 import { useRotate } from './hooks/useRotate';
-import { snapElementPosition, type GuideLine } from '@/lib/canvas/snap-guides';
+import { snapElementPosition, snapFinal, type GuideLine } from '@/lib/canvas/snap-guides';
 import { cn } from '@/lib/shared/utils';
+import { useI18n } from '@/i18n';
+import html2canvas from 'html2canvas';
+
+export interface SaveRequestOptions {
+  keepalive?: boolean;
+}
 
 export interface CanvasEditorProps {
   initialDocument: InvitationCanvasDocument;
   onChange?: (doc: InvitationCanvasDocument) => void;
-  onSaveRequest?: (doc: InvitationCanvasDocument) => Promise<void>;
+  onSaveRequest?: (doc: InvitationCanvasDocument, options?: SaveRequestOptions) => Promise<void>;
   shareUrl?: string;
   locale?: 'ru' | 'kz';
   mode?: 'user' | 'template-builder';
@@ -29,12 +35,18 @@ export interface CanvasEditorProps {
    * This is the start of the "one shell" pattern requested in review.
    */
   chrome?: 'minimal' | 'full';
+  /** Invitation ID for naming the exported PNG file */
+  invitationId?: string;
+  /** Template ID — used to reset editor when a different template is loaded.
+   * When omitted, the editor only syncs on initial mount (safe for invitations).
+   */
+  templateId?: string;
 }
 
 export type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 export function CanvasEditor(props: CanvasEditorProps) {
-  const { initialDocument, onChange, onSaveRequest, shareUrl, locale = 'ru', mode = 'user', chrome = 'full' } = props;
+  const { initialDocument, onChange, onSaveRequest, shareUrl, locale = 'ru', mode = 'user', chrome = 'full', invitationId, templateId } = props;
   const [doc, setDoc] = useState<InvitationCanvasDocument>(initialDocument);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [viewport, setViewport] = useState<'mobile' | 'desktop'>('mobile');
@@ -44,18 +56,30 @@ export function CanvasEditor(props: CanvasEditorProps) {
   const [showPresets, setShowPresets] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  // 2026-08-09: in-place text editing. Only one element can be in edit
+  // mode at a time. Cleared automatically when the user clicks outside or
+  // hits Esc (handled inside EditableTextView).
+  const [editingTextId, setEditingTextId] = useState<string | null>(null);
 
   const historyRef = useRef<HistoryStack | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
+  const previewRef = useRef<HTMLDivElement | null>(null);
 
   // Initialize history once.
   if (!historyRef.current) historyRef.current = new HistoryStack(initialDocument);
 
+  // Sync ONLY on templateId change (e.g. user switches from one template to another).
+  // We intentionally do NOT depend on initialDocument here — that would reset the editor
+  // every time the parent re-renders with a freshly-fetched copy from autosave.
+  const prevTemplateId = useRef<string | null>(null);
   useEffect(() => {
-    // Sync incoming prop changes (e.g. from server refetch).
-    setDoc(initialDocument);
-    historyRef.current = new HistoryStack(initialDocument);
-  }, [initialDocument]);
+    if (prevTemplateId.current !== null && prevTemplateId.current !== templateId) {
+      // Template changed — reload.
+      setDoc(initialDocument);
+      historyRef.current = new HistoryStack(initialDocument);
+    }
+    prevTemplateId.current = templateId ?? null;
+  }, [initialDocument, templateId]);
 
   const commit = useCallback(
     (next: InvitationCanvasDocument) => {
@@ -73,25 +97,116 @@ export function CanvasEditor(props: CanvasEditorProps) {
   // Autosave with 1s debounce.
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clipboardRef = useRef<CanvasElement | null>(null);
+  const pendingSaveRef = useRef<InvitationCanvasDocument | null>(null);
   const scheduleSave = useCallback(
     (d: InvitationCanvasDocument) => {
+      pendingSaveRef.current = d;
       if (!onSaveRequest) return;
       setSaveState('saving');
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(async () => {
+        saveTimer.current = null;
+        const payload = pendingSaveRef.current;
+        if (!payload) return;
+        pendingSaveRef.current = null;
         try {
-          await onSaveRequest(d);
+          await onSaveRequest(payload);
           setSaveState('saved');
           setLastSaved(new Date());
         } catch {
           setSaveState('error');
+          // Keep the pending doc so the next debounce tick retries
+          pendingSaveRef.current = payload;
         }
       }, 1000);
     },
     [onSaveRequest]
   );
 
+  // Flush pending save on tab close / mobile hide. Uses fetch keepalive so the
+  // PATCH actually reaches the server before the document is unloaded.
   useEffect(() => {
+    if (!onSaveRequest) return;
+    const flush = () => {
+      const payload = pendingSaveRef.current;
+      if (!payload) return;
+      pendingSaveRef.current = null;
+      if (saveTimer.current) {
+        clearTimeout(saveTimer.current);
+        saveTimer.current = null;
+      }
+      void onSaveRequest(payload, { keepalive: true }).catch(() => {});
+    };
+    const handleBeforeUnload = () => flush();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+    const handlePageHide = () => flush();
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handlePageHide);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handlePageHide);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [onSaveRequest]);
+
+  // On unmount (SPA navigation, route change): cancel any pending debounced save.
+  // The pagehide/visibilitychange listeners above handle hard shutdown; this
+  // closes the SPA-navigation gap where the tab isn't hidden but the component
+  // is gone. We do NOT flush here because setState after unmount would warn
+  // and the document is about to be re-fetched by the parent.
+  useEffect(() => {
+    return () => {
+      if (saveTimer.current) {
+        clearTimeout(saveTimer.current);
+        saveTimer.current = null;
+      }
+    };
+  }, []);
+
+  // PNG export: captures the invitation preview div via html2canvas. We capture
+  // the dedicated preview node (data-canvas-export-preview) so the toolbar,
+  // palette, and inspector chrome are NOT baked into the downloaded PNG.
+  const handleExportPNG = useCallback(async () => {
+    const preview = previewRef.current ?? stageRef.current?.querySelector<HTMLElement>('[data-canvas-export-preview]');
+    if (!preview) return;
+    setSaveState('saving');
+    try {
+      const canvas = await html2canvas(preview, {
+        useCORS: true,
+        allowTaint: false,
+        backgroundColor: '#ffffff',
+        scale: 2,
+      });
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, 'image/png', 1.0)
+      );
+      if (!blob) throw new Error('No blob');
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `invitation-${invitationId ?? 'export'}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setSaveState('saved');
+    } catch {
+      setSaveState('error');
+    }
+  }, [invitationId]);
+
+  // Trigger autosave on each doc change. Skip the very first run (mount) —
+  // scheduling a save with the initial document would PATCH the server with
+  // the same payload it just gave us.
+  const didMountRef = useRef(false);
+  useEffect(() => {
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
+    }
     scheduleSave(doc);
   }, [doc, scheduleSave]);
 
@@ -121,11 +236,11 @@ export function CanvasEditor(props: CanvasEditorProps) {
     onEnd: (id, x, y) => {
       setActiveGuides([]);
       const el = doc.elements.find((e) => e.id === id);
-      const res = snapElementPosition(id, x, y, el?.w || 20, typeof el?.h === 'number' ? el.h : 40, doc.elements, {
-        snapGrid: showGrid,
-      });
+      const w = el?.w || 20;
+      const h = typeof el?.h === 'number' ? el.h : 40;
+      const final = snapFinal(id, x, y, w, h, doc.elements);
       setDoc((d) => {
-        const next = updateElement(d, id, { x: res.x, y: res.y } as Partial<CanvasElement>);
+        const next = updateElement(d, id, { x: final.x, y: final.y } as Partial<CanvasElement>);
         commit(next);
         return next;
       });
@@ -269,6 +384,57 @@ export function CanvasEditor(props: CanvasEditorProps) {
     [doc, commit]
   );
 
+  // Mini-toolbar callbacks
+  const toolbarUndo = useCallback(() => {
+    const p = historyRef.current!.undo();
+    if (p) setDoc(p);
+  }, []);
+
+  const toolbarRedo = useCallback(() => {
+    const p = historyRef.current!.redo();
+    if (p) setDoc(p);
+  }, []);
+
+  const toolbarDuplicate = useCallback(() => {
+    if (!selectedId) return;
+    const next = duplicateElement(doc, selectedId);
+    commit(next);
+  }, [doc, selectedId, commit]);
+
+  const toolbarDelete = useCallback(() => {
+    if (!selectedId) return;
+    const next = deleteElement(doc, selectedId);
+    setSelectedId(null);
+    commit(next);
+  }, [doc, selectedId, commit]);
+
+  const toolbarColorChange = useCallback(
+    (color: string) => {
+      if (!selectedId) return;
+      const el = doc.elements.find((e) => e.id === selectedId);
+      if (!el) return;
+      let patch: Partial<CanvasElement> = {};
+      if ('color' in el) patch = { color } as Partial<CanvasElement>;
+      else if ('bgColor' in el) patch = { bgColor: color } as Partial<CanvasElement>;
+      else if ('textColor' in el) patch = { textColor: color } as Partial<CanvasElement>;
+      else return;
+      const next = updateElement(doc, selectedId, patch);
+      commit(next);
+    },
+    [doc, selectedId, commit]
+  );
+
+  const toolbarFontSizeChange = useCallback(
+    (fontSize: number) => {
+      if (!selectedId) return;
+      const el = doc.elements.find((e) => e.id === selectedId);
+      if (!el || !('fontSize' in el)) return;
+      const next = updateElement(doc, selectedId, { fontSize } as Partial<CanvasElement>);
+      commit(next);
+    },
+    [doc, selectedId, commit]
+  );
+
   const handleUpdateSelected = useCallback(
     (patch: Partial<CanvasElement>) => {
       if (!selectedId) return;
@@ -277,6 +443,38 @@ export function CanvasEditor(props: CanvasEditorProps) {
     },
     [doc, selectedId, commit]
   );
+
+  // ── 2026-08-09: in-place text editing callbacks ──────────────────────────
+  // Text typing updates the doc WITHOUT a history snapshot — too noisy.
+  // The snapshot is pushed on commit (blur/Esc/Enter). Font/color/align
+  // patches do push a snapshot because they are discrete user actions.
+  const handleTextChange = useCallback(
+    (id: string, patch: { text: string }) => {
+      setDoc((d) => updateElement(d, id, patch as Partial<CanvasElement>));
+    },
+    []
+  );
+
+  const handleTextPatch = useCallback(
+    (id: string, patch: Partial<import('@/lib/canvas/types').TextProps>) => {
+      setDoc((d) => {
+        const next = updateElement(d, id, patch as Partial<CanvasElement>);
+        // Commit (pushes a history snapshot) for discrete property edits.
+        historyRef.current!.pushSnapshot(next);
+        return next;
+      });
+    },
+    []
+  );
+
+  const handleStartTextEdit = useCallback((id: string) => {
+    setSelectedId(id);
+    setEditingTextId(id);
+  }, []);
+
+  const handleStopTextEdit = useCallback((_id: string) => {
+    setEditingTextId(null);
+  }, []);
 
   const stageWidth = viewport === 'mobile' ? 390 : doc.width;
   const effectiveDoc = useMemo(() => {
@@ -287,6 +485,8 @@ export function CanvasEditor(props: CanvasEditorProps) {
   }, [doc, stageWidth, viewport]);
 
   const isMinimal = chrome === 'minimal';
+
+  const { t } = useI18n();
 
   return (
     <div className="flex h-full flex-col bg-[#1b1419] text-zinc-100">
@@ -316,15 +516,29 @@ export function CanvasEditor(props: CanvasEditorProps) {
           setTimeout(() => setPreviewAnim(false), 2500);
         }}
         onOpenPresets={() => setShowPresets(true)}
+        onExportPNG={handleExportPNG}
         saveState={saveState}
         lastSaved={lastSaved}
         onSaveNow={() => scheduleSave(doc)}
-        locale={locale}
         mode={mode}
       />
+      {!isMinimal && (
+        <div className="md:hidden px-4 py-2 border-b border-zinc-800 bg-amber-500/10 text-amber-200 text-xs text-center" role="status">
+          {t('invitation.edit.canvas.mobileHint')}
+        </div>
+      )}
       <div className="flex flex-1 min-h-0">
-        {/* Hide full palette in minimal chrome (for "simple view inside editor") */}
-        {!isMinimal && <ElementPalette onAdd={handleAdd} locale={locale} />}
+        {/* Hide full palette in minimal chrome, or on mobile (< md) — palette is 240px and breaks the layout on phones. */}
+        {!isMinimal && (
+          <div className="hidden md:flex">
+            <ElementPalette
+              onAdd={handleAdd}
+              locale={locale}
+              document={doc}
+              onInsertSection={(next) => commit(next)}
+            />
+          </div>
+        )}
 
         <div className="flex-1 overflow-auto p-6 flex items-start justify-center" data-testid="canvas-stage-wrap">
           <div
@@ -361,10 +575,16 @@ export function CanvasEditor(props: CanvasEditorProps) {
               }}
             >
               <CanvasRenderer
+                ref={previewRef}
                 document={effectiveDoc}
                 mode="editor"
                 selectedId={selectedId}
                 onSelect={setSelectedId}
+                editingTextId={editingTextId}
+                onStartTextEdit={handleStartTextEdit}
+                onStopTextEdit={handleStopTextEdit}
+                onTextChange={handleTextChange}
+                onTextPatch={handleTextPatch}
                 renderEditorShell={(el, children) => (
                   <SelectionChrome
                     el={el}
@@ -379,6 +599,12 @@ export function CanvasEditor(props: CanvasEditorProps) {
                       setSelectedId(el.id);
                       setContextMenu({ x: e.clientX, y: e.clientY, el });
                     }}
+                    onToolbarColorChange={toolbarColorChange}
+                    onToolbarFontSizeChange={toolbarFontSizeChange}
+                    onToolbarDuplicate={toolbarDuplicate}
+                    onToolbarDelete={toolbarDelete}
+                    onToolbarUndo={toolbarUndo}
+                    onToolbarRedo={toolbarRedo}
                   >
                     {children}
                   </SelectionChrome>
@@ -419,9 +645,10 @@ export function CanvasEditor(props: CanvasEditorProps) {
           </div>
         </div>
 
-        {/* Hide inspector in minimal chrome */}
+        {/* Hide inspector in minimal chrome, or on mobile (< md) — inspector is 288px and breaks the layout on phones. */}
         {!isMinimal && (
-          <InspectorPanel
+          <div className="hidden md:block">
+            <InspectorPanel
             selected={selected}
             onUpdate={handleUpdateSelected}
             onDelete={() => {
@@ -440,7 +667,10 @@ export function CanvasEditor(props: CanvasEditorProps) {
             }}
             locale={locale}
             mode={mode}
+            document={doc}
+            onDocumentChange={(patch) => commit({ ...doc, ...patch })}
           />
+          </div>
         )}
       </div>
       {contextMenu && (
@@ -448,7 +678,6 @@ export function CanvasEditor(props: CanvasEditorProps) {
           x={contextMenu.x}
           y={contextMenu.y}
           element={contextMenu.el}
-          locale={locale}
           onDuplicate={() => {
             commit(duplicateElement(doc, contextMenu.el.id));
           }}

@@ -208,7 +208,7 @@ export function PostPublishShareScreen({
           */}
           {!guestOpsUnlocked ? (
             <p className="px-6 pb-4 font-body text-xs text-us-ink-muted">
-              {t('postPublish.opsLockedHint')}
+              {t('postPublish.unlockFullAccess')}
             </p>
           ) : null}
         </Card>

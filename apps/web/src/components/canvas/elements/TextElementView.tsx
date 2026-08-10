@@ -1,8 +1,19 @@
 import type { CSSProperties } from 'react';
-import type { TextElement } from '@/lib/canvas/types';
+import type { TextElement, HeadingElement } from '@/lib/canvas/types';
+import { fontStack } from './fontStack';
 
-export function TextElementView({ el }: { el: TextElement }) {
-  const style: CSSProperties = {
+// Re-export the canonical `fontStack` (and helpers) so other modules
+// that import from './TextElementView' keep working. The actual
+// implementation lives in ./fontStack.
+export { fontStack, loadAndResolveFont, ensureGoogleFont } from './fontStack';
+
+/**
+ * Shared style for both text and heading elements. HeadingElementView
+ * previously re-implemented this — keep them in sync by going through
+ * one helper.
+ */
+function textStyleBase(el: TextElement | HeadingElement): CSSProperties {
+  return {
     fontFamily: fontStack(el.fontFamily),
     fontSize: el.fontSize,
     fontWeight: el.fontWeight,
@@ -20,16 +31,13 @@ export function TextElementView({ el }: { el: TextElement }) {
     margin: 0,
     padding: 0,
   };
-  return <p style={style}>{el.text}</p>;
 }
 
-export function fontStack(family: TextElement['fontFamily']): string {
-  switch (family) {
-    case 'Cormorant': return "'KZ Cormorant', 'Cormorant Garamond', Georgia, serif";
-    case 'Marck': return "'KZ Marck', 'Marck Script', cursive";
-    case 'Unbounded': return "'KZ Unbounded', 'Unbounded', sans-serif";
-    case 'system': return "system-ui, -apple-system, sans-serif";
-    case 'Montserrat':
-    default: return "'KZ Montserrat', 'Montserrat', 'Inter', system-ui, sans-serif";
-  }
+export function textStyle(el: TextElement | HeadingElement): CSSProperties {
+  return textStyleBase(el);
+}
+
+export function TextElementView({ el }: { el: TextElement }) {
+  const style: CSSProperties = textStyleBase(el);
+  return <p style={style}>{el.text}</p>;
 }

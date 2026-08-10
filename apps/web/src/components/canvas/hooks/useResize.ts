@@ -2,11 +2,14 @@
  * useResize — low-level pointer-based resize hook that calculates new width, height,
  * and position (when resizing from top/left handles) in document coordinates.
  *
- * Supports corner handles ('nw', 'ne', 'sw', 'se') and shiftKey aspect-ratio preserving.
+ * Supports:
+ * - Corner handles: 'nw', 'ne', 'sw', 'se'
+ * - Side handles: 'n', 'e', 's', 'w'
+ * - ShiftKey aspect-ratio preserving (corner handles only)
  */
 import { useCallback, useRef } from 'react';
 
-export type ResizeHandle = 'nw' | 'ne' | 'sw' | 'se';
+export type ResizeHandle = 'nw' | 'ne' | 'sw' | 'se' | 'n' | 'e' | 's' | 'w';
 
 export interface ResizeState {
   id: string;
@@ -35,7 +38,7 @@ export function calculateResizeCoords(
   let dxPercent = dxPx / stagePxPerPercent;
   let dy = dyPx;
 
-  // Shift key preserves aspect ratio
+  // Shift key preserves aspect ratio for corner handles
   if (shiftKey && typeof initial.h === 'number' && initial.w > 0) {
     const ratio = initial.h / initial.w; // px per percent
     if (handle === 'se' || handle === 'nw') {
@@ -50,23 +53,47 @@ export function calculateResizeCoords(
   let newW = initial.w;
   let newH = initial.h;
 
-  const isLeft = handle === 'nw' || handle === 'sw';
-  const isTop = handle === 'nw' || handle === 'ne';
-
-  if (isLeft) {
+  // ── Corner handles ──────────────────────────────────────────────
+  if (handle === 'nw') {
     newW = Math.max(5, initial.w - dxPercent);
     newX = initial.x + (initial.w - newW);
-  } else {
-    newW = Math.max(5, initial.w + dxPercent);
-  }
-
-  if (typeof initial.h === 'number') {
-    if (isTop) {
+    if (typeof initial.h === 'number') {
       newH = Math.max(20, initial.h - dy);
       newY = initial.y + (initial.h - newH);
-    } else {
+    }
+  } else if (handle === 'ne') {
+    newW = Math.max(5, initial.w + dxPercent);
+    if (typeof initial.h === 'number') {
+      newH = Math.max(20, initial.h - dy);
+      newY = initial.y + (initial.h - newH);
+    }
+  } else if (handle === 'sw') {
+    newW = Math.max(5, initial.w - dxPercent);
+    newX = initial.x + (initial.w - newW);
+    if (typeof initial.h === 'number') {
       newH = Math.max(20, initial.h + dy);
     }
+  } else if (handle === 'se') {
+    newW = Math.max(5, initial.w + dxPercent);
+    if (typeof initial.h === 'number') {
+      newH = Math.max(20, initial.h + dy);
+    }
+  }
+  // ── Side handles ────────────────────────────────────────────────
+  else if (handle === 'n') {
+    if (typeof initial.h === 'number') {
+      newH = Math.max(20, initial.h - dy);
+      newY = initial.y + (initial.h - newH);
+    }
+  } else if (handle === 's') {
+    if (typeof initial.h === 'number') {
+      newH = Math.max(20, initial.h + dy);
+    }
+  } else if (handle === 'w') {
+    newW = Math.max(5, initial.w - dxPercent);
+    newX = initial.x + (initial.w - newW);
+  } else if (handle === 'e') {
+    newW = Math.max(5, initial.w + dxPercent);
   }
 
   newX = Math.max(0, Math.min(95, newX));

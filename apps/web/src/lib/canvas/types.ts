@@ -151,11 +151,52 @@ export interface InvitationCanvasDocument {
 // ----- Shared sub-types for element props -----------------------------------
 
 export type FontFamily =
+  // 5 original
   | 'Montserrat'
   | 'Cormorant'
   | 'Marck'
   | 'Unbounded'
-  | 'system';
+  | 'system'
+  // 35 popular Google Fonts for weddings/events
+  | 'Playfair Display'
+  | 'Great Vibes'
+  | 'Dancing Script'
+  | 'Lora'
+  | 'Cinzel'
+  | 'EB Garamond'
+  | 'Libre Baskerville'
+  | 'Cormorant Garamond'
+  | 'Bodoni Moda'
+  | 'Marcellus'
+  | 'Italiana'
+  | 'Cardo'
+  | 'Prata'
+  | 'Forum'
+  | 'Tenor Sans'
+  | 'Manrope'
+  | 'Inter'
+  | 'Poppins'
+  | 'Raleway'
+  | 'Work Sans'
+  | 'Nunito'
+  | 'Quicksand'
+  | 'Josefin Sans'
+  | 'Comfortaa'
+  | 'Philosopher'
+  | 'Old Standard TT'
+  | 'PT Serif'
+  | 'Merriweather'
+  | 'Yeseva One'
+  | 'Spectral'
+  | 'DM Serif Display'
+  | 'Alice'
+  | 'Vollkorn'
+  | 'Bebas Neue'
+  | 'Oswald'
+  | 'Pacifico'
+  | 'Sacramento'
+  | 'Parisienne'
+  | 'Tangerine';
 
 export interface TextProps {
   text: string;

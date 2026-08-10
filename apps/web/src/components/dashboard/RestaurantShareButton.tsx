@@ -60,7 +60,7 @@ export function RestaurantShareButton({
         variant="ghost"
         size="icon-sm"
         disabled
-        title="Standard: портал для менеджера тойханы"
+        title="Ссылка для менеджера тойханы — после оплаты шаблона"
         onClick={(e) => e.stopPropagation()}
       >
         <Building2 size={16} className="text-us-ink-muted" />

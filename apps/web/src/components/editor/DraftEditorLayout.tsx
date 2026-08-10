@@ -2,7 +2,7 @@
 
 /**
  * @deprecated Legacy draft editor — unrouted. Do not revive as second product path.
- * Live Editor: `/invitations/edit` + `LiveEditorPage`.
+ * Legacy editor: `/invitations/edit` redirects to QuickWizard or canvas.
  */
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';

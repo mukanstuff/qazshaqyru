@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import Link from 'next/link';
-import { ExternalLink, Copy, Check, Download } from 'lucide-react';
+import { ExternalLink, Copy, Check, Download, Map } from 'lucide-react';
 import { useI18n } from '@/i18n';
 import { useToast } from '@/components/ui/toaster';
 import { Button } from '@/components/ui/button';
@@ -99,6 +99,17 @@ export function InvitationRowActions({
         <Download size={16} />
       </Button>
       <RemindGuestsButton invitationId={invitationId} />
+      <Button variant="ghost" size="icon-sm" asChild>
+        <Link
+          href={`/seating/${slug}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          title={t('dashboard.seatingPublic')}
+        >
+          <Map size={16} />
+        </Link>
+      </Button>
       <RestaurantShareButton
         invitationId={invitationId}
         status={status}

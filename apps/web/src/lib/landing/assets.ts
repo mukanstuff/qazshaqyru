@@ -1,9 +1,9 @@
 /** Landing & marketing visuals — swap paths when real photos are ready. */
 
-const TEMPLATE = '/assets/templates/wedding-luxury';
+const TEMPLATE = '/assets/templates/luxe-gold';
 const LANDING = '/assets/landing';
 
-export const LANDING_DEMO_HREF = '/i/demo?layout=wedding-luxury';
+export const LANDING_DEMO_HREF = '/i/demo?layout=luxe-gold';
 
 export const LANDING_HERO_POSTER = `${TEMPLATE}/hero/hero-poster.webp`;
 export const LANDING_HERO_SCREEN = `${TEMPLATE}/preview.jpg`;
@@ -20,26 +20,30 @@ export const LANDING_TOY_PHOTOS = {
   hallLimo: `${LANDING}/toy-hall-limo.jfif`,
 } as const;
 
-/** Full iPhone mockup (transparent screen hole). Screen content sits underneath. */
-export const LANDING_HERO_IPHONE_MOCKUP = `${LANDING}/hero-iphone-mockup.webp`;
-export const LANDING_HERO_IPHONE_MOCKUP_PNG = `${LANDING}/hero-iphone-mockup.png`;
+/** Empty iPhone mockup (transparent screen hole). Content placeholder sits underneath. */
+export const LANDING_HERO_IPHONE_MOCKUP = `${LANDING}/hero-iphone-mockup-empty.png`;
 
 /**
- * Transparent screen hole as % of mockup canvas (1570×2932, measured from alpha).
+ * Transparent screen hole as % of mockup canvas (1857×3096, measured from alpha).
  * Use as CSS inset: top / right / bottom / left.
  */
 export const LANDING_HERO_IPHONE_SCREEN_INSET = {
-  top: '10.4%',
-  right: '12.74%',
-  bottom: '6.82%',
-  left: '12.74%',
+  top: '10.9%',
+  right: '18.4%',
+  bottom: '8.3%',
+  left: '18.4%',
   /** Inner display corner radius ≈ iPhone continuous curve */
-  radius: '2.35rem',
+  radius: '2.5rem',
 } as const;
 
-/** Hero full-bleed background — national ornament (pre-rotated landscape). */
+/** Hero full-bleed background — national ornament (pre-rotated landscape).
+ *  Future webp source: export `hero-ornament-pattern.webp` and switch the URL below
+ *  (~100 KB vs current 700 KB PNG). Until then, Next/Image with quality=70 reduces
+ *  served bytes via its built-in optimiser. */
 export const LANDING_HERO_BG = `${LANDING}/hero-ornament-pattern.png`;
 export const LANDING_HERO_ORNAMENT = `${LANDING}/hero-ornament-pattern.png`;
+/** Reserved for future webp export — keep the import alive. */
+export const LANDING_HERO_ORNAMENT_WEBP = `${LANDING}/hero-ornament-pattern.webp`;
 
 export const CELEBRATION_IMAGES = {
   wedding: LANDING_TOY_PHOTOS.astanaWedding,

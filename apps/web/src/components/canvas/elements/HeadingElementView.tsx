@@ -1,26 +1,12 @@
 import type { CSSProperties } from 'react';
 import type { HeadingElement } from '@/lib/canvas/types';
-import { fontStack } from './TextElementView';
+import { textStyle } from './TextElementView';
 
 export function HeadingElementView({ el }: { el: HeadingElement }) {
-  const Tag = el.as || 'h1';
-  const style: CSSProperties = {
-    fontFamily: fontStack(el.fontFamily),
-    fontSize: el.fontSize,
-    fontWeight: el.fontWeight,
-    color: el.color,
-    textAlign: el.textAlign,
-    lineHeight: el.lineHeight,
-    letterSpacing: `${el.letterSpacing}px`,
-    fontStyle: el.italic ? 'italic' : undefined,
-    textTransform: el.uppercase ? 'uppercase' : undefined,
-    textShadow: el.textShadow
-      ? `${el.textShadow.x}px ${el.textShadow.y}px ${el.textShadow.blur}px ${el.textShadow.color}`
-      : undefined,
-    whiteSpace: 'pre-wrap',
-    wordBreak: 'break-word',
-    margin: 0,
-    padding: 0,
-  };
-  return <div style={style}>{el.text}</div>;
+  // Use the actual semantic tag. Default 'h1' per types.ts. This was
+  // previously hard-coded to <div>, which broke SEO and screen-reader
+  // navigation for guest pages. Fixed 2026-08-09.
+  const Tag = (el.as || 'h1') as 'h1' | 'h2' | 'h3';
+  const style: CSSProperties = textStyle(el);
+  return <Tag style={style}>{el.text}</Tag>;
 }

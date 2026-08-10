@@ -38,7 +38,6 @@ export default async function AdminTemplateBuilderPage({ searchParams }: Props) 
         // See docs/PRODUCT_MODEL_AND_RULES.md — pay once = full access.
         priceKzt: 3990,
         previewImageUrl: '/assets/placeholder.jpg',
-        isPublic: true,
         isActive: true,
         isFeatured: false,
         sortOrder: 100,

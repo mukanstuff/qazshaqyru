@@ -97,10 +97,15 @@ export async function createInvitationForUser(userId: string, input: InvitationC
   // Canvas MUST be the primary document FROM THE MOMENT OF CREATION for every new invitation.
   // pay Template.priceKzt once = fullAccess (watermark=false, all guestOps, customSlug, full editor).
   // No creation path may leave canvas=null for new rows.
-  // Use tx so seed is atomic with creation.
+  // Pass wizard data directly — canvas seed tx runs after create commit; the DB row
+  // has correct customText but we pass it explicitly to be safe.
   // ═══════════════════════════════════════════════════════════════════════════
+  const wizardCustomText = defaultCustomTextWithOpenRsvp(input.customText || {});
   await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    await ensureCanvasDocument(tx, invitation!.id);
+    await ensureCanvasDocument(tx, invitation!.id, {
+      customText: wizardCustomText as Record<string, unknown>,
+      templateData: (input.templateData || {}) as Record<string, unknown>,
+    });
   });
 
   return invitation;

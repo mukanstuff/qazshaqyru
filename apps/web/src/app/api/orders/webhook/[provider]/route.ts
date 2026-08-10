@@ -60,7 +60,13 @@ export async function POST(request: NextRequest, { params }: Props) {
     }
 
     const payloadHash = createHash('sha256').update(body).digest('hex');
-    const dedupeSource = result.paymentId || `${result.orderId}:${payloadHash}`;
+    // Include result.action in the dedupe key so intermediate/ignore events for the same
+    // paymentId do NOT collide with the final complete/cancel event.
+    // Without this, a `processing` → `paid` chain would mark the processing event as
+    // processed=true and the final `paid` event would be dropped as a duplicate.
+    const dedupeSource = result.paymentId
+      ? `${result.action}:${result.paymentId}`
+      : `${result.action}:${result.orderId}:${payloadHash}`;
     const dedupeKey = createHash('sha256').update(`${providerName}:${dedupeSource}`).digest('hex');
     const existingEvent = await prisma.paymentWebhookEvent.findUnique({
       where: { dedupeKey },

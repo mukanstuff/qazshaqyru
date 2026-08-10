@@ -8,6 +8,7 @@ import prisma from '@/lib/shared/db';
 import { ensureCanvasDocument } from '@/lib/invitations/ensure-canvas';
 import { isValidPaidOrder } from '@/lib/payments/pricing-integrity';
 import { resolvePublicationPriceKzt } from '@/lib/invitations/invitation-pricing';
+import { getCurrentSession } from '@/lib/shared/api';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +24,7 @@ export async function GET(_req: Request, { params }: Ctx) {
       select: {
         id: true,
         slug: true,
+        userId: true,
         title: true,
         eventType: true,
         eventDate: true,
@@ -49,7 +51,11 @@ export async function GET(_req: Request, { params }: Ctx) {
       return NextResponse.json({ error: 'not_found' }, { status: 404 });
     }
     if (inv.status !== 'published') {
-      return NextResponse.json({ error: 'not_published' }, { status: 403 });
+      const session = await getCurrentSession();
+      const isOwner = session?.user.id === inv.userId;
+      if (!isOwner) {
+        return NextResponse.json({ error: 'not_published' }, { status: 403 });
+      }
     }
 
     // 2026-07-30 NEXT: for published + paid invitations, ensure canvas exists.

@@ -25,7 +25,6 @@ function isWellFormedSessionToken(token: string): boolean {
 function isProtectedPath(pathname: string): boolean {
   if (pathname === '/create' || pathname.startsWith('/create/')) return false;
   if (pathname === '/invitations/new') return false;
-  if (pathname === '/invitations/quick' || pathname.startsWith('/invitations/quick/')) return false;
   return PROTECTED_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 }
 

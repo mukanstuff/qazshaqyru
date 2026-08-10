@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useI18n } from '@/i18n';
 import type { CanvasElement } from '@/lib/canvas/types';
 
 interface Props {
   x: number;
   y: number;
   element: CanvasElement;
-  locale: 'ru' | 'kz';
   onDuplicate: () => void;
   onDelete: () => void;
   onBringToFront: () => void;
@@ -21,7 +21,6 @@ export function ElementContextMenu({
   x,
   y,
   element,
-  locale,
   onDuplicate,
   onDelete,
   onBringToFront,
@@ -31,9 +30,7 @@ export function ElementContextMenu({
   onClose,
 }: Props) {
   useEffect(() => {
-    const handleDown = (e: MouseEvent) => {
-      onClose();
-    };
+    const handleDown = () => onClose();
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
@@ -45,24 +42,7 @@ export function ElementContextMenu({
     };
   }, [onClose]);
 
-  const labels =
-    locale === 'ru'
-      ? {
-          duplicate: 'Дублировать',
-          delete: 'Удалить',
-          front: 'На передний план',
-          back: 'На задний план',
-          lock: element.locked ? 'Разблокировать' : 'Заблокировать',
-          hide: element.hidden ? 'Показать' : 'Скрыть',
-        }
-      : {
-          duplicate: 'Көшірмесін жасау',
-          delete: 'Жою',
-          front: 'Алдыңғы қатарға',
-          back: 'Артқы қатарға',
-          lock: element.locked ? 'Құлпын ашу' : 'Құлыптау',
-          hide: element.hidden ? 'Көрсету' : 'Жасыру',
-        };
+  const { t } = useI18n();
 
   return (
     <div
@@ -77,7 +57,7 @@ export function ElementContextMenu({
         }}
         className="w-full px-4 py-2 text-left hover:bg-zinc-800"
       >
-        {labels.duplicate}
+        {t('invitation.edit.canvas.duplicate')}
       </button>
       <button
         onClick={() => {
@@ -86,7 +66,7 @@ export function ElementContextMenu({
         }}
         className="w-full px-4 py-2 text-left hover:bg-zinc-800"
       >
-        {labels.front}
+        {t('invitation.edit.canvas.front')}
       </button>
       <button
         onClick={() => {
@@ -95,7 +75,7 @@ export function ElementContextMenu({
         }}
         className="w-full px-4 py-2 text-left hover:bg-zinc-800"
       >
-        {labels.back}
+        {t('invitation.edit.canvas.back')}
       </button>
       <button
         onClick={() => {
@@ -104,7 +84,7 @@ export function ElementContextMenu({
         }}
         className="w-full px-4 py-2 text-left hover:bg-zinc-800"
       >
-        {labels.lock}
+        {element.locked ? t('invitation.edit.canvas.unlock') : t('invitation.edit.canvas.lock')}
       </button>
       <button
         onClick={() => {
@@ -113,7 +93,7 @@ export function ElementContextMenu({
         }}
         className="w-full px-4 py-2 text-left hover:bg-zinc-800"
       >
-        {labels.hide}
+        {element.hidden ? t('invitation.edit.canvas.show') : t('invitation.edit.canvas.hide')}
       </button>
       <div className="my-1 border-t border-zinc-800" />
       <button
@@ -123,7 +103,7 @@ export function ElementContextMenu({
         }}
         className="w-full px-4 py-2 text-left text-red-400 hover:bg-zinc-800"
       >
-        {labels.delete}
+        {t('invitation.edit.canvas.delete')}
       </button>
     </div>
   );

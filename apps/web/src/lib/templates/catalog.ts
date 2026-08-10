@@ -3,7 +3,7 @@
  * Designer delivers assets; agents register slug here when ready (HOW-TO-ADD-A-TEMPLATE.md).
  * Do not add placeholders or AI-generated «pretty» backgrounds.
  */
-export const CATALOG_TEMPLATE_SLUG = 'wedding-luxury' as const;
+export const CATALOG_TEMPLATE_SLUG = 'luxe-gold' as const;
 
 export const DEFAULT_TEMPLATE_SLUG = CATALOG_TEMPLATE_SLUG;
 

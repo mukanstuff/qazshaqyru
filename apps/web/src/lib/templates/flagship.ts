@@ -2,7 +2,7 @@ import type { FlagshipDecorProfile, FlagshipTemplateSlug } from './types';
 import { FLAGSHIP_TEMPLATE_SLUGS } from './constants';
 
 const FLAGSHIP_DECOR_PROFILES: Record<FlagshipTemplateSlug, FlagshipDecorProfile> = {
-  'wedding-luxury': {},
+  'luxe-gold': {},
 };
 
 export function isFlagshipTemplate(slug: string): slug is FlagshipTemplateSlug {

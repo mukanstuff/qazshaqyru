@@ -1,6 +1,6 @@
 import prisma from '@/lib/shared/db';
 import {
-  DEFAULT_UNLOCK_PLAN,
+  AGENCY_UNLOCK_PLAN,
   LEGACY_PUBLICATION_PRICE_KZT,
   getPlanPriceKzt,
   isPaidPlanSku,
@@ -32,6 +32,7 @@ export interface InvitationPricing {
   templateNameRu: string;
   hasPaidOrder: boolean;
   editingFree: boolean;
+  paidTemplateOrder: boolean;
   unlockedPlanSku: PlanSku | null;
   entitlements: ResolvedEntitlements;
 
@@ -58,18 +59,27 @@ export function resolvePublicationPriceKzt(templatePriceKzt?: number | null): nu
 
 export function resolvePlanCheckoutAmount(
   planSku: PaidPlanSku,
-  templatePriceKzt?: number | null
+  _templatePriceKzt?: number | null
 ): number {
-  if (planSku === 'standard') {
-    return resolvePublicationPriceKzt(templatePriceKzt);
-  }
+  // Template price is no longer consulted here — `paidTemplateOrder` is resolved
+  // separately by `resolvePaidTemplateOrder` against `getInvitationPricing`.
   return getPlanPriceKzt(planSku);
 }
 
 function mapDbPlanSku(value: string | null | undefined): PlanSku | null {
   if (!value) return null;
-  if (value === 'standard' || value === 'premium' || value === 'agency') return value;
+  // Legacy `standard`/`premium` rows in DB are normalized to null — they never
+  // confer entitlements in the new template-purchase model. Agency is the only
+  // real subscription product left.
+  if (value === 'agency') return value;
   return null;
+}
+
+export function resolvePaidTemplateOrder(
+  hasPaidOrder: boolean,
+  unlockedPlanSku: string | null | undefined
+): boolean {
+  return hasPaidOrder || unlockedPlanSku === 'standard' || unlockedPlanSku === 'premium';
 }
 
 /**
@@ -126,13 +136,12 @@ export async function getInvitationPricing(
   // Paying the template's real priceKzt ONCE = FULL ACCESS for this single invitation.
   // No more "free publish → pay for Standard → pay for Premium".
   // fullAccess = true → no watermark + all guest ops + custom slug + full editor.
-  const paidTemplateOrder = invitation.orders.some((order: PricingOrderRow) =>
-    isValidPaidOrder(order, templateId, priceKzt)
+  const paidTemplateOrder = resolvePaidTemplateOrder(
+    invitation.orders.some((order: PricingOrderRow) => isValidPaidOrder(order, templateId, priceKzt)),
+    invitation.unlockedPlanSku
   );
 
-  const unlockedPlanSku =
-    mapDbPlanSku(invitation.unlockedPlanSku) ??
-    (paidTemplateOrder ? DEFAULT_UNLOCK_PLAN : null);
+  const unlockedPlanSku = mapDbPlanSku(invitation.unlockedPlanSku);
 
   let entitlements = resolveEntitlements({
     now: new Date(),
@@ -168,6 +177,7 @@ export async function getInvitationPricing(
     templateSlug: template?.slug ?? invitation.templateKey,
     priceKzt,
     templateNameRu: template?.nameRu ?? 'Приглашение',
+    paidTemplateOrder,
     hasPaidOrder,
     editingFree: true,
     unlockedPlanSku,
@@ -178,5 +188,5 @@ export async function getInvitationPricing(
 
 export function assertPaidPlanSku(value: string | undefined | null): PaidPlanSku {
   if (value && isPaidPlanSku(value)) return value;
-  return DEFAULT_UNLOCK_PLAN;
+  return AGENCY_UNLOCK_PLAN;
 }

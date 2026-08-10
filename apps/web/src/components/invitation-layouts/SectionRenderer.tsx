@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, type CSSProperties } from 'react';
+import dynamic from 'next/dynamic';
 import { getAssetUrl } from '@/lib/templates/helpers';
 import { resolveManifestFields } from '@/lib/templates/manifest-fields';
 import type { TemplateManifest, TemplateSection } from '@/lib/templates/manifest-types';
@@ -15,25 +16,56 @@ import { EnvelopeIntroSection } from './sections/EnvelopeIntroSection';
 import { HeroNamesSection } from './sections/HeroNamesSection';
 import { BodyInvitationSection } from './sections/BodyInvitationSection';
 import { CoverPhotoSection } from './sections/CoverPhotoSection';
-import { CalendarSection } from './sections/CalendarSection';
-import { CountdownSection } from './sections/CountdownSection';
-import { VenueMapSection } from './sections/VenueMapSection';
-import { DressCodeSection } from './sections/DressCodeSection';
-import { GallerySection } from './sections/GallerySection';
-import { FinalTextSection } from './sections/FinalTextSection';
-import { RsvpSection } from './sections/RsvpSection';
-import { WishesSection } from './sections/WishesSection';
 import { MusicSection } from './sections/MusicSection';
-import { KaspiGiftsSection } from './sections/KaspiGiftsSection';
-import { ProgramSection } from './sections/ProgramSection';
-import { GuestTableNotice } from './sections/GuestTableNotice';
 import type { SectionContext } from './sections/types';
 
-interface Props extends LayoutProps {
-  manifest: TemplateManifest;
-  /** When set, overrides manifest.sections (document visibility/order). */
-  documentSections?: InvitationDocumentSection[];
-}
+// Above-the-fold — static imports (immediate render, no SSR penalty to pay).
+// Below-the-fold — lazy with ssr:false (no hydration mismatch, no JS until needed).
+
+const CalendarSection = dynamic(
+  () => import('./sections/CalendarSection').then((m) => m.CalendarSection),
+  { ssr: false },
+);
+const CountdownSection = dynamic(
+  () => import('./sections/CountdownSection').then((m) => m.CountdownSection),
+  { ssr: false },
+);
+const VenueMapSection = dynamic(
+  () => import('./sections/VenueMapSection').then((m) => m.VenueMapSection),
+  { ssr: false },
+);
+const DressCodeSection = dynamic(
+  () => import('./sections/DressCodeSection').then((m) => m.DressCodeSection),
+  { ssr: false },
+);
+const GallerySection = dynamic(
+  () => import('./sections/GallerySection').then((m) => m.GallerySection),
+  { ssr: false },
+);
+const FinalTextSection = dynamic(
+  () => import('./sections/FinalTextSection').then((m) => m.FinalTextSection),
+  { ssr: false },
+);
+const RsvpSection = dynamic(
+  () => import('./sections/RsvpSection').then((m) => m.RsvpSection),
+  { ssr: false },
+);
+const WishesSection = dynamic(
+  () => import('./sections/WishesSection').then((m) => m.WishesSection),
+  { ssr: false },
+);
+const KaspiGiftsSection = dynamic(
+  () => import('./sections/KaspiGiftsSection').then((m) => m.KaspiGiftsSection),
+  { ssr: false },
+);
+const ProgramSection = dynamic(
+  () => import('./sections/ProgramSection').then((m) => m.ProgramSection),
+  { ssr: false },
+);
+const GuestTableNotice = dynamic(
+  () => import('./sections/GuestTableNotice').then((m) => m.GuestTableNotice),
+  { ssr: false },
+);
 
 const SECTION_RENDERERS = {
   'envelope-intro': EnvelopeIntroSection,
@@ -121,7 +153,10 @@ export function SectionRenderer({ manifest, documentSections, ...layoutProps }: 
         {layoutProps.invitation.guestDisplayName ? (
           <p className="inv-personal-greeting">{layoutProps.invitation.guestDisplayName}</p>
         ) : null}
-        <GuestTableNotice tableName={layoutProps.invitation.seatingTableName} />
+        <GuestTableNotice
+          tableName={layoutProps.invitation.seatingTableName}
+          invitationSlug={layoutProps.invitation.slug}
+        />
         {sections.map((section) => {
           if (
             layoutProps.suppressGuestChrome &&

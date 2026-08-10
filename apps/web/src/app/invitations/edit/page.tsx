@@ -8,8 +8,7 @@ interface Props {
 
 /**
  * Legacy Live Editor route — all flows now go through QuickWizard → canvas.
- * This page is kept as a redirect to avoid 404s on old links.
- * The Live Editor code is a candidate for removal.
+ * This page stays as a redirect to avoid 404s on old links.
  */
 export default async function EditRedirect({ searchParams }: Props) {
   const { template, invitationId } = await searchParams;

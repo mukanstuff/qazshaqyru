@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
 import { ArrowLeft, Edit3, Save, Eye } from 'lucide-react';
 import Link from 'next/link';
 import { CanvasEditor } from '@/components/canvas/CanvasEditor';
@@ -19,7 +19,6 @@ interface Props {
 export function CanvasEditorClient({ invitationId, initialDocument, shareUrl, locale }: Props) {
   const [doc, setDoc] = useState<InvitationCanvasDocument>(initialDocument);
   const [isEditing, setIsEditing] = useState(false);
-  const [, start] = useTransition();
 
   // 2026-07-30 REVIEW / P0-6 follow-up:
   // We now use ONE CanvasEditor instance with chrome prop.
@@ -28,23 +27,22 @@ export function CanvasEditorClient({ invitationId, initialDocument, shareUrl, lo
   // Document + history are shared (no unmount loss).
   // This is the honest "one shell" direction.
 
-  const save = async (d: InvitationCanvasDocument) => {
-    start(async () => {
-      try {
-        const res = await fetch(`/api/invitations/${invitationId}/canvas`, {
-          method: 'PATCH',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ document: d }),
-        });
-        if (!res.ok) {
-          const text = await res.text().catch(() => '');
-          throw new Error(`save_failed: ${res.status} ${text}`);
-        }
-      } catch (err) {
-        console.error('[CanvasEditorClient] save failed', err);
-        throw new Error('save_failed');
+  const save = async (d: InvitationCanvasDocument, options?: { keepalive?: boolean }) => {
+    try {
+      const res = await fetch(`/api/invitations/${invitationId}/canvas`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ document: d }),
+        keepalive: options?.keepalive,
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`save_failed: ${res.status} ${text}`);
       }
-    });
+    } catch (err) {
+      console.error('[CanvasEditorClient] save failed', err);
+      throw err;
+    }
   };
 
   // ─────────────────────────────────────────────────────────────
@@ -130,6 +128,7 @@ export function CanvasEditorClient({ invitationId, initialDocument, shareUrl, lo
           shareUrl={shareUrl}
           locale={locale}
           chrome={chromeMode}
+          invitationId={invitationId}
         />
       </div>
     </div>

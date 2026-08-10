@@ -7,10 +7,12 @@ const CATALOG_TEMPLATE_SLUG = 'wedding-luxury';
 
 const CATALOG_TEMPLATE = {
   slug: CATALOG_TEMPLATE_SLUG,
-  nameRu: 'Шаблон',
-  nameKz: 'Шаблон',
-  descriptionRu: '',
-  descriptionKz: '',
+  nameRu: 'Роскошная свадьба',
+  nameKz: 'Дәстүрлі той',
+  descriptionRu:
+    'Элегантный дизайн с золотыми акцентами, бумажной текстурой и кинематографичным превью. Включает конверт-приглашение, обратный отсчёт, карту места, дресс-код и галерею.',
+  descriptionKz:
+    'Алтын акценттері мен қағаз текстурасы бар талғампаз дизайн. Конверт-шақыру, кері санақ, орын картасы, киім коды және галерея кіреді.',
   category: 'wedding' as const,
   previewImageUrl: '/assets/templates/wedding-luxury/preview.jpg',
   isFeatured: true,
@@ -34,11 +36,11 @@ async function main() {
     where: { slug: CATALOG_TEMPLATE_SLUG },
     create: {
       ...CATALOG_TEMPLATE,
-      priceKzt: 0,
+      priceKzt: 3990,
     },
     update: {
       ...CATALOG_TEMPLATE,
-      priceKzt: 0,
+      priceKzt: 3990,
     },
   });
 

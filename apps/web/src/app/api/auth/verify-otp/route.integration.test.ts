@@ -12,6 +12,10 @@ const prismaMock = vi.hoisted(() => ({
     create: vi.fn(),
   },
   user: {
+    findUnique: vi.fn(),
+    create: vi.fn(),
+  },
+  identity: {
     upsert: vi.fn(),
   },
   $transaction: vi.fn(),
@@ -93,13 +97,19 @@ describe('POST /api/auth/verify-otp', () => {
             create: vi.fn().mockResolvedValue({}),
           },
           user: {
-            upsert: vi.fn().mockResolvedValue({
+            findUnique: vi.fn().mockResolvedValue(null),
+            create: vi.fn().mockResolvedValue({
               id: 'user-1',
               phone: '+77071112233',
+              email: null,
+              avatarUrl: null,
               language: 'kz',
               name: null,
               isAdmin: false,
             }),
+          },
+          identity: {
+            upsert: vi.fn().mockResolvedValue({}),
           },
         };
         return fn(tx as unknown as typeof prismaMock);
@@ -155,6 +165,6 @@ describe('POST /api/auth/verify-otp', () => {
 
     expect(response.status).toBe(400);
     expect(body.error).toBe('wrong_code');
-    expect(prismaMock.user.upsert).not.toHaveBeenCalled();
+    expect(prismaMock.user.create).not.toHaveBeenCalled();
   });
 });

@@ -238,4 +238,56 @@ describe('orders webhook route', () => {
       })
     );
   });
+
+  it('processes ignore then complete for same paymentId (regression: action-scoped dedupe key)', async () => {
+    // The bug: an intermediate/ignore event for the same paymentId was marking
+    // the webhook event as processed=true, so the subsequent complete event
+    // arrived with the same dedupe key and was dropped as duplicate.
+    // Fix: dedupe key includes result.action, so ignore/complete have different keys.
+    const verifyMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        orderId: 'ord-1',
+        action: 'ignore', // intermediate status (e.g. processing / pending)
+        paymentId: 'pay-1',
+      })
+      .mockResolvedValueOnce({
+        orderId: 'ord-1',
+        action: 'complete',
+        paymentId: 'pay-1',
+        paidAmountKzt: 14900,
+      });
+    getPaymentProviderMock.mockReturnValue({ verifyWebhook: verifyMock });
+    completeOrderPaymentMock.mockResolvedValue({
+      ok: true,
+      alreadyPaid: false,
+      invitationId: 'inv-1',
+    });
+
+    // 1) intermediate status — should be processed and not crash
+    const ignoreReq = createTestRequest('http://localhost:3000/api/orders/webhook/kaspi', {
+      method: 'POST',
+      body: JSON.stringify({ order_id: 'ord-1', status: 'processing', id: 'pay-1' }),
+      headers: { 'x-kaspi-signature': 'sig' },
+    });
+    const ignoreRes = await POST(ignoreReq, { params: { provider: 'kaspi' } });
+    expect(ignoreRes.status).toBe(200);
+    expect((await ignoreRes.json()).data.ignored).toBe(true);
+
+    // 2) final success — MUST NOT be dropped as duplicate
+    const completeReq = createTestRequest('http://localhost:3000/api/orders/webhook/kaspi', {
+      method: 'POST',
+      body: JSON.stringify({ order_id: 'ord-1', status: 'paid', id: 'pay-1', amount: 1490000 }),
+      headers: { 'x-kaspi-signature': 'sig' },
+    });
+    const completeRes = await POST(completeReq, { params: { provider: 'kaspi' } });
+    const completeBody = await completeRes.json();
+
+    expect(completeRes.status).toBe(200);
+    expect(completeBody.data.alreadyProcessed).toBe(false);
+    expect(completeOrderPaymentMock).toHaveBeenCalledWith(
+      'ord-1',
+      expect.objectContaining({ expectedProvider: 'kaspi', expectedPaymentId: 'pay-1' })
+    );
+  });
 });

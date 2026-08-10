@@ -1,5 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { convertLegacyToCanvas } from '@/lib/canvas/legacy-converter';
+import { applyWizardToCanvasDocument } from '@/lib/canvas/apply-wizard-placeholders';
+import type { InvitationCanvasDocument } from '@/lib/canvas/types';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -23,7 +25,11 @@ import { convertLegacyToCanvas } from '@/lib/canvas/legacy-converter';
  */
 export async function ensureCanvasDocument(
   tx: Prisma.TransactionClient,
-  invitationId: string
+  invitationId: string,
+  overrides?: {
+    customText?: Record<string, unknown>;
+    templateData?: Record<string, unknown>;
+  }
 ): Promise<void> {
   const inv = await tx.invitation.findUnique({
     where: { id: invitationId },
@@ -40,26 +46,46 @@ export async function ensureCanvasDocument(
       musicUrl: true,
       mapUrl: true,
       customText: true,
+      template: { select: { canvas: true } },
     },
   });
 
   if (!inv || inv.canvas) return;
 
-  // 2026-07-30: always attempt to seed from wizard data + templateData.
-  // Converter is temporary bridge until admin templates emit real canvas blueprints.
-  const doc = convertLegacyToCanvas({
-    title: inv.title,
-    eventType: inv.eventType,
-    eventDate: inv.eventDate,
-    eventTime: inv.eventTime,
-    eventPlace: inv.eventPlace,
-    address: inv.address,
-    eventTimezone: inv.eventTimezone || 'Asia/Almaty',
-    templateData: inv.templateData as any,
-    musicUrl: inv.musicUrl,
-    mapUrl: inv.mapUrl,
-    customText: inv.customText as any,
-  });
+  const templateCanvas = inv.template?.canvas;
+  // Wizard data takes precedence over DB record (needed when ensure is called
+  // inside the same tx that created the invitation — DB row not yet committed).
+  const customText = overrides?.customText
+    ?? ((inv.customText as Record<string, unknown> | null) ?? {});
+  const templateData = overrides?.templateData
+    ?? ((inv.templateData as Record<string, unknown>) ?? {});
+  const wizardForm = {
+    names: [customText.groomName, customText.brideName].filter(Boolean).join(' & '),
+    eventDate: inv.eventDate?.toISOString(),
+    eventPlace: inv.eventPlace ?? undefined,
+    address: inv.address ?? undefined,
+    coverPhoto: typeof templateData.coverPhoto === 'string'
+      ? templateData.coverPhoto
+      : undefined,
+  };
+  const doc = templateCanvas
+    ? applyWizardToCanvasDocument(
+        JSON.parse(JSON.stringify(templateCanvas)) as InvitationCanvasDocument,
+        wizardForm
+      )
+    : convertLegacyToCanvas({
+        title: inv.title,
+        eventType: inv.eventType,
+        eventDate: inv.eventDate,
+        eventTime: inv.eventTime,
+        eventPlace: inv.eventPlace,
+        address: inv.address,
+        eventTimezone: inv.eventTimezone || 'Asia/Almaty',
+        templateData,
+        musicUrl: inv.musicUrl,
+        mapUrl: inv.mapUrl,
+        customText,
+      });
 
   await tx.invitation.update({
     where: { id: invitationId },

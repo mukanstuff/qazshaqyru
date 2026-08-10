@@ -3,7 +3,7 @@ import { TEMPLATE_CONFIGS } from './configs';
 import { LEGACY_TEMPLATE_MAP } from './legacy';
 import type { TemplateConfig } from './types';
 
-const DEFAULT_SLUG = 'wedding-luxury';
+const DEFAULT_SLUG = 'luxe-gold';
 
 /** Catalog preview: local preview.jpg → DB value → cover hero (avoid bokeh hero in cards). */
 export function getTemplatePreviewUrl(slug: string, dbPreview?: string | null): string {

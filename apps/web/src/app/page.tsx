@@ -8,7 +8,6 @@ import { getI18n } from '@/i18n/server';
 import { buildLanguageAlternates, seoLocaleFromHeaders } from '@/lib/seo/hreflang';
 import { buildFaqPageSchema, buildHomeJsonLdGraph, resolveLandingFaqItems } from '@/lib/seo/json-ld';
 import prisma from '@/lib/shared/db';
-import { CATALOG_TEMPLATE_SLUGS } from '@/lib/templates/catalog';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,9 +28,9 @@ export default async function HomePage() {
   const session = await getCurrentSession();
   const faqItems = resolveLandingFaqItems(t);
 
-  // Get min template price from active catalog templates
+  // Get min template price from all active templates
   const minTemplate = await prisma.template.findFirst({
-    where: { isActive: true, slug: { in: [...CATALOG_TEMPLATE_SLUGS] } },
+    where: { isActive: true },
     orderBy: { priceKzt: 'asc' },
     select: { priceKzt: true },
   });

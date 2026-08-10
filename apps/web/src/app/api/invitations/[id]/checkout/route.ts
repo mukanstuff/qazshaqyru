@@ -11,12 +11,11 @@ import {
 } from '@/lib/shared/api';
 import { checkoutInvitation } from '@/lib/payments/checkout';
 import prisma from '@/lib/shared/db';
-import { PAID_PLAN_SKUS } from '@/lib/entitlements';
 
 const bodySchema = z.object({
   provider: z.enum(['kaspi', 'freedom', 'mock']).optional(),
-  intent: z.enum(['publish', 'pay', 'plan']).optional(),
-  planSku: z.enum(PAID_PLAN_SKUS).optional(),
+  intent: z.enum(['publish', 'pay', 'plan', 'agency']).optional(),
+  planSku: z.string().min(1).max(64).optional(),
 });
 
 function getAppUrl(request: NextRequest): string {

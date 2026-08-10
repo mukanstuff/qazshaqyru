@@ -13,9 +13,9 @@ export function liveEditorHref(
   return `/create?template=${encodeURIComponent(templateSlug)}`;
 }
 
-/** Create/start from a template — goes through QuickWizard then canvas. */
+/** Create/start from a template — goes through demo preview, then wizard → canvas. */
 export function quickWizardHref(templateSlug: string = DEFAULT_QUICK_TEMPLATE): string {
-  return `/create?template=${encodeURIComponent(templateSlug)}`;
+  return `/preview/${encodeURIComponent(templateSlug)}`;
 }
 
 /** Legacy `/invitations/new` → quick wizard path. */

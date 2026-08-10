@@ -11,6 +11,7 @@ import type { InvitationCanvasDocument, CanvasElement } from './types';
 import type { InvitationData } from '@/components/invitation-layouts/types';
 import { createEmptyDocument } from './mutations';
 import { nanoid } from 'nanoid';
+import { splitCoupleNames } from '@/lib/shared/name-split';
 
 interface LegacyInvitationLike {
   title?: string;
@@ -118,6 +119,17 @@ export function convertLegacyToCanvas(inv: LegacyInvitationLike): InvitationCanv
   const td = (inv.templateData || {}) as Record<string, string | undefined>;
   const ct = (inv.customText || {}) as Record<string, string | undefined>;
 
+  // 2026-08-05 FIX: wizard creates invitations with names in `title` field
+  // (buildInvitationTitle = "Name1 & Name2"), NOT in customText fields.
+  // Parse names from title as fallback when customText.groomName/brideName empty.
+  // titleParts[0] = groom (first), titleParts[1] = bride (second)
+  const titleParts = splitCoupleNames(inv.title || '');
+  const firstName = ct.groomName || titleParts[0] || '';
+  const secondName = ct.brideName || titleParts[1] || '';
+
+  // locale from customText
+  const isKz = ct.invitationLocale === 'kz';
+
   // Respect colorScheme if provided (from wizard step 6)
   const scheme = td.colorScheme || 'bordeaux-gold';
   const bg = scheme === 'bordeaux-gold' ? LUXURY_BG :
@@ -125,7 +137,6 @@ export function convertLegacyToCanvas(inv: LegacyInvitationLike): InvitationCanv
              scheme === 'classic-mono' ? '#f8f8f8' :
              scheme === 'emerald-gold' ? '#f0f7f2' :
              scheme === 'oriental' ? '#fffaf0' : '#f9f7f4';
-  const primary = scheme === 'bordeaux-gold' || scheme === 'oriental' ? LUXURY_PRIMARY : '#3a2a2f';
 
   const doc = createEmptyDocument(390, { type: 'solid', color: bg });
   const elements: CanvasElement[] = [];
@@ -154,37 +165,39 @@ export function convertLegacyToCanvas(inv: LegacyInvitationLike): InvitationCanv
     y += 340;
   }
 
-  // Hero greeting
-  elements.push(textEl(nanoid(10), y, ct.greeting || 'Құрметті қонақтар!', {
+  // Hero greeting — locale-aware default
+  // TODO: add proper Kazakh text (Qurmetti qonaqtar) when encoding issue resolved
+  const greetingText = ct.greeting || (isKz ? 'Qurmetti qonaqtar!' : 'Dorogie gosti!');
+  elements.push(textEl(nanoid(10), y, greetingText, {
     fontFamily: 'Marck',
     fontSize: 24,
     color: LUXURY_PRIMARY,
   }));
   y += 60;
 
-  // Couple names — best-effort from customText
-  const first = ct.groomName || ct.firstName || 'Айбек';
-  const second = ct.brideName || ct.secondName || 'Айдана';
-  elements.push({
-    id: nanoid(10),
-    type: 'couple-names',
-    x: 5,
-    y,
-    w: 90,
-    h: 'auto',
-    rotation: 0,
-    zIndex: z(),
-    locked: false,
-    hidden: false,
-    first,
-    second,
-    connector: '&',
-    font: 'Cormorant',
-    fontSize: 56,
-    color: LUXURY_PRIMARY,
-    placeholderKey: 'coupleNames',
-  });
-  y += 110;
+  // Couple names — from title or customText
+  if (firstName || secondName) {
+    elements.push({
+      id: nanoid(10),
+      type: 'couple-names',
+      x: 5,
+      y,
+      w: 90,
+      h: 'auto',
+      rotation: 0,
+      zIndex: z(),
+      locked: false,
+      hidden: false,
+      first: firstName,
+      second: secondName,
+      connector: '&',
+      font: 'Cormorant',
+      fontSize: 56,
+      color: LUXURY_PRIMARY,
+      placeholderKey: 'coupleNames',
+    });
+    y += 110;
+  }
 
   elements.push(dividerEl(nanoid(10), y));
   y += 30;
@@ -198,7 +211,7 @@ export function convertLegacyToCanvas(inv: LegacyInvitationLike): InvitationCanv
   }
 
   if (inv.eventTime) {
-    elements.push(textEl(nanoid(10), y, `⏰ ${inv.eventTime}`, { fontSize: 18 }));
+    elements.push(textEl(nanoid(10), y, `\u231A ${inv.eventTime}`, { fontSize: 18 }));
     y += 40;
   }
 
@@ -221,6 +234,10 @@ export function convertLegacyToCanvas(inv: LegacyInvitationLike): InvitationCanv
   elements.push(dividerEl(nanoid(10), y));
   y += 30;
 
+  // Countdown with locale-aware labels
+  const countdownLabels = isKz
+    ? { days: 'kun', hours: 'sag', minutes: 'min', seconds: 'sek' }
+    : { days: 'dney', hours: 'chasov', minutes: 'min', seconds: 'sek' };
   elements.push({
     id: nanoid(10),
     type: 'countdown',
@@ -238,10 +255,12 @@ export function convertLegacyToCanvas(inv: LegacyInvitationLike): InvitationCanv
     fontSize: 20,
     color: LUXURY_PRIMARY,
     showLabels: true,
-    labels: { days: 'күн', hours: 'сағ', minutes: 'мин', seconds: 'сек' },
+    labels: countdownLabels,
   });
   y += 110;
 
+  // RSVP button with locale-aware label
+  const rsvpLabel = isKz ? 'Zhawap beru' : 'Otvetit';
   elements.push({
     id: nanoid(10),
     type: 'button',
@@ -253,7 +272,7 @@ export function convertLegacyToCanvas(inv: LegacyInvitationLike): InvitationCanv
     zIndex: z(),
     locked: false,
     hidden: false,
-    label: 'Жауап беру',
+    label: rsvpLabel,
     action: { kind: 'rsvp' },
     bgColor: LUXURY_PRIMARY,
     textColor: '#ffffff',

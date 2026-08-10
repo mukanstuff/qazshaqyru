@@ -166,13 +166,29 @@ export async function POST(request: NextRequest) {
         data: { revokedAt: new Date() },
       });
 
-      const user = await tx.user.upsert({
-        where: { phone: normalizedPhone },
-        create: {
-          phone: normalizedPhone,
-          language: isKazakhPhone(normalizedPhone) ? 'kz' : 'ru',
+      const existing = await tx.user.findUnique({ where: { phone: normalizedPhone } });
+      const user = existing
+        ? existing
+        : await tx.user.create({
+            data: {
+              phone: normalizedPhone,
+              language: isKazakhPhone(normalizedPhone) ? 'kz' : 'ru',
+            },
+          });
+
+      // Record the (provider='whatsapp', providerId=phone) identity so subsequent
+      // logins by the same phone merge cleanly.
+      await tx.identity.upsert({
+        where: {
+          provider_providerId: { provider: 'whatsapp', providerId: normalizedPhone },
         },
-        update: {},
+        create: {
+          userId: user.id,
+          provider: 'whatsapp',
+          providerId: normalizedPhone,
+          lastUsedAt: new Date(),
+        },
+        update: { lastUsedAt: new Date() },
       });
 
       await tx.session.create({
@@ -193,6 +209,8 @@ export async function POST(request: NextRequest) {
       user: {
         id: user.id,
         phone: user.phone,
+        email: user.email,
+        avatarUrl: user.avatarUrl,
         language: user.language,
         name: user.name,
         isAdmin: user.isAdmin,

@@ -8,33 +8,26 @@ import {
 
 describe('quick-wizard-url', () => {
   it('uses default catalog template slug', () => {
-    expect(DEFAULT_QUICK_TEMPLATE).toBe('wedding-luxury');
+    expect(DEFAULT_QUICK_TEMPLATE).toBe('luxe-gold');
   });
 
-  it('builds encoded quick wizard href', () => {
-    expect(quickWizardHref('wedding-luxury')).toBe(
-      '/create?template=wedding-luxury',
-    );
-    expect(liveEditorHref('wedding-luxury')).toBe(
-      '/create?template=wedding-luxury',
-    );
+  it('builds encoded preview href from template slug', () => {
+    expect(quickWizardHref('luxe-gold')).toBe('/preview/luxe-gold');
   });
 
   it('defaults to catalog template when slug omitted', () => {
-    expect(quickWizardHref()).toContain('wedding-luxury');
-    expect(quickWizardHref()).toContain('/create');
+    expect(quickWizardHref()).toContain('luxe-gold');
+    expect(quickWizardHref()).toContain('/preview');
   });
 
   it('encodes special characters in template slug', () => {
     expect(quickWizardHref('toy & family')).toBe(
-      `/create?template=${encodeURIComponent('toy & family')}`,
+      `/preview/${encodeURIComponent('toy & family')}`,
     );
   });
 
   it('includes invitationId — redirects to canvas', () => {
-    expect(liveEditorHref('wedding-luxury', 'inv-1')).toBe(
-      '/invitations/inv-1/canvas',
-    );
+    expect(liveEditorHref('luxe-gold', 'inv-1')).toBe('/invitations/inv-1/canvas');
   });
 });
 
@@ -45,10 +38,8 @@ describe('newInvitationRedirectHref', () => {
     expect(newInvitationRedirectHref('')).toBe('/templates');
   });
 
-  it('redirects to quick wizard with same template', () => {
-    expect(newInvitationRedirectHref('wedding-luxury')).toBe(
-      '/create?template=wedding-luxury',
-    );
+  it('redirects to preview with same template', () => {
+    expect(newInvitationRedirectHref('luxe-gold')).toBe('/preview/luxe-gold');
     expect(newInvitationRedirectHref('family-warm')).toBe(quickWizardHref('family-warm'));
   });
 });

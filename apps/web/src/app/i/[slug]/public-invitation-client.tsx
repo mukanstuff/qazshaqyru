@@ -164,8 +164,33 @@ export default function PublicInvitationClient({
       )}
 
       {mode === 'loading' && (
-        <div className="min-h-screen flex items-center justify-center text-us-ink-muted text-sm" aria-busy>
-          …
+        <div className="flex min-h-screen items-center justify-center bg-us-ivory" aria-busy aria-label="Загрузка приглашения">
+          <div className="flex flex-col items-center gap-3">
+            {/* Pulsing card skeleton — mirrors the invitation card shape */}
+            <div className="relative overflow-hidden rounded-2xl border border-us-border bg-white shadow-us-md" style={{ width: 'min(420px, 90vw)', height: '320px' }}>
+              {/* Hero area */}
+              <div className="h-44 w-full animate-pulse bg-gradient-to-b from-[#e8ddc8] to-[#faf6ef]" />
+              {/* Card body */}
+              <div className="flex flex-col items-center gap-3 p-6">
+                <div className="h-3 w-20 animate-pulse rounded-full bg-[#e0d4c0]" />
+                <div className="mt-1 h-8 w-40 animate-pulse rounded-full bg-[#e0d4c0]" />
+                <div className="mt-1 h-4 w-32 animate-pulse rounded-full bg-[#ede6d8]" />
+                <div className="mt-1 h-4 w-48 animate-pulse rounded-full bg-[#ede6d8]" />
+              </div>
+              {/* Shimmer overlay */}
+              <div
+                className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite]"
+                style={{
+                  background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)',
+                }}
+              />
+            </div>
+            <style>{`
+              @keyframes shimmer {
+                100% { transform: translateX(250%); }
+              }
+            `}</style>
+          </div>
         </div>
       )}
       {mode === 'legacy' && (
@@ -181,7 +206,7 @@ export default function PublicInvitationClient({
         <CanvasGuestPage 
           slug={slug} 
           shareUrl={shareUrl} 
-          fullAccess={fullAccessFromApi || true} // 2026-07-30: parent chose canvas because fullAccess OR canvas present. fullAccess=true → clean page.
+          fullAccess={fullAccessFromApi}
         />
       )}
     </div>

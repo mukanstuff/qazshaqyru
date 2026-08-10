@@ -8,9 +8,42 @@ interface Props {
   el: RsvpFormElement;
   shareUrl?: string;
   mode?: 'editor' | 'guest';
+  locale?: 'ru' | 'kz';
 }
 
-export function RsvpFormElementView({ el, shareUrl, mode = 'guest' }: Props) {
+const LABELS = {
+  ru: {
+    titleFallback: 'Подтвердите присутствие',
+    subtitle: 'Пожалуйста, ответьте до мероприятия',
+    success: '✓ Рахмет! Ваш ответ сохранён.',
+    namePlaceholder: 'Ваше имя',
+    phonePlaceholder: 'Номер телефона (+7...)',
+    attending: 'Приду',
+    notAttending: 'Не смогу',
+    errorMissingFields: 'Заполните имя и телефон',
+    errorSubmit: 'Ошибка отправки',
+    errorSubmitFallback: 'Ошибка отправки RSVP',
+    submit: 'Отправить',
+    submitting: 'Отправка...',
+  },
+  kz: {
+    titleFallback: 'Қатысуыңызды растаңыз',
+    subtitle: 'Шараға дейін жауап беріңіз',
+    success: '✓ Рахмет! Жауабыңыз сақталды.',
+    namePlaceholder: 'Атыңыз',
+    phonePlaceholder: 'Телефон нөмірі (+7...)',
+    attending: 'Келемін',
+    notAttending: 'Келе алмаймын',
+    errorMissingFields: 'Атыңыз бен телефонды толтырыңыз',
+    errorSubmit: 'Жіберу қатесі',
+    errorSubmitFallback: 'RSVP жіберу қатесі',
+    submit: 'Жіберу',
+    submitting: 'Жіберілуде...',
+  },
+} as const;
+
+export function RsvpFormElementView({ el, shareUrl, mode = 'guest', locale = 'ru' }: Props) {
+  const t = LABELS[locale];
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [status, setStatus] = useState<'attending' | 'not_attending'>('attending');
@@ -27,7 +60,7 @@ export function RsvpFormElementView({ el, shareUrl, mode = 'guest' }: Props) {
       return;
     }
     if (!slug || !name.trim() || !phone.trim()) {
-      setError('Заполните имя и телефон');
+      setError(t.errorMissingFields);
       return;
     }
     setLoading(true);
@@ -45,11 +78,11 @@ export function RsvpFormElementView({ el, shareUrl, mode = 'guest' }: Props) {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || 'Ошибка отправки');
+        throw new Error(data.message || t.errorSubmit);
       }
       setSubmitted(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ошибка отправки RSVP');
+      setError(err instanceof Error ? err.message : t.errorSubmitFallback);
     } finally {
       setLoading(false);
     }
@@ -76,21 +109,21 @@ export function RsvpFormElementView({ el, shareUrl, mode = 'guest' }: Props) {
       }}
     >
       <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4, textAlign: 'center' }}>
-        {el.title || 'Подтвердите присутствие'}
+        {el.title || t.titleFallback}
       </div>
       <div style={{ fontSize: 13, opacity: 0.8, marginBottom: 16, textAlign: 'center' }}>
-        Пожалуйста, ответьте до мероприятия
+        {t.subtitle}
       </div>
 
       {submitted ? (
         <div style={{ textAlign: 'center', padding: '20px 0', color: '#2d6a4f', fontWeight: 600 }}>
-          ✓ Рахмет! Ваш ответ сохранён.
+          {t.success}
         </div>
       ) : (
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <input
             type="text"
-            placeholder="Ваше имя"
+            placeholder={t.namePlaceholder}
             value={name}
             onChange={(e) => setName(e.target.value)}
             style={{
@@ -104,7 +137,7 @@ export function RsvpFormElementView({ el, shareUrl, mode = 'guest' }: Props) {
           />
           <input
             type="tel"
-            placeholder="Номер телефона (+7...)"
+            placeholder={t.phonePlaceholder}
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             style={{
@@ -130,7 +163,7 @@ export function RsvpFormElementView({ el, shareUrl, mode = 'guest' }: Props) {
                 cursor: 'pointer',
               }}
             >
-              Приду
+              {t.attending}
             </button>
             <button
               type="button"
@@ -145,7 +178,7 @@ export function RsvpFormElementView({ el, shareUrl, mode = 'guest' }: Props) {
                 cursor: 'pointer',
               }}
             >
-              Не смогу
+              {t.notAttending}
             </button>
           </div>
           {error && <div style={{ color: '#b42318', fontSize: 12 }}>{error}</div>}
@@ -163,7 +196,7 @@ export function RsvpFormElementView({ el, shareUrl, mode = 'guest' }: Props) {
               marginTop: 4,
             }}
           >
-            {loading ? 'Отправка...' : 'Отправить'}
+            {loading ? t.submitting : t.submit}
           </button>
         </form>
       )}

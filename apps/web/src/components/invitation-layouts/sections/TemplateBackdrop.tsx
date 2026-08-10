@@ -19,12 +19,6 @@ export function TemplateBackdrop({ manifest }: Props) {
   const vignette = url('overlayVignette');
   const glow = url('overlayGlow');
   const emblem = url('emblemPrimary');
-  const corners = [
-    { key: 'cornerTl', className: 'layer-canvas__corner layer-canvas__corner--tl' },
-    { key: 'cornerTr', className: 'layer-canvas__corner layer-canvas__corner--tr' },
-    { key: 'cornerBl', className: 'layer-canvas__corner layer-canvas__corner--bl' },
-    { key: 'cornerBr', className: 'layer-canvas__corner layer-canvas__corner--br' },
-  ] as const;
 
   return (
     <div className="layer-canvas" aria-hidden>
@@ -58,16 +52,6 @@ export function TemplateBackdrop({ manifest }: Props) {
           <img src={emblem} alt="" />
         </div>
       ) : null}
-      {corners.map(({ key, className }) => {
-        const src = url(key);
-        if (!src) return null;
-        return (
-          <div key={key} className={className}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={src} alt="" />
-          </div>
-        );
-      })}
     </div>
   );
 }

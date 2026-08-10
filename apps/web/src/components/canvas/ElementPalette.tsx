@@ -2,7 +2,27 @@
 
 import { useState } from 'react';
 import type { CanvasElementType } from '@/lib/canvas/types';
+import { TEMPLATE_SECTIONS, insertSection } from '@/lib/canvas/sections';
+import type { InvitationCanvasDocument } from '@/lib/canvas/types';
 
+// ─── Section icon map ───────────────────────────────────────────────────────────
+const SECTION_ICONS: Record<string, string> = {
+  hero: '♥',
+  datetime: '📅',
+  venue: '📍',
+  photo: '📷',
+  program: '🕐',
+  wishes: '💌',
+  rsvp: '✉',
+  dresscode: '👔',
+  gift: '🎁',
+  countdown: '⏱',
+  text: '¶',
+  hashtag: '#',
+  thankyou: '✓',
+};
+
+// ─── Category type ──────────────────────────────────────────────────────────────
 interface Category {
   id: string;
   labelRu: string;
@@ -78,16 +98,68 @@ const CATEGORIES: Category[] = [
 
 interface Props {
   onAdd: (type: CanvasElementType) => void;
+  /** For section insertion — pass doc + commit when in template-builder mode */
+  document?: InvitationCanvasDocument;
+  onInsertSection?: (nextDoc: InvitationCanvasDocument) => void;
   locale: 'ru' | 'kz';
 }
 
-export function ElementPalette({ onAdd, locale }: Props) {
-  const [open, setOpen] = useState<string>('text');
+export function ElementPalette({ onAdd, document, onInsertSection, locale }: Props) {
+  const [open, setOpen] = useState<string>('sections');
+
+  const handleInsertSection = (sectionId: string) => {
+    if (!document || !onInsertSection) return;
+    const lastBottom = document.elements.reduce(
+      (max, el) => Math.max(max, el.y + (typeof el.h === 'number' ? el.h : 0)),
+      0
+    );
+    const next = insertSection(document, sectionId, lastBottom);
+    onInsertSection(next);
+  };
+
   return (
     <aside className="w-60 shrink-0 border-r border-zinc-800 bg-zinc-900/80 overflow-y-auto text-sm">
       <div className="p-3 text-xs uppercase tracking-widest text-zinc-400 border-b border-zinc-800">
         {locale === 'ru' ? 'Добавить элемент' : 'Элемент қосу'}
       </div>
+
+      {/* ── Sections (open to end-users) ─────────────────────────── */}
+      {document && onInsertSection && (
+        <div className="border-b border-zinc-800">
+          <button
+            className="w-full px-3 py-2 flex items-center justify-between text-[#c9a961] hover:bg-zinc-800/60 font-semibold"
+            onClick={() => setOpen(open === 'sections' ? '' : 'sections')}
+          >
+            <span>{locale === 'ru' ? '📦 Готовые секции' : '📦 Дайын бөлімдер'}</span>
+            <span className="text-zinc-500">{open === 'sections' ? '▾' : '▸'}</span>
+          </button>
+          {open === 'sections' && (
+            <div className="p-2 flex flex-col gap-2">
+              {TEMPLATE_SECTIONS.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => handleInsertSection(s.id)}
+                  className="flex items-start gap-3 rounded-lg border border-zinc-700 bg-zinc-800/40 hover:border-[#c9a961] hover:bg-zinc-800 px-3 py-2.5 text-left transition"
+                >
+                  <div className="shrink-0 w-8 h-8 rounded bg-[#6b1d3a]/20 flex items-center justify-center text-sm">
+                    {SECTION_ICONS[s.id] ?? '▦'}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[11px] font-semibold text-zinc-100 truncate">
+                      {locale === 'ru' ? s.nameRu : s.nameKz}
+                    </div>
+                    <div className="text-[10px] text-zinc-500 leading-tight mt-0.5">
+                      {locale === 'ru' ? s.descriptionRu : s.descriptionKz}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Element categories ────────────────────────────────────── */}
       {CATEGORIES.map((cat) => {
         const isOpen = open === cat.id;
         return (

@@ -153,6 +153,7 @@ export function TemplateBuilderClient({ templateId }: Props) {
         <CanvasEditor
           initialDocument={doc}
           mode="template-builder"
+          templateId={templateId}
           onSaveRequest={async (d) => {
             await handleSave(d);
           }}

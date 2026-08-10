@@ -11,7 +11,7 @@
   --inv-section-stagger: 80ms;
   --inv-scroll-direction: up;
   min-height: 100dvh;
-  background: #faf8f5;
+  background: transparent;
   color: var(--inv-text-dark);
   font-family: var(--font-body), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -102,8 +102,7 @@
 }
 
 .guest-page--editor-frame .inv-hero,
-.guest-page--editor-frame .inv-manifest-hero,
-.guest-page--editor-frame .inv-manifest--wedding-luxury .inv-manifest-hero {
+.guest-page--editor-frame .inv-manifest-hero {
   /* Approx one phone screen in the editor column */
   min-height: 36rem;
 }
@@ -1434,7 +1433,7 @@
   to { opacity: 1; transform: none; }
 }
 
-/* ─── Section manifest (wedding-luxury) ─── */
+/* ─── Section manifest (base styles — shared by HTML-engine templates) ─── */
 .inv-manifest {
   position: relative;
   min-height: 100dvh;
@@ -1686,17 +1685,8 @@
   box-shadow: 0 4px 16px color-mix(in srgb, var(--inv-accent) 35%, transparent);
 }
 
-/* ─── wedding-luxury Phase 3 polish ─── */
-.inv-manifest--wedding-luxury {
-  background: #f7f3eb;
-  color: var(--inv-text-dark);
-  font-family: var(--inv-font-body);
-  width: 100%;
-  max-width: min(100%, 430px);
-  margin: 0 auto;
-}
-
-.inv-manifest--wedding-luxury .inv-label {
+/* RSVP / wishes / music polish — base styles shared by all HTML-engine templates */
+.inv-manifest--base .inv-manifest-rsvp {
   font-family: var(--inv-font-label);
   font-size: 0.7rem;
   font-weight: 600;
@@ -1825,16 +1815,6 @@
 }
 
 /* Hero */
-.inv-manifest--wedding-luxury .inv-manifest-hero {
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  text-align: center;
-  color: var(--inv-text-dark);
-  isolation: isolate;
-}
-
 .inv-manifest-hero__media {
   position: absolute;
   inset: 0;
@@ -1915,15 +1895,6 @@
 }
 
 /* Body text */
-.inv-manifest--wedding-luxury .inv-manifest-body__text p {
-  font-family: var(--inv-font-body);
-  font-size: clamp(1.05rem, 4.2vw, 1.18rem);
-  line-height: 1.82;
-  color: var(--inv-text-dark);
-  text-align: center;
-  text-transform: none;
-}
-
 .inv-manifest-body__hosts {
   font-family: var(--inv-font-body);
   font-size: 1rem;
@@ -1949,29 +1920,6 @@
   color: var(--inv-accent);
   opacity: 0.85;
   margin-bottom: 0.5rem;
-}
-
-.inv-manifest--wedding-luxury .inv-manifest-calendar__title {
-  font-family: var(--inv-font-body);
-  font-size: clamp(1.35rem, 5.2vw, 1.7rem);
-  font-weight: 600;
-  text-transform: capitalize;
-}
-
-.inv-manifest--wedding-luxury .inv-manifest-calendar__weekday {
-  font-family: var(--inv-font-label);
-  font-size: 0.6rem;
-  font-weight: 600;
-}
-
-.inv-manifest--wedding-luxury .inv-manifest-calendar__day {
-  font-family: var(--inv-font-body);
-}
-
-.inv-manifest--wedding-luxury .inv-manifest-calendar__day--event {
-  background: color-mix(in srgb, var(--inv-accent) 22%, transparent);
-  border-radius: 50%;
-  font-weight: 600;
 }
 
 /* Countdown */
@@ -2009,30 +1957,6 @@
 .inv-manifest-countdown__title {
   text-align: center;
   margin-bottom: 0.75rem;
-}
-
-.inv-manifest--wedding-luxury .inv-countdown__value {
-  font-family: var(--inv-font-body) !important;
-  font-size: clamp(2.2rem, 9vw, 2.8rem) !important;
-  font-weight: 600 !important;
-  width: auto !important;
-  height: auto !important;
-  border: none !important;
-  background: transparent !important;
-  color: var(--inv-accent) !important;
-}
-
-.inv-manifest--wedding-luxury .inv-countdown__label {
-  font-family: var(--inv-font-label) !important;
-  font-size: 0.75rem !important;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  color: var(--inv-text-dark);
-  opacity: 0.85;
-}
-
-.inv-manifest--wedding-luxury .inv-manifest-countdown__confetti {
-  opacity: 0.35;
 }
 
 .inv-manifest-countdown__units {
@@ -2176,14 +2100,14 @@
   line-height: 1.28;
 }
 
-/* RSVP / wishes polish */
-.inv-manifest--wedding-luxury .inv-manifest-rsvp,
-.inv-manifest--wedding-luxury .inv-section[data-section='wishes'],
-.inv-manifest--wedding-luxury .inv-section[data-section='music'] {
+/* RSVP / wishes / music polish — shared base styles */
+.inv-manifest--base .inv-manifest-rsvp,
+.inv-manifest--base .inv-section[data-section='wishes'],
+.inv-manifest--base .inv-section[data-section='music'] {
   background: rgba(255, 254, 249, 0.9);
 }
 
-.inv-manifest--wedding-luxury .inv-btn-rsvp {
+.inv-manifest--base .inv-btn-rsvp {
   font-family: var(--inv-font-label);
   font-weight: 700;
   border-radius: 999px;

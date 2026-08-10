@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { AgencyPlanCard } from '@/components/dashboard/AgencyPlanCard';
 import { DashboardOpsStrip } from '@/components/dashboard/DashboardOpsStrip';
-import { resolveEntitlements } from '@/lib/entitlements';
+import { resolveEntitlements, type LegacyPlanSku, type PlanSku } from '@/lib/entitlements';
 import { getI18n } from '@/i18n/server';
 
 export const dynamic = 'force-dynamic';
@@ -37,7 +37,7 @@ export default async function DashboardPage({ searchParams }: Props) {
   const entitlements = resolveEntitlements({
     now: new Date(),
     user: {
-      planSku: (userPlan?.planSku as 'standard' | 'premium' | 'agency' | null) ?? null,
+      planSku: (userPlan?.planSku as PlanSku | LegacyPlanSku | null) ?? null,
       planExpiresAt: userPlan?.planExpiresAt ?? null,
     },
   });
@@ -147,12 +147,12 @@ type DashboardGuestRow = {
               const invEntitlements = resolveEntitlements({
                 now: new Date(),
                 user: {
-                  planSku: (userPlan?.planSku as 'standard' | 'premium' | 'agency' | null) ?? null,
+                  planSku: (userPlan?.planSku as PlanSku | LegacyPlanSku | null) ?? null,
                   planExpiresAt: userPlan?.planExpiresAt ?? null,
                 },
                 invitation: {
                   unlockedPlanSku:
-                    (inv.unlockedPlanSku as 'standard' | 'premium' | 'agency' | null) ?? null,
+                    (inv.unlockedPlanSku as PlanSku | LegacyPlanSku | null) ?? null,
                 },
               });
 

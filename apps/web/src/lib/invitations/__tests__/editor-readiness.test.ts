@@ -11,7 +11,7 @@ const defaultMeta: InvitationDocumentMeta = {
   eventTimezone: 'Asia/Almaty',
   language: 'ru',
   isPast: false,
-  templateKey: 'wedding-luxury',
+  templateKey: 'luxe-gold',
   status: 'draft',
 };
 

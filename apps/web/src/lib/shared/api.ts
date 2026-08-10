@@ -10,7 +10,9 @@ export const SESSION_COOKIE = 'session_token';
 
 export type SessionUser = {
   id: string;
-  phone: string;
+  phone: string | null;
+  email: string | null;
+  avatarUrl: string | null;
   language: 'kz' | 'ru';
   name: string | null;
   isAdmin: boolean;
@@ -29,6 +31,19 @@ export class ApiError extends Error {
 
 export function apiErrorResponse(error: ApiError | Error, logPrefix = 'API') {
   if (error instanceof ApiError) {
+    // Log validation_error server-side so we don't have to ask the user to
+    // inspect Network → Response when the client shape drifts (e.g. a new
+    // wizard field hits a strict zod schema). Other 4xx codes (unauthorized,
+    // forbidden, rate_limited, not_found) are expected operational noise —
+    // don't spam logs with them.
+    if (error.code === 'validation_error' && error.details) {
+      console.error(`[${logPrefix}] validation_error:`, {
+        message: error.message,
+        details: error.details,
+      });
+    } else if (error.status >= 500) {
+      console.error(`[${logPrefix}] ApiError ${error.status}:`, error.message, error.details);
+    }
     return NextResponse.json(
       {
         error: error.code,
@@ -79,6 +94,8 @@ export async function getCurrentSession(): Promise<{
       user: {
         id: session.user.id,
         phone: session.user.phone,
+        email: session.user.email,
+        avatarUrl: session.user.avatarUrl,
         language: session.user.language,
         name: session.user.name,
         isAdmin: session.user.isAdmin,

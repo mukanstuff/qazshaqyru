@@ -24,7 +24,6 @@ import {
 } from '@/lib/invitations/share-url';
 import { checkoutInvitationClient } from '@/lib/payments/checkout-client';
 import type { GuestFunnelStats } from '@/lib/guests/guest-funnel';
-import type { PaidPlanSku } from '@/lib/entitlements';
 import { PLAN_CATALOG } from '@/lib/entitlements/plan-catalog';
 import { PostPublishShareScreen } from '@/components/editor/PostPublishShareScreen';
 import { cn } from '@/lib/shared/utils';
@@ -93,6 +92,29 @@ export function GuestOpsHub(props: GuestOpsHubProps) {
   const [slugDraft, setSlugDraft] = useState(props.invitationSlug);
   const [slugSaved, setSlugSaved] = useState(props.invitationSlug);
   const [showPostPublish, setShowPostPublish] = useState(Boolean(props.showPostPublishShare));
+  const [funnelFilter, setFunnelFilter] = useState<
+    'all' | 'attending' | 'not_attending' | 'pending' | 'opened'
+  >('all');
+
+  const filteredFunnel = useMemo(() => {
+    switch (funnelFilter) {
+      case 'attending':
+        return { ...props.funnel, sent: props.funnel.attending, total: props.funnel.attending };
+      case 'not_attending':
+        return {
+          ...props.funnel,
+          sent: props.funnel.notAttending,
+          total: props.funnel.notAttending,
+        };
+      case 'pending':
+        return { ...props.funnel, sent: props.funnel.pending, total: props.funnel.pending };
+      case 'opened':
+        return { ...props.funnel, sent: props.funnel.opened, total: props.funnel.opened };
+      case 'all':
+      default:
+        return props.funnel;
+    }
+  }, [funnelFilter, props.funnel]);
 
   const publicUrl = useMemo(
     () =>
@@ -108,13 +130,12 @@ export function GuestOpsHub(props: GuestOpsHubProps) {
   const whatsappUrl = useMemo(() => buildWhatsAppShareUrl(shareText), [shareText]);
 
   const unlock = useCallback(
-    async (planSku: PaidPlanSku) => {
-      setBusy(`pay-${planSku}`);
+    async () => {
+      setBusy('pay-template');
       setError(null);
       try {
         const checkout = await checkoutInvitationClient(props.invitationId, {
           intent: 'pay',
-          planSku,
         });
         if (checkout.paymentUrl) {
           window.location.href = checkout.paymentUrl;
@@ -292,21 +313,70 @@ export function GuestOpsHub(props: GuestOpsHubProps) {
               <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[1.12fr_0.88fr]">
                 <section className="space-y-5">
                   <div className="us-glass rounded-[1.75rem] border p-5 shadow-us-sm">
-                    <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="flex flex-wrap gap-2">
+                      {(
+                        [
+                          { value: 'all', label: t('dashboard.guestOps.chipAll') },
+                          {
+                            value: 'attending',
+                            label: t('dashboard.guestOps.attending', {
+                              count: props.funnel.attending,
+                            }),
+                          },
+                          {
+                            value: 'not_attending',
+                            label: t('dashboard.guestOps.notAttending', {
+                              count: props.funnel.notAttending,
+                            }),
+                          },
+                          {
+                            value: 'pending',
+                            label: t('dashboard.guestOps.pending', {
+                              count: props.funnel.pending,
+                            }),
+                          },
+                          {
+                            value: 'opened',
+                            label: t('dashboard.guestOps.opened', {
+                              count: props.funnel.opened,
+                            }),
+                          },
+                        ] as const
+                      ).map((chip) => {
+                        const active = funnelFilter === chip.value;
+                        return (
+                          <button
+                            key={chip.value}
+                            type="button"
+                            onClick={() => setFunnelFilter(chip.value)}
+                            className={cn(
+                              'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+                              active
+                                ? 'border-us-accent bg-us-accent text-white shadow-us-sm'
+                                : 'border-us-border bg-us-cream text-us-ink hover:border-us-accent/40',
+                            )}
+                            aria-pressed={active}
+                          >
+                            {chip.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-4 grid gap-4 sm:grid-cols-3">
                       <MiniFunnelChip
                         label={t('dashboard.guestOps.sent')}
-                        value={props.funnel.sent}
-                        hint={`${props.funnel.total}`}
+                        value={filteredFunnel.sent}
+                        hint={`${filteredFunnel.total}`}
                       />
                       <MiniFunnelChip
                         label={t('dashboard.guestOps.opened')}
-                        value={props.funnel.opened}
-                        hint={`${props.funnel.openedPercent}%`}
+                        value={filteredFunnel.opened}
+                        hint={`${filteredFunnel.openedPercent}%`}
                       />
                       <MiniFunnelChip
                         label={t('dashboard.guestOps.responded')}
-                        value={props.funnel.responded}
-                        hint={`${props.funnel.respondedPercent}%`}
+                        value={filteredFunnel.responded}
+                        hint={`${filteredFunnel.respondedPercent}%`}
                       />
                     </div>
                     <div className="mt-5 flex items-center gap-3 text-sm text-us-ink-muted">
@@ -392,15 +462,15 @@ export function GuestOpsHub(props: GuestOpsHubProps) {
                         <div className="space-y-3">
                           <div>
                             <h2 className="font-display text-2xl">
-                              {t('dashboard.guestOps.guestsLockedTitle')}
+                              {t('dashboard.guestOps.unlockFullAccess')}
                             </h2>
                             <p className="mt-1 text-sm text-us-ink-muted">
                               После оплаты цены шаблона ({(props.priceKzt || 3990 /* admin fallback only; real price from getInvitationPricing */).toLocaleString('ru-RU')} ₸) у вас сразу полный доступ: без водяного знака, все функции гостей, своя ссылка, рассадка и экспорт.
                             </p>
                           </div>
                           <Button
-                            disabled={busy === 'pay-standard'}
-                            onClick={() => void unlock('standard')}
+                            disabled={busy === 'pay-template'}
+                            onClick={() => void unlock()}
                             className="w-full"
                           >
                             Оплатить цену шаблона — получить полный доступ
@@ -457,16 +527,14 @@ export function GuestOpsHub(props: GuestOpsHubProps) {
                   ) : props.watermark ? (
                     <div className="us-glass rounded-[1.75rem] border p-4 sm:p-5 shadow-us-sm">
                       <p className="text-sm text-us-ink-muted">
-                        {t('dashboard.guestOps.freePublishNote', {
-                          price: props.priceKzt.toLocaleString('ru-RU'),
-                        })}
+                        {t('dashboard.guestOps.unlockFullAccess')}
                       </p>
                       <Button
                         className="mt-3"
                         disabled={!!busy}
-                        onClick={() => void unlock('standard')}
+                        onClick={() => void unlock()}
                       >
-                        {t('dashboard.guestOps.removeWatermark')}
+                        {t('dashboard.guestOps.unlockFullAccess')}
                       </Button>
                     </div>
                   ) : null}

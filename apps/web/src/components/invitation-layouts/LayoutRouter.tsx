@@ -33,7 +33,6 @@ import type { InvitationDocumentSection } from '@/lib/invitations/document';
 import type { EventType } from '@prisma/client';
 import { useI18n } from '@/i18n';
 import { EditorToolbar } from '@/components/editor/EditorToolbar';
-import { shouldRenderEditorToolbar } from '@/components/live-editor/section-labels';
 import {
   GuestBottomSheet,
   GuestEnvelopeIntro,
@@ -484,21 +483,27 @@ export function InvitationLayoutRouter({
     setShowShareMenu(false);
   }, [slug, invitation, locale]);
 
-  // ─── Loading ───
+  // ─── Loading / Error ───
+  // In framed preview (used by /preview/[templateKey]), wrap in .preview-invitation
+  // so .guest-page's cream background (defined in invitation.css) is overridden by
+  // .preview-invitation .guest-page { background: transparent } in globals.css.
+  const wrapInPreviewInvitation = framedPreview;
+  const previewWrapper = (inner: React.ReactNode) =>
+    wrapInPreviewInvitation ? <div className="preview-invitation">{inner}</div> : inner;
+
   if (loading) {
-    return (
+    return previewWrapper(
       <div className="guest-page guest-loading">
         <div className="guest-loading__inner">
           <Loader2 className="h-10 w-10 animate-spin" />
           <p>{t('common.loading')}</p>
         </div>
-      </div>
+      </div>,
     );
   }
 
-  // ─── Error ───
   if (loadError || !invitation) {
-    return (
+    return previewWrapper(
       <div className="guest-page guest-error">
         <div className="guest-error__inner">
           <span aria-hidden>!</span>
@@ -506,7 +511,7 @@ export function InvitationLayoutRouter({
           <p>{t('public.errors.checkLink')}</p>
           <a href="/">{t('public.backHome')}</a>
         </div>
-      </div>
+      </div>,
     );
   }
 
@@ -583,10 +588,7 @@ export function InvitationLayoutRouter({
   const skipGuestEnvelopeIntro =
     Boolean(manifestForChrome) && manifestHasEnvelopeIntro(manifestForChrome!);
 
-  const showEditorToolbar = shouldRenderEditorToolbar({
-    isEditing,
-    previewEmbedFrame,
-  });
+  const showEditorToolbar = isEditing && !previewEmbedFrame;
 
   const editorToolbar = showEditorToolbar ? (
     <EditorToolbar
@@ -761,16 +763,9 @@ export function InvitationLayoutRouter({
 
   if (framedPreview) {
     return (
-      <div className="editor-phone-preview" data-testid="editor-phone-preview">
-        {editorToolbar}
-        <div className="mx-auto w-full max-w-sm overflow-hidden rounded-xl border border-us-border">
-          <div
-            className={guestPageClass}
-            onClick={handleMusicInteraction}
-            style={guestPageStyle}
-          >
-            {invitationSurface}
-          </div>
+      <div className="preview-invitation">
+        <div className={guestPageClass} onClick={handleMusicInteraction} style={guestPageStyle}>
+          {invitationSurface}
         </div>
       </div>
     );

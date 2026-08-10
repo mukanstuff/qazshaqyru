@@ -17,7 +17,7 @@ describe('text-presets', () => {
 
   it('resolves event type from template slug', () => {
     expect(eventTypeFromSlug('kyz-traditional')).toBe('kyz_uzatu');
-    expect(eventTypeFromSlug('wedding-luxury')).toBe('wedding');
+    expect(eventTypeFromSlug('luxe-gold')).toBe('wedding');
     expect(eventTypeFromSlug('sundet-gold')).toBe('sundet_toy');
   });
 

@@ -21,10 +21,10 @@ const FEATURE_LABELS: Record<TemplateFeature, { ru: string; kz: string }> = {
 };
 
 const TEMPLATE_IDENTITY_PROFILES: Record<string, TemplateIdentityProfile> = {
-  'wedding-luxury': {
+  'luxe-gold': {
     features: ['rsvp', 'music', 'map', 'countdown', 'wishes'],
-    signatureRu: 'Классическое свадебное приглашение с анимацией конверта',
-    signatureKz: 'Үйлену той шақыруы — конверт анимациясымен',
+    signatureRu: 'Свадебное приглашение в золотой палитре с кинематографичным конвертом',
+    signatureKz: 'Алтын түсті үйлену той шақыруы — конверт анимациясымен',
   },
 };
 
