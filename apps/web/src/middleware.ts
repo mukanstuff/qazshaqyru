@@ -18,6 +18,23 @@ function createCspNonce(): string {
 const PROTECTED_PATHS = ['/dashboard', '/invitations', '/settings', '/admin'];
 const AUTH_PATHS = ['/login', '/verify'];
 
+// Step 1.2: HTML-engine templates (hello-world, test-demo) were removed.
+// Visiting /i/<slug> where slug is in this set returns 410 Gone.
+const LEGACY_HTML_TEMPLATE_SLUGS = new Set<string>(['hello-world', 'test-demo']);
+
+function legacyHtmlGoneResponse(): NextResponse {
+  const body = `<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8" /><title>410 Gone</title></head>` +
+    `<body style="font-family:system-ui;padding:48px;text-align:center;background:#fafafa;color:#111;">` +
+    `<h1 style="margin:0 0 12px 0;font-size:24px;">410 — Шаблон больше недоступен</h1>` +
+    `<p style="margin:0 0 20px 0;color:#555;">Этот HTML-шаблон был удалён (шаг 1.2). Выберите актуальный в каталоге.</p>` +
+    `<a href="/templates" style="display:inline-block;padding:10px 20px;background:#111;color:#fff;border-radius:8px;text-decoration:none;">Открыть каталог</a>` +
+    `</body></html>`;
+  return new NextResponse(body, {
+    status: 410,
+    headers: { 'content-type': 'text/html; charset=utf-8' },
+  });
+}
+
 function isWellFormedSessionToken(token: string): boolean {
   return /^[a-f0-9]{64}$/.test(token);
 }
@@ -61,6 +78,16 @@ function applySecurityHeaders(response: NextResponse, pathname: string, request:
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Step 1.2: short-circuit /i/<legacy-html-slug> with a true HTTP 410
+  // before any locale decision or page rendering kicks in.
+  if (pathname.startsWith('/i/')) {
+    const tail = pathname.slice('/i/'.length);
+    const slug = tail.split('/')[0] ?? '';
+    if (LEGACY_HTML_TEMPLATE_SLUGS.has(slug)) {
+      return legacyHtmlGoneResponse();
+    }
+  }
 
   const localeDecision = decideLocaleMiddleware(pathname);
   if (localeDecision.kind === 'redirect-legacy-kz') {

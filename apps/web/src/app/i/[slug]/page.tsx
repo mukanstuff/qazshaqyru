@@ -1,13 +1,9 @@
 import { Metadata } from 'next';
-import PublicInvitationClient from './public-invitation-client';
-import HtmlGuestPage from './HtmlGuestPage';
-import prisma from '@/lib/shared/db';
 import { notFound } from 'next/navigation';
+import PublicInvitationClient from './public-invitation-client';
+import prisma from '@/lib/shared/db';
 import { verifyPreviewToken } from '@/lib/invitations/preview-token';
 import { getCurrentSession } from '@/lib/shared/api';
-import { getHtmlTemplateDescriptor } from '@/lib/templates/manifests/index';
-import { generateHtmlTemplateMetadata } from './HtmlGuestPage';
-import type { Locale } from '@/lib/templates/html-engine/types';
 
 interface PageProps {
   params: { slug: string };
@@ -76,23 +72,15 @@ function buildShareDescription(
   return `Приглашаем вас: ${title} · ${dateStr}${timePart}${placePart}`;
 }
 
-/** Determine the effective templateKey for the invitation. */
-async function resolveTemplateKey(
-  slug: string,
-  explicitLayout?: string | null,
-): Promise<{ templateKey: string; invitationLanguage: Locale } | null> {
-  if (slug === 'demo') {
-    const templateKey = explicitLayout ?? 'luxe-gold';
-    return { templateKey, invitationLanguage: 'ru' };
-  }
-
-  const invitation = await loadInvitationForPage(slug);
-  if (!invitation) return null;
-  return { templateKey: invitation.templateKey, invitationLanguage: invitation.user?.language ?? 'ru' };
-}
+/**
+ * Step 1.2: HTML-engine templates (hello-world, test-demo) were removed.
+ * Middleware intercepts /i/<legacy-html-slug> with a true HTTP 410 before
+ * this page renders. No server-component workaround needed.
+ */
+const LEGACY_HTML_TEMPLATE_SLUGS = new Set<string>(); // reserved — middleware is the source of truth.
 
 export async function generateMetadata({ params, searchParams }: PageProps): Promise<Metadata> {
-  const { preview, family, layout } = await searchParams;
+  const { family, preview } = await searchParams;
   const rawSlug = params.slug;
 
   if (rawSlug === 'demo') {
@@ -138,25 +126,10 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
     };
   }
 
-  // Determine templateKey and check if it's an HTML-engine template.
-  const resolved = await resolveTemplateKey(rawSlug, layout);
-  if (!resolved) {
-    return { title: 'Приглашение не найдено', robots: { index: false, follow: false } };
+  if (LEGACY_HTML_TEMPLATE_SLUGS.has(rawSlug)) {
+    return { title: 'Шаблон удалён', robots: { index: false, follow: false } };
   }
 
-  const { templateKey } = resolved;
-
-  // HTML-engine templates get their own metadata generation.
-  if (getHtmlTemplateDescriptor(templateKey)) {
-    return generateHtmlTemplateMetadata({
-      slug: rawSlug,
-      templateKey,
-      isDemo: false,
-      locale: 'ru',
-    });
-  }
-
-  // Legacy React-sections metadata (existing behavior).
   const decodedSlug = decodeURIComponent(rawSlug);
   const invitation = await loadInvitationForMetadata(decodedSlug);
   const familyToken = family || preview || null;
@@ -225,49 +198,36 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
   };
 }
 
+/** Step 1.2: page-level dispatcher. Legacy html-engine slugs are intercepted by middleware (410). */
 export default async function PublicInvitationPage({ params, searchParams }: PageProps) {
-  const { guest, layout, family, preview, embed, locale: localeParam } = await searchParams;
+  const { guest, layout, family, preview, embed } = await searchParams;
   const familyToken = family || preview || null;
   const rawSlug = params.slug;
 
-  // 1. Determine templateKey.
-  const resolved = await resolveTemplateKey(rawSlug, layout);
-  if (!resolved) notFound();
-  const { templateKey, invitationLanguage } = resolved!;
-
-  // 2. Auth check for non-demo invitations.
-  if (rawSlug !== 'demo') {
-    const decodedSlug = decodeURIComponent(rawSlug);
-    const invitation = await loadInvitationForPage(decodedSlug);
-    if (!invitation) notFound();
-    if (invitation.status !== 'published') {
-      const session = await getCurrentSession();
-      const isOwner = session?.user.id === invitation.userId;
-      if (!isOwner && (!familyToken || !verifyPreviewToken(familyToken, invitation.previewTokenHash))) {
-        notFound();
-      }
-    }
-  }
-
-  // 3. Check if template is an HTML-engine template.
-  if (getHtmlTemplateDescriptor(templateKey)) {
-    const locale: Locale =
-      localeParam === 'kz' || localeParam === 'ru'
-        ? localeParam
-        : invitationLanguage;
-
+  // demo branch keeps working without html-engine
+  if (rawSlug === 'demo') {
     return (
-      <HtmlGuestPage
+      <PublicInvitationClient
         slug={rawSlug}
-        templateKey={templateKey}
-        isDemo={rawSlug === 'demo'}
-        locale={locale}
-        embed={embed === '1'}
+        guestToken={guest || null}
+        familyToken={familyToken}
+        demoLayout={layout}
+        embedPreview={embed === '1'}
       />
     );
   }
 
-  // 4. Fallback to React-sections renderer.
+  const decodedSlug = decodeURIComponent(rawSlug);
+  const invitation = await loadInvitationForPage(decodedSlug);
+  if (!invitation) notFound();
+  if (invitation.status !== 'published') {
+    const session = await getCurrentSession();
+    const isOwner = session?.user.id === invitation.userId;
+    if (!isOwner && (!familyToken || !verifyPreviewToken(familyToken, invitation.previewTokenHash))) {
+      notFound();
+    }
+  }
+
   return (
     <PublicInvitationClient
       slug={rawSlug}
