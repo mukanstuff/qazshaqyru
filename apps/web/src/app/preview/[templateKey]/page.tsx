@@ -20,8 +20,11 @@ import { getHtmlTemplateDescriptor } from '@/lib/templates/manifests';
 import { renderHtmlTemplate } from '@/lib/templates/html-engine/renderer';
 import { notFound } from 'next/navigation';
 import { PreviewWithInlineEditor } from './_components/PreviewWithInlineEditor';
+import { PreviewCanvasClient } from './_components/PreviewCanvasClient';
 import type { Locale } from '@/lib/templates/html-engine/types';
 import type { HtmlEditorFields } from '@/lib/templates/html-engine/editor/types';
+import type { InvitationCanvasDocument } from '@/lib/canvas/types';
+import { parseCanvasOrEmpty } from '@/lib/canvas/validation';
 import prisma from '@/lib/shared/db';
 
 export const dynamic = 'force-dynamic';
@@ -61,6 +64,23 @@ export default async function PreviewPage({ params, searchParams }: Props) {
   const backHref = locale === 'kz' ? '/kz/templates' : '/ru/templates';
 
   const descriptor = getHtmlTemplateDescriptor(slug);
+  const dbTemplate = descriptor ? null : await prisma.template.findUnique({
+    where: { slug },
+    select: { id: true, slug: true, nameRu: true, isCanvasTemplate: true, canvas: true },
+  });
+
+  if (dbTemplate && dbTemplate.isCanvasTemplate) {
+    const document: InvitationCanvasDocument = parseCanvasOrEmpty(dbTemplate.canvas);
+    return (
+      <PreviewCanvasClient
+        templateSlug={dbTemplate.slug}
+        templateName={dbTemplate.nameRu}
+        locale={effectiveLocale}
+        document={document}
+      />
+    );
+  }
+
   if (!descriptor) {
     return notFound();
   }
