@@ -7,6 +7,7 @@ import { HistoryStack, addElement, deleteElement, duplicateElement, moveElement,
 import { InspectorPanel } from './InspectorPanel';
 import { ElementPalette } from './ElementPalette';
 import { EditorToolbar } from './EditorToolbar';
+import { GuestCanvasHeader } from './GuestCanvasHeader';
 import { SelectionChrome } from './SelectionChrome';
 import { ElementContextMenu } from './ElementContextMenu';
 import { PresetLibraryModal } from './PresetLibraryModal';
@@ -41,12 +42,23 @@ export interface CanvasEditorProps {
    * When omitted, the editor only syncs on initial mount (safe for invitations).
    */
   templateId?: string;
+  /**
+   * 2026-08-14: editorMode controls WHO is at the keyboard.
+   *   'admin' (default) — full chrome (toolbar, palette, inspector), double-click to edit text,
+   *                       selection chrome with resize/rotate handles.
+   *   'guest'           — minimal header (back / save status), single-tap to edit text,
+   *                       no selection chrome, no palette, no inspector.
+   *
+   * Both modes share the same document / autosave / history. This is the first step of the
+   * "one engine, two surfaces" plan (see admin/guest split, 2026-08-14).
+   */
+  editorMode?: 'admin' | 'guest';
 }
 
 export type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 export function CanvasEditor(props: CanvasEditorProps) {
-  const { initialDocument, onChange, onSaveRequest, shareUrl, locale = 'ru', mode = 'user', chrome = 'full', invitationId, templateId } = props;
+  const { initialDocument, onChange, onSaveRequest, shareUrl, locale = 'ru', mode = 'user', chrome = 'full', invitationId, templateId, editorMode = 'admin' } = props;
   const [doc, setDoc] = useState<InvitationCanvasDocument>(initialDocument);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [viewport, setViewport] = useState<'mobile' | 'desktop'>('mobile');
@@ -485,21 +497,30 @@ export function CanvasEditor(props: CanvasEditorProps) {
   }, [doc, stageWidth, viewport]);
 
   const isMinimal = chrome === 'minimal';
+  const isGuest = editorMode === 'guest';
 
   const { t } = useI18n();
 
   return (
-    <div className="flex h-full flex-col bg-[#1b1419] text-zinc-100">
-      {/* Toolbar is always shown (even in minimal) for basic save/zoom actions */}
-      <EditorToolbar
-        viewport={viewport}
-        onViewportChange={setViewport}
-        zoom={zoom}
-        onZoomChange={setZoom}
-        showGrid={showGrid}
-        onToggleGrid={() => setShowGrid((g) => !g)}
-        canUndo={historyRef.current?.canUndo() ?? false}
-        canRedo={historyRef.current?.canRedo() ?? false}
+    <div className="canvas-editor-shell flex h-full flex-col" data-editor-mode={editorMode}>
+      {/* 2026-08-14: editorMode === 'guest' shows a lightweight header (back / save status / save).
+          Admin keeps the full EditorToolbar (viewport, zoom, grid, undo/redo, presets, PNG). */}
+      {isGuest ? (
+        <GuestCanvasHeader
+          saveState={saveState}
+          lastSaved={lastSaved}
+          onSaveNow={() => scheduleSave(doc)}
+        />
+      ) : (
+        <EditorToolbar
+          viewport={viewport}
+          onViewportChange={setViewport}
+          zoom={zoom}
+          onZoomChange={setZoom}
+          showGrid={showGrid}
+          onToggleGrid={() => setShowGrid((g) => !g)}
+          canUndo={historyRef.current?.canUndo() ?? false}
+          canRedo={historyRef.current?.canRedo() ?? false}
         onUndo={() => {
           const p = historyRef.current!.undo();
           if (p) setDoc(p);
@@ -522,15 +543,16 @@ export function CanvasEditor(props: CanvasEditorProps) {
         onSaveNow={() => scheduleSave(doc)}
         mode={mode}
       />
-      {!isMinimal && (
-        <div className="md:hidden px-4 py-2 border-b border-zinc-800 bg-amber-500/10 text-amber-200 text-xs text-center" role="status">
+      )}
+      {!isMinimal && !isGuest && (
+        <div className="md:hidden px-4 py-2 border-b text-xs text-center" role="status" style={{ borderColor: 'var(--ed-border)', background: 'rgba(22, 163, 74, 0.06)', color: 'var(--ed-accent)' }}>
           {t('invitation.edit.canvas.mobileHint')}
         </div>
       )}
       <div className="flex flex-1 min-h-0">
-        {/* Hide full palette in minimal chrome, or on mobile (< md) — palette is 240px and breaks the layout on phones. */}
-        {!isMinimal && (
-          <div className="hidden md:flex">
+        {/* Hide full palette in minimal chrome OR in guest mode (guest never adds elements) */}
+        {!isMinimal && !isGuest && (
+          <div className="hidden md:flex" style={{ flexShrink: 0 }}>
             <ElementPalette
               onAdd={handleAdd}
               locale={locale}
@@ -579,36 +601,43 @@ export function CanvasEditor(props: CanvasEditorProps) {
                 document={effectiveDoc}
                 mode="editor"
                 selectedId={selectedId}
-                onSelect={setSelectedId}
+                onSelect={isGuest ? undefined : setSelectedId}
                 editingTextId={editingTextId}
                 onStartTextEdit={handleStartTextEdit}
                 onStopTextEdit={handleStopTextEdit}
                 onTextChange={handleTextChange}
                 onTextPatch={handleTextPatch}
-                renderEditorShell={(el, children) => (
-                  <SelectionChrome
-                    el={el}
-                    selected={el.id === selectedId}
-                    zoom={zoom}
-                    onDragStart={(e) => beginDrag(el.id, e)}
-                    onResizeStart={(e, handle) => beginResize(el.id, handle, e)}
-                    onRotateStart={(e) => beginRotate(el.id, e)}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setSelectedId(el.id);
-                      setContextMenu({ x: e.clientX, y: e.clientY, el });
-                    }}
-                    onToolbarColorChange={toolbarColorChange}
-                    onToolbarFontSizeChange={toolbarFontSizeChange}
-                    onToolbarDuplicate={toolbarDuplicate}
-                    onToolbarDelete={toolbarDelete}
-                    onToolbarUndo={toolbarUndo}
-                    onToolbarRedo={toolbarRedo}
-                  >
-                    {children}
-                  </SelectionChrome>
-                )}
+                editingTrigger={isGuest ? 'single' : 'double'}
+                renderEditorShell={
+                  isGuest
+                    ? // Guest mode: NO selection chrome, no drag/resize/rotate, no mini-toolbar.
+                      // EditableTextView handles its own affordance (cursor on hover).
+                      (_el, children) => <>{children}</>
+                    : (el, children) => (
+                        <SelectionChrome
+                          el={el}
+                          selected={el.id === selectedId}
+                          zoom={zoom}
+                          onDragStart={(e) => beginDrag(el.id, e)}
+                          onResizeStart={(e, handle) => beginResize(el.id, handle, e)}
+                          onRotateStart={(e) => beginRotate(el.id, e)}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setSelectedId(el.id);
+                            setContextMenu({ x: e.clientX, y: e.clientY, el });
+                          }}
+                          onToolbarColorChange={toolbarColorChange}
+                          onToolbarFontSizeChange={toolbarFontSizeChange}
+                          onToolbarDuplicate={toolbarDuplicate}
+                          onToolbarDelete={toolbarDelete}
+                          onToolbarUndo={toolbarUndo}
+                          onToolbarRedo={toolbarRedo}
+                        >
+                          {children}
+                        </SelectionChrome>
+                      )
+                }
                 forceAnimations={previewAnim}
                 shareUrl={shareUrl}
                 locale={locale}
@@ -645,9 +674,9 @@ export function CanvasEditor(props: CanvasEditorProps) {
           </div>
         </div>
 
-        {/* Hide inspector in minimal chrome, or on mobile (< md) — inspector is 288px and breaks the layout on phones. */}
-        {!isMinimal && (
-          <div className="hidden md:block">
+        {/* Hide inspector in minimal chrome OR guest mode, or on mobile (< md) — inspector is 288px and breaks the layout on phones. */}
+        {!isMinimal && !isGuest && (
+          <div className="hidden md:block" style={{ flexShrink: 0 }}>
             <InspectorPanel
             selected={selected}
             onUpdate={handleUpdateSelected}

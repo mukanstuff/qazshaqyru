@@ -35,61 +35,85 @@ function formatAgo(d: Date | null, locale: 'ru' | 'kz') {
 
 export function EditorToolbar(p: ToolbarProps) {
   const { t, locale } = useI18n();
-  const btn =
-    'inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-zinc-200 hover:bg-zinc-700/60 disabled:opacity-40';
 
   return (
-    <header className="flex items-center gap-3 px-4 py-2 border-b border-zinc-800 bg-zinc-950/80 text-zinc-100 text-sm shrink-0 overflow-x-auto whitespace-nowrap">
-      <button className={btn} onClick={p.onUndo} disabled={!p.canUndo} title="Ctrl/Cmd+Z">↶ {t('invitation.edit.canvas.undo')}</button>
-      <button className={btn} onClick={p.onRedo} disabled={!p.canRedo} title="Ctrl/Cmd+Shift+Z">↷ {t('invitation.edit.canvas.redo')}</button>
-      <span className="mx-2 h-5 w-px bg-zinc-800" />
-      <div className="flex items-center gap-1 rounded bg-zinc-800 p-0.5">
+    <header className="canvas-toolbar">
+      <button className="ct-btn" onClick={p.onUndo} disabled={!p.canUndo} title="Ctrl/Cmd+Z">
+        ↶ {t('invitation.edit.canvas.undo')}
+      </button>
+      <button className="ct-btn" onClick={p.onRedo} disabled={!p.canRedo} title="Ctrl/Cmd+Shift+Z">
+        ↷ {t('invitation.edit.canvas.redo')}
+      </button>
+      <span className="ct-divider" />
+
+      <div className="ct-viewport-group">
         <button
-          className={btn + (p.viewport === 'mobile' ? ' bg-[#6b1d3a]' : '')}
+          className={`ct-btn ${p.viewport === 'mobile' ? 'is-active' : ''}`}
           onClick={() => p.onViewportChange('mobile')}
         >
           📱 {t('invitation.edit.canvas.mobile')}
         </button>
         <button
-          className={btn + (p.viewport === 'desktop' ? ' bg-[#6b1d3a]' : '')}
+          className={`ct-btn ${p.viewport === 'desktop' ? 'is-active' : ''}`}
           onClick={() => p.onViewportChange('desktop')}
         >
           🖥 {t('invitation.edit.canvas.desktop')}
         </button>
       </div>
-      <span className="mx-2 h-5 w-px bg-zinc-800" />
+
+      <span className="ct-divider" />
+
       <select
         value={p.zoom}
         onChange={(e) => p.onZoomChange(Number(e.target.value))}
-        className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs"
+        className="canvas-inspector-input"
+        style={{ width: 'auto', display: 'inline-flex', padding: '4px 24px 4px 8px', fontSize: '12px' }}
       >
         <option value={0.5}>50%</option>
         <option value={0.75}>75%</option>
         <option value={1}>100%</option>
         <option value={1.25}>125%</option>
       </select>
-      <button className={btn} onClick={() => p.onZoomChange(1)}>{t('invitation.edit.canvas.zoomFit')}</button>
-      <label className="flex items-center gap-1 text-xs">
-        <input type="checkbox" checked={p.showGrid} onChange={p.onToggleGrid} />
+
+      <button className="ct-btn" onClick={() => p.onZoomChange(1)}>
+        {t('invitation.edit.canvas.zoomFit')}
+      </button>
+
+      <label className="ct-btn" style={{ gap: '6px', cursor: 'pointer' }}>
+        <input
+          type="checkbox"
+          checked={p.showGrid}
+          onChange={p.onToggleGrid}
+          style={{ accentColor: 'var(--ed-accent)' }}
+        />
         {t('invitation.edit.canvas.grid')}
       </label>
-      <span className="mx-2 h-5 w-px bg-zinc-800" />
+
+      <span className="ct-divider" />
+
       {p.onOpenPresets && (
-        <button className={btn} onClick={p.onOpenPresets}>
+        <button className="ct-btn" onClick={p.onOpenPresets}>
           ✨ {t('invitation.edit.canvas.presets')}
         </button>
       )}
+
       {p.onExportPNG && (
-        <button className={btn} onClick={p.onExportPNG}>
+        <button className="ct-btn" onClick={p.onExportPNG}>
           ⬇ {t('invitation.edit.canvas.exportPng')}
         </button>
       )}
-      <button className={btn} onClick={p.onPreviewAnimations}>▶ {t('invitation.edit.canvas.animPreview')}</button>
-      <button className={btn} onClick={p.onPreviewGuest}>👁 {t('invitation.edit.canvas.preview')}</button>
 
-      <div className="ml-auto flex items-center gap-3">
+      <button className="ct-btn" onClick={p.onPreviewAnimations}>
+        ▶ {t('invitation.edit.canvas.animPreview')}
+      </button>
+
+      <button className="ct-btn" onClick={p.onPreviewGuest}>
+        👁 {t('invitation.edit.canvas.preview')}
+      </button>
+
+      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '12px' }}>
         {p.mode === 'template-builder' && (
-          <span className="text-xs text-[#c9a961] border border-[#c9a961]/40 rounded px-2 py-0.5">
+          <span className="ct-badge">
             {t('invitation.edit.canvas.templateBuilder')}
           </span>
         )}
@@ -112,21 +136,21 @@ function SaveIndicator({
 }) {
   const { t } = useI18n();
   if (state === 'saving') {
-    return <span className="text-xs text-zinc-400">⟳ {t('invitation.edit.canvas.saving')}</span>;
+    return <span className="ct-save-indicator is-saving">⟳ {t('invitation.edit.canvas.saving')}</span>;
   }
   if (state === 'error') {
     return (
-      <button onClick={onClick} className="text-xs text-rose-400 hover:underline">
+      <button onClick={onClick} className="ct-save-indicator is-error" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
         ⚠ {t('invitation.edit.canvas.saveError')}
       </button>
     );
   }
   if (state === 'saved') {
     return (
-      <span className="text-xs text-emerald-400">
+      <span className="ct-save-indicator is-saved">
         ✓ {t('invitation.edit.canvas.saved')} · {formatAgo(lastSaved, locale)}
       </span>
     );
   }
-  return <span className="text-xs text-zinc-500">{t('invitation.edit.canvas.idle')}</span>;
+  return <span className="ct-save-indicator is-idle">{t('invitation.edit.canvas.idle')}</span>;
 }

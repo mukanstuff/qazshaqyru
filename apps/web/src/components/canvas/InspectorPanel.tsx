@@ -275,8 +275,8 @@ export function InspectorPanel(props: InspectorProps) {
 
   if (!selected && !document) {
     return (
-      <aside className="w-72 shrink-0 border-l border-zinc-800 bg-zinc-900/80 p-4 text-sm text-zinc-400">
-        {t.emptyHint}
+      <aside className="canvas-inspector">
+        <div className="ci-empty">{t.emptyHint}</div>
       </aside>
     );
   }
@@ -305,16 +305,13 @@ export function InspectorPanel(props: InspectorProps) {
   const showDocument = tab === 'document';
 
   return (
-    <aside className="w-72 shrink-0 border-l border-zinc-800 bg-zinc-900/80 text-sm text-zinc-100 flex flex-col">
-      <div className="flex border-b border-zinc-800 text-xs">
+    <aside className="canvas-inspector">
+      <div className="ci-tabs">
         <button
           type="button"
           aria-pressed={tab === 'element'}
           onClick={() => setTab('element')}
-          className={
-            'flex-1 py-2 font-semibold ' +
-            (tab === 'element' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-400 hover:bg-zinc-800/60')
-          }
+          className={`ci-tab ${tab === 'element' ? 'is-active' : ''}`}
         >
           {locale === 'ru' ? 'Элемент' : 'Элемент'}
         </button>
@@ -322,18 +319,15 @@ export function InspectorPanel(props: InspectorProps) {
           type="button"
           aria-pressed={tab === 'document'}
           onClick={() => setTab('document')}
-          className={
-            'flex-1 py-2 font-semibold ' +
-            (tab === 'document' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-400 hover:bg-zinc-800/60')
-          }
+          className={`ci-tab ${tab === 'document' ? 'is-active' : ''}`}
         >
           {locale === 'ru' ? 'Документ' : 'Құжат'}
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-5">
+      <div className="ci-body">
         {showElement && noSelection && (
-          <div className="text-xs text-zinc-400">{t.emptyHint}</div>
+          <div className="ci-empty">{t.emptyHint}</div>
         )}
 
         {showElement && !noSelection && (
@@ -372,36 +366,38 @@ export function InspectorPanel(props: InspectorProps) {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section>
-      <h4 className="mb-2 text-xs uppercase tracking-wider text-zinc-400">{title}</h4>
-      <div className="space-y-2">{children}</div>
+    <section className="ci-section">
+      <h4 className="ci-section-title">{title}</h4>
+      <div>{children}</div>
     </section>
   );
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="flex items-center gap-2 justify-between">
-      <span className="text-zinc-300 text-xs">{label}</span>
+    <label className="ci-row">
+      <span className="ci-row-label">{label}</span>
       {children}
     </label>
   );
 }
 
-const inputCls =
-  'w-32 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-100 focus:outline-none focus:border-[#c9a961]';
+const inputCls = 'canvas-inspector-input';
+const numCls = 'canvas-inspector-num';
+const textCls = 'canvas-inspector-input';
 
 function TextSection({ el, onUpdate, t }: { el: TextElement; onUpdate: (p: Partial<TextElement>) => void; t: typeof T.ru }) {
   return (
     <>
       <Section title={t.text}>
-        <label className="block">
-          <span className="text-xs text-zinc-300 block mb-1">{t.content}</span>
+        <label style={{ display: 'block', marginBottom: '8px' }}>
+          <span style={{ fontSize: '12px', color: 'var(--ed-text-muted)', display: 'block', marginBottom: '4px' }}>{t.content}</span>
           <textarea
             value={el.text}
             rows={3}
             onChange={(e) => onUpdate({ text: e.target.value } as Partial<TextElement>)}
-            className={inputCls + ' w-full h-20 resize-none'}
+            className="canvas-inspector-textarea is-block"
+            style={{ height: '80px' }}
           />
         </label>
         <Field label={t.font}>
@@ -414,14 +410,14 @@ function TextSection({ el, onUpdate, t }: { el: TextElement; onUpdate: (p: Parti
             min={6}
             max={200}
             onChange={(e) => onUpdate({ fontSize: Number(e.target.value) } as Partial<TextElement>)}
-            className={inputCls}
+            className={numCls}
           />
         </Field>
         <Field label={t.weight}>
           <select
             value={el.fontWeight}
             onChange={(e) => onUpdate({ fontWeight: Number(e.target.value) as TextElement['fontWeight'] } as Partial<TextElement>)}
-            className={inputCls}
+            className={inputCls + ' canvas-inspector-select'}
           >
             {[300, 400, 500, 600, 700, 800].map((w) => (
               <option key={w} value={w}>{w}</option>
@@ -435,7 +431,7 @@ function TextSection({ el, onUpdate, t }: { el: TextElement; onUpdate: (p: Parti
           <select
             value={el.textAlign}
             onChange={(e) => onUpdate({ textAlign: e.target.value as TextElement['textAlign'] } as Partial<TextElement>)}
-            className={inputCls}
+            className={inputCls + ' canvas-inspector-select'}
           >
             <option value="left">←</option>
             <option value="center">↔</option>
@@ -450,24 +446,24 @@ function TextSection({ el, onUpdate, t }: { el: TextElement; onUpdate: (p: Parti
             max={5}
             value={el.lineHeight}
             onChange={(e) => onUpdate({ lineHeight: Number(e.target.value) } as Partial<TextElement>)}
-            className={inputCls}
+            className={numCls}
           />
         </Field>
-        <label className="flex items-center gap-2 text-xs">
+        <label className="ci-checkbox">
           <input
             type="checkbox"
             checked={!!el.italic}
             onChange={(e) => onUpdate({ italic: e.target.checked } as Partial<TextElement>)}
           />
-          {t.italic}
+          <span className="ci-checkbox-label">{t.italic}</span>
         </label>
-        <label className="flex items-center gap-2 text-xs">
+        <label className="ci-checkbox">
           <input
             type="checkbox"
             checked={!!el.uppercase}
             onChange={(e) => onUpdate({ uppercase: e.target.checked } as Partial<TextElement>)}
           />
-          {t.upper}
+          <span className="ci-checkbox-label">{t.upper}</span>
         </label>
       </Section>
     </>
@@ -484,6 +480,7 @@ function ImageSection({ el, onUpdate, t }: { el: ImageElement; onUpdate: (p: Par
           max={60}
           value={el.borderRadius}
           onChange={(e) => onUpdate({ borderRadius: Number(e.target.value) } as Partial<ImageElement>)}
+          className="ci-range"
         />
       </Field>
       <Field label={t.borderRadius}>
@@ -491,7 +488,7 @@ function ImageSection({ el, onUpdate, t }: { el: ImageElement; onUpdate: (p: Par
           type="number"
           value={el.borderRadius}
           onChange={(e) => onUpdate({ borderRadius: Number(e.target.value) } as Partial<ImageElement>)}
-          className={inputCls}
+          className={numCls}
         />
       </Field>
       <Field label={t.link}>
@@ -529,7 +526,7 @@ function ButtonSection({ el, onUpdate, t }: { el: ButtonElement; onUpdate: (p: P
           type="number"
           value={el.borderRadius}
           onChange={(e) => onUpdate({ borderRadius: Number(e.target.value) } as Partial<ButtonElement>)}
-          className={inputCls}
+          className={numCls}
         />
       </Field>
     </Section>
@@ -543,7 +540,7 @@ function ShapeSection({ el, onUpdate, t }: { el: ShapeElement; onUpdate: (p: Par
         <select
           value={el.shape}
           onChange={(e) => onUpdate({ shape: e.target.value as ShapeElement['shape'] } as Partial<ShapeElement>)}
-          className={inputCls}
+          className={inputCls + ' canvas-inspector-select'}
         >
           <option value="rect">Прямоугольник</option>
           <option value="circle">Круг</option>
@@ -563,6 +560,7 @@ function ShapeSection({ el, onUpdate, t }: { el: ShapeElement; onUpdate: (p: Par
           step={0.05}
           value={el.opacity ?? 1}
           onChange={(e) => onUpdate({ opacity: Number(e.target.value) } as Partial<ShapeElement>)}
+          className="ci-range"
         />
       </Field>
     </Section>
@@ -572,13 +570,13 @@ function ShapeSection({ el, onUpdate, t }: { el: ShapeElement; onUpdate: (p: Par
 function PositionSection({ el, onUpdate, t }: { el: CanvasElement; onUpdate: (p: Partial<CanvasElement>) => void; t: typeof T.ru }) {
   return (
     <Section title={t.position}>
-      <div className="grid grid-cols-2 gap-2">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
         <Field label={t.x}>
           <input
             type="number"
             value={Math.round(el.x * 10) / 10}
             onChange={(e) => onUpdate({ x: Number(e.target.value) })}
-            className={inputCls}
+            className={numCls}
           />
         </Field>
         <Field label={t.y}>
@@ -586,7 +584,7 @@ function PositionSection({ el, onUpdate, t }: { el: CanvasElement; onUpdate: (p:
             type="number"
             value={Math.round(el.y)}
             onChange={(e) => onUpdate({ y: Number(e.target.value) })}
-            className={inputCls}
+            className={numCls}
           />
         </Field>
         <Field label={t.w}>
@@ -594,7 +592,7 @@ function PositionSection({ el, onUpdate, t }: { el: CanvasElement; onUpdate: (p:
             type="number"
             value={Math.round(el.w * 10) / 10}
             onChange={(e) => onUpdate({ w: Number(e.target.value) })}
-            className={inputCls}
+            className={numCls}
           />
         </Field>
         <Field label={t.h}>
@@ -613,7 +611,7 @@ function PositionSection({ el, onUpdate, t }: { el: CanvasElement; onUpdate: (p:
             type="number"
             value={el.rotation}
             onChange={(e) => onUpdate({ rotation: Number(e.target.value) })}
-            className={inputCls}
+            className={numCls}
           />
         </Field>
       </div>
@@ -638,19 +636,19 @@ function CommonActions({
 }) {
   return (
     <Section title={t.view}>
-      <div className="grid grid-cols-2 gap-2">
-        <button className="rounded bg-zinc-800 hover:bg-zinc-700 px-2 py-1 text-xs" onClick={() => onLayer('front')}>↑ {t.front}</button>
-        <button className="rounded bg-zinc-800 hover:bg-zinc-700 px-2 py-1 text-xs" onClick={() => onLayer('back')}>↓ {t.back}</button>
-        <button className="rounded bg-zinc-800 hover:bg-zinc-700 px-2 py-1 text-xs" onClick={onDuplicate}>⎘ {t.duplicate}</button>
-        <button className="rounded bg-rose-900/60 hover:bg-rose-800 px-2 py-1 text-xs" onClick={onDelete}>🗑 {t.delete}</button>
+      <div className="ci-action-grid">
+        <button className="ci-action-btn" onClick={() => onLayer('front')}>↑ {t.front}</button>
+        <button className="ci-action-btn" onClick={() => onLayer('back')}>↓ {t.back}</button>
+        <button className="ci-action-btn" onClick={onDuplicate}>⎘ {t.duplicate}</button>
+        <button className="ci-action-btn is-danger" onClick={onDelete}>🗑 {t.delete}</button>
       </div>
-      <label className="flex items-center gap-2 text-xs">
+      <label className="ci-checkbox">
         <input type="checkbox" checked={!!el.locked} onChange={(e) => onUpdate({ locked: e.target.checked })} />
-        {t.lock}
+        <span className="ci-checkbox-label">{t.lock}</span>
       </label>
-      <label className="flex items-center gap-2 text-xs">
+      <label className="ci-checkbox">
         <input type="checkbox" checked={!!el.hidden} onChange={(e) => onUpdate({ hidden: e.target.checked })} />
-        {t.hide}
+        <span className="ci-checkbox-label">{t.hide}</span>
       </label>
     </Section>
   );
@@ -659,19 +657,19 @@ function CommonActions({
 function TemplateSection({ el, onUpdate, t }: { el: CanvasElement; onUpdate: (p: Partial<CanvasElement>) => void; t: typeof T.ru }) {
   return (
     <Section title={t.template}>
-      <label className="flex items-center gap-2 text-xs">
+      <label className="ci-checkbox">
         <input
           type="checkbox"
           checked={!!el.editableByEndUser}
           onChange={(e) => onUpdate({ editableByEndUser: e.target.checked })}
         />
-        {t.editable}
+        <span className="ci-checkbox-label">{t.editable}</span>
       </label>
       <Field label={t.bind}>
         <select
           value={el.placeholderKey || ''}
           onChange={(e) => onUpdate({ placeholderKey: (e.target.value || undefined) as CanvasElement['placeholderKey'] })}
-          className={inputCls}
+          className={inputCls + ' canvas-inspector-select'}
         >
           <option value="">—</option>
           <option value="groomName">groomName</option>
@@ -806,7 +804,7 @@ function CountdownSection({
       <Field label={t.color + ' (акцент)'}>
         <SwatchColorPicker value={el.accentColor || '#c9a961'} onChange={(c) => onUpdate({ accentColor: c })} />
       </Field>
-      <label className="flex items-center gap-2 text-xs">
+      <label className="ci-checkbox">
         <input
           type="checkbox"
           checked={!!el.showLabels}
@@ -849,7 +847,7 @@ function RsvpFormSection({
       <Field label={t.color + ' (акцент)'}>
         <SwatchColorPicker value={el.accentColor} onChange={(c) => onUpdate({ accentColor: c })} />
       </Field>
-      <label className="flex items-center gap-2 text-xs">
+      <label className="ci-checkbox">
         <input
           type="checkbox"
           checked={!!el.askPlusOne}
@@ -857,7 +855,7 @@ function RsvpFormSection({
         />
         {t.askPlusOne}
       </label>
-      <label className="flex items-center gap-2 text-xs">
+      <label className="ci-checkbox">
         <input
           type="checkbox"
           checked={!!el.askDietary}
@@ -865,7 +863,7 @@ function RsvpFormSection({
         />
         {t.askDietary}
       </label>
-      <label className="flex items-center gap-2 text-xs">
+      <label className="ci-checkbox">
         <input
           type="checkbox"
           checked={!!el.askChildren}
@@ -917,7 +915,7 @@ function WishesSection({
           placeholder="❤️ 🙏 🥂"
         />
       </Field>
-      <label className="flex items-center gap-2 text-xs">
+      <label className="ci-checkbox">
         <input
           type="checkbox"
           checked={!!el.allowAnonymous}
@@ -960,26 +958,26 @@ function ProgramSection({
           className={inputCls}
         />
       </Field>
-      <div className="space-y-2">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {el.items.map((it, idx) => (
-          <div key={it.id} className="rounded border border-zinc-700 p-2 space-y-1">
+          <div key={it.id} style={{ borderRadius: 'var(--ed-radius-sm)', border: '1px solid var(--ed-border)', padding: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <input
               type="text"
               value={it.time}
               placeholder="16:00"
               onChange={(e) => updateItem(idx, { time: e.target.value })}
-              className={inputCls}
+              className={inputCls + ' is-block'}
             />
             <input
               type="text"
               value={it.title}
               placeholder={t.title}
               onChange={(e) => updateItem(idx, { title: e.target.value })}
-              className={inputCls}
+              className={inputCls + ' is-block'}
             />
             <button
               type="button"
-              className="text-[10px] text-rose-300 hover:text-rose-200"
+              style={{ fontSize: '10px', color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}
               onClick={() => removeItem(idx)}
             >
               ✕ удалить
@@ -988,7 +986,8 @@ function ProgramSection({
         ))}
         <button
           type="button"
-          className="w-full rounded bg-zinc-800 hover:bg-zinc-700 px-2 py-1 text-xs"
+          className="canvas-btn is-block"
+          style={{ width: '100%' }}
           onClick={addItem}
         >
           + добавить пункт
@@ -1066,7 +1065,7 @@ function MapSection({
           placeholder="Открыть карту"
         />
       </Field>
-      <label className="flex items-center gap-2 text-xs">
+      <label className="ci-checkbox">
         <input
           type="checkbox"
           checked={!!el.showStaticOnly}
@@ -1109,7 +1108,7 @@ function MusicSection({
       <Field label={t.color + ' (акцент)'}>
         <SwatchColorPicker value={el.accentColor} onChange={(c) => onUpdate({ accentColor: c })} />
       </Field>
-      <label className="flex items-center gap-2 text-xs">
+      <label className="ci-checkbox">
         <input
           type="checkbox"
           checked={!!el.autoPlayMuted}
@@ -1117,7 +1116,8 @@ function MusicSection({
         />
         {t.musicAutoplay}
       </label>
-      <Field label={t.trackList}>
+      <div className="ci-section" style={{ marginTop: '8px' }}>
+        <span className="ci-row-label" style={{ display: 'block', marginBottom: '6px' }}>{t.trackList}</span>
         <textarea
           rows={3}
           value={(el.trackList || []).map((tr) => `${tr.title}|${tr.src}`).join('\n')}
@@ -1129,10 +1129,11 @@ function MusicSection({
             });
             onUpdate({ trackList });
           }}
-          className={inputCls + ' w-full h-20 resize-none'}
+          className="canvas-inspector-textarea is-block"
           placeholder={'Трек 1|https://…\nТрек 2|https://…'}
+          style={{ height: '80px' }}
         />
-      </Field>
+      </div>
     </Section>
   );
 }
@@ -1185,7 +1186,7 @@ function GiftSection({
       <Field label={t.color + ' (акцент)'}>
         <SwatchColorPicker value={el.accentColor} onChange={(c) => onUpdate({ accentColor: c })} />
       </Field>
-      <label className="flex items-center gap-2 text-xs">
+      <label className="ci-checkbox">
         <input
           type="checkbox"
           checked={!!el.showDonors}
@@ -1288,11 +1289,11 @@ function LottieSection({
           className={inputCls}
         />
       </Field>
-      <label className="flex items-center gap-2 text-xs">
+      <label className="ci-checkbox">
         <input type="checkbox" checked={!!el.loop} onChange={(e) => onUpdate({ loop: e.target.checked })} />
         {t.loop}
       </label>
-      <label className="flex items-center gap-2 text-xs">
+      <label className="ci-checkbox">
         <input
           type="checkbox"
           checked={!!el.autoplay}
@@ -1344,6 +1345,7 @@ function VideoBgSection({
           step={0.05}
           value={el.opacity ?? 1}
           onChange={(e) => onUpdate({ opacity: Number(e.target.value) })}
+          className="ci-range"
         />
       </Field>
     </Section>
@@ -1385,11 +1387,11 @@ function OrnamentSection({
           placeholder="https://…svg"
         />
       </Field>
-      <label className="flex items-center gap-2 text-xs">
+      <label className="ci-checkbox">
         <input type="checkbox" checked={!!el.flipX} onChange={(e) => onUpdate({ flipX: e.target.checked })} />
         Отразить по X
       </label>
-      <label className="flex items-center gap-2 text-xs">
+      <label className="ci-checkbox">
         <input type="checkbox" checked={!!el.flipY} onChange={(e) => onUpdate({ flipY: e.target.checked })} />
         Отразить по Y
       </label>
@@ -1486,7 +1488,7 @@ function DocumentSection({
             onChange={(v) => onChange({ defaultFontFamily: v } as Partial<InvitationCanvasDocument>)}
           />
         </Field>
-        <label className="flex items-center gap-2 text-xs">
+        <label className="ci-checkbox">
           <input
             type="checkbox"
             checked={!!docAny.autoplay}
@@ -1537,7 +1539,7 @@ function DocumentSection({
       </Section>
 
       <Section title={t.rsvpFields}>
-        <label className="flex items-center gap-2 text-xs">
+        <label className="ci-checkbox">
           <input
             type="checkbox"
             checked={!!docAny.rsvpAskPlusOne}
@@ -1547,7 +1549,7 @@ function DocumentSection({
           />
           +1 (с кем)
         </label>
-        <label className="flex items-center gap-2 text-xs">
+        <label className="ci-checkbox">
           <input
             type="checkbox"
             checked={!!docAny.rsvpAskDietary}
@@ -1557,7 +1559,7 @@ function DocumentSection({
           />
           Диета / аллергии
         </label>
-        <label className="flex items-center gap-2 text-xs">
+        <label className="ci-checkbox">
           <input
             type="checkbox"
             checked={!!docAny.rsvpAskChildren}

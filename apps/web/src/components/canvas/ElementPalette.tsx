@@ -5,7 +5,6 @@ import type { CanvasElementType } from '@/lib/canvas/types';
 import { TEMPLATE_SECTIONS, insertSection } from '@/lib/canvas/sections';
 import type { InvitationCanvasDocument } from '@/lib/canvas/types';
 
-// ─── Section icon map ───────────────────────────────────────────────────────────
 const SECTION_ICONS: Record<string, string> = {
   hero: '♥',
   datetime: '📅',
@@ -22,7 +21,6 @@ const SECTION_ICONS: Record<string, string> = {
   thankyou: '✓',
 };
 
-// ─── Category type ──────────────────────────────────────────────────────────────
 interface Category {
   id: string;
   labelRu: string;
@@ -98,7 +96,6 @@ const CATEGORIES: Category[] = [
 
 interface Props {
   onAdd: (type: CanvasElementType) => void;
-  /** For section insertion — pass doc + commit when in template-builder mode */
   document?: InvitationCanvasDocument;
   onInsertSection?: (nextDoc: InvitationCanvasDocument) => void;
   locale: 'ru' | 'kz';
@@ -118,37 +115,37 @@ export function ElementPalette({ onAdd, document, onInsertSection, locale }: Pro
   };
 
   return (
-    <aside className="w-60 shrink-0 border-r border-zinc-800 bg-zinc-900/80 overflow-y-auto text-sm">
-      <div className="p-3 text-xs uppercase tracking-widest text-zinc-400 border-b border-zinc-800">
+    <aside className="canvas-palette" style={{ width: '240px', flexShrink: 0 }}>
+      <div className="cp-header">
         {locale === 'ru' ? 'Добавить элемент' : 'Элемент қосу'}
       </div>
 
       {/* ── Sections (open to end-users) ─────────────────────────── */}
       {document && onInsertSection && (
-        <div className="border-b border-zinc-800">
+        <div className="border-b" style={{ borderColor: 'var(--ed-border)' }}>
           <button
-            className="w-full px-3 py-2 flex items-center justify-between text-[#c9a961] hover:bg-zinc-800/60 font-semibold"
+            className="cp-section-header is-gold"
             onClick={() => setOpen(open === 'sections' ? '' : 'sections')}
           >
             <span>{locale === 'ru' ? '📦 Готовые секции' : '📦 Дайын бөлімдер'}</span>
-            <span className="text-zinc-500">{open === 'sections' ? '▾' : '▸'}</span>
+            <span className="cp-chevron">{open === 'sections' ? '▾' : '▸'}</span>
           </button>
           {open === 'sections' && (
-            <div className="p-2 flex flex-col gap-2">
+            <div className="cp-section-body" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {TEMPLATE_SECTIONS.map((s) => (
                 <button
                   key={s.id}
                   onClick={() => handleInsertSection(s.id)}
-                  className="flex items-start gap-3 rounded-lg border border-zinc-700 bg-zinc-800/40 hover:border-[#c9a961] hover:bg-zinc-800 px-3 py-2.5 text-left transition"
+                  className="cp-section-card"
                 >
-                  <div className="shrink-0 w-8 h-8 rounded bg-[#6b1d3a]/20 flex items-center justify-center text-sm">
+                  <div className="cp-section-icon">
                     {SECTION_ICONS[s.id] ?? '▦'}
                   </div>
-                  <div className="min-w-0">
-                    <div className="text-[11px] font-semibold text-zinc-100 truncate">
+                  <div style={{ minWidth: 0 }}>
+                    <div className="cp-section-name">
                       {locale === 'ru' ? s.nameRu : s.nameKz}
                     </div>
-                    <div className="text-[10px] text-zinc-500 leading-tight mt-0.5">
+                    <div className="cp-section-desc">
                       {locale === 'ru' ? s.descriptionRu : s.descriptionKz}
                     </div>
                   </div>
@@ -163,30 +160,32 @@ export function ElementPalette({ onAdd, document, onInsertSection, locale }: Pro
       {CATEGORIES.map((cat) => {
         const isOpen = open === cat.id;
         return (
-          <div key={cat.id} className="border-b border-zinc-800">
+          <div key={cat.id} className="border-b" style={{ borderColor: 'var(--ed-border)' }}>
             <button
-              className="w-full px-3 py-2 flex items-center justify-between text-zinc-200 hover:bg-zinc-800/60"
+              className="cp-section-header"
               onClick={() => setOpen(isOpen ? '' : cat.id)}
             >
               <span>{locale === 'ru' ? cat.labelRu : cat.labelKz}</span>
-              <span className="text-zinc-500">{isOpen ? '▾' : '▸'}</span>
+              <span className="cp-chevron">{isOpen ? '▾' : '▸'}</span>
             </button>
             {isOpen && (
-              <div className="p-2 grid grid-cols-2 gap-2">
-                {cat.items.map((it) => (
-                  <button
-                    key={it.type}
-                    onClick={() => onAdd(it.type)}
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData('text/plain', it.type);
-                    }}
-                    className="flex flex-col items-center justify-center gap-1 rounded-lg border border-zinc-700 bg-zinc-800/40 hover:border-[#c9a961] hover:bg-zinc-800 px-2 py-3 text-[11px] text-zinc-200"
-                    draggable
-                  >
-                    <span className="text-xl leading-none">{it.icon}</span>
-                    <span className="text-center">{locale === 'ru' ? it.labelRu : it.labelKz}</span>
-                  </button>
-                ))}
+              <div className="cp-section-body">
+                <div className="cp-element-grid">
+                  {cat.items.map((it) => (
+                    <button
+                      key={it.type}
+                      onClick={() => onAdd(it.type)}
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('text/plain', it.type);
+                      }}
+                      className="cp-element-card"
+                      draggable
+                    >
+                      <span className="cp-element-icon">{it.icon}</span>
+                      <span className="cp-element-label">{locale === 'ru' ? it.labelRu : it.labelKz}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>

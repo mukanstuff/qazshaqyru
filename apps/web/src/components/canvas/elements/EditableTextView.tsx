@@ -9,6 +9,13 @@ interface CommonProps {
   el: TextElement | HeadingElement;
   editing: boolean;
   selected: boolean;
+  /**
+   * 2026-08-14: how the user enters text-edit mode.
+   *   'single' (default) — one tap/click → edit (guest-friendly, no selection step).
+   *   'double'            — double-click required (admin / power user).
+   * Both modes still rely on blur / Esc / Enter to commit.
+   */
+  editingTrigger?: 'single' | 'double';
   onStartEdit: () => void;
   onStopEdit: () => void;
   onChange: (patch: { text: string }) => void;
@@ -32,7 +39,7 @@ type Props = CommonProps;
  *    element with B / I / КАПС / size ± / alignment / colour controls.
  */
 export function EditableTextView(props: Props) {
-  const { el, editing, selected, onStartEdit, onStopEdit, onChange, onPatch } = props;
+  const { el, editing, selected, editingTrigger = 'single', onStartEdit, onStopEdit, onChange, onPatch } = props;
   const ref = useRef<HTMLElement | null>(null);
   const isHeading = el.type === 'heading';
   const Tag = (isHeading ? (el.as || 'h1') : 'p') as 'p' | 'h1' | 'h2' | 'h3';
@@ -93,6 +100,16 @@ export function EditableTextView(props: Props) {
     onStartEdit();
   };
 
+  // 2026-08-14: in single-trigger mode, one tap/click enters edit mode.
+  // Stop the click from also driving SelectionChrome's drag-start in admin mode.
+  const handleSingleClickForEdit = (e: React.MouseEvent) => {
+    if (editing) return;
+    if (editingTrigger !== 'single') return;
+    e.stopPropagation();
+    e.preventDefault();
+    onStartEdit();
+  };
+
   const handleBlur = () => {
     if (!editing) return;
     commit();
@@ -130,14 +147,18 @@ export function EditableTextView(props: Props) {
         spellCheck={false}
         data-text-element={el.id}
         data-text-editing={editing ? 'true' : undefined}
-        onDoubleClick={handleDoubleClick}
+        onDoubleClick={editingTrigger === 'double' ? handleDoubleClick : undefined}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         onInput={handleInput}
         onClick={(e) => {
-          // Don't let a single click in edit-mode bubble up to the
-          // SelectionChrome (which would interpret it as a drag start).
-          if (editing) e.stopPropagation();
+          // Always stop click bubble when in edit-mode (would otherwise start a drag).
+          if (editing) {
+            e.stopPropagation();
+            return;
+          }
+          // In single-trigger mode, a single tap on the text is what enters edit.
+          handleSingleClickForEdit(e);
         }}
         onMouseDown={(e) => {
           if (editing) e.stopPropagation();

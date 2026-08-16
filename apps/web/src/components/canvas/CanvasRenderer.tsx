@@ -58,6 +58,14 @@ export interface CanvasRendererProps {
   className?: string;
 
   /**
+   * 2026-08-14: how the user enters text-edit mode in editor.
+   *   'single' (default) — one tap → edit (guest-friendly).
+   *   'double'            — double-click required (admin, advanced).
+   * Only affects editor mode and only text/heading elements.
+   */
+  editingTrigger?: 'single' | 'double';
+
+  /**
    * 2026-07-30 PRODUCT MODEL ENFORCEMENT:
    * When true (from paid template order / fullAccess), this renderer MUST produce
    * a completely clean page — no watermark, no upsell hints.
@@ -151,6 +159,7 @@ export const CanvasRenderer = forwardRef<HTMLDivElement, CanvasRendererProps>(fu
     onStopTextEdit,
     onTextChange,
     onTextPatch,
+    editingTrigger = 'single',
   } = props;
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -256,6 +265,7 @@ export const CanvasRenderer = forwardRef<HTMLDivElement, CanvasRendererProps>(fu
           width: doc.width,
           editing: editingTextId === el.id,
           selected: selectedId === el.id,
+          editingTrigger,
           onStartEdit: onStartTextEdit ? () => onStartTextEdit(el.id) : undefined,
           onStopEdit: onStopTextEdit ? () => onStopTextEdit(el.id) : undefined,
           onTextChange: onTextChange ? (patch) => onTextChange(el.id, patch) : undefined,
@@ -319,6 +329,7 @@ function renderElement(
     width: number;
     editing?: boolean;
     selected?: boolean;
+    editingTrigger?: 'single' | 'double';
     onStartEdit?: () => void;
     onStopEdit?: () => void;
     onTextChange?: (patch: { text: string }) => void;
@@ -334,6 +345,7 @@ function renderElement(
           el={el as TextElement | HeadingElement}
           editing={!!ctx.editing}
           selected={!!ctx.selected}
+          editingTrigger={ctx.editingTrigger ?? 'single'}
           onStartEdit={ctx.onStartEdit}
           onStopEdit={ctx.onStopEdit}
           onChange={ctx.onTextChange}
