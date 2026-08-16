@@ -1,7 +1,6 @@
 /**
  * Manifest types — Phase 2 dev convenience only.
  *
- * Phase 1 ships the HTML-template engine (see `html-engine/`) as the single render path.
  * `TemplateManifest` is preserved for editor infrastructure (manifest-shaped document) that
  * survives migration of legacy sections-based code. It is NOT used to render guest pages.
  */

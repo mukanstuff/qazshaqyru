@@ -2,7 +2,7 @@
 
 import { Check } from 'lucide-react';
 import { RemoteMediaImage } from '@/components/shared/RemoteMediaImage';
-import { TEMPLATE_CONFIGS } from '@/lib/templates';
+import { TEMPLATE_CONFIGS } from '@/lib/templates/configs';
 import { useI18n } from '@/i18n';
 import { cn } from '@/lib/shared/utils';
 

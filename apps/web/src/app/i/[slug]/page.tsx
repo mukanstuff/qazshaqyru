@@ -77,7 +77,6 @@ function buildShareDescription(
  * Middleware intercepts /i/<legacy-html-slug> with a true HTTP 410 before
  * this page renders. No server-component workaround needed.
  */
-const LEGACY_HTML_TEMPLATE_SLUGS = new Set<string>(); // reserved — middleware is the source of truth.
 
 export async function generateMetadata({ params, searchParams }: PageProps): Promise<Metadata> {
   const { family, preview } = await searchParams;
@@ -124,10 +123,6 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
         images: [ogImageUrl],
       },
     };
-  }
-
-  if (LEGACY_HTML_TEMPLATE_SLUGS.has(rawSlug)) {
-    return { title: 'Шаблон удалён', robots: { index: false, follow: false } };
   }
 
   const decodedSlug = decodeURIComponent(rawSlug);

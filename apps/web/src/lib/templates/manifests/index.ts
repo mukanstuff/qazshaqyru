@@ -1,12 +1,9 @@
 /**
- * Template registry — list of HTML-engine templates available in the catalog.
- *
- * Step 1.2: HTML-engine templates (hello-world, test-demo) were removed entirely
- * (lib/templates/html-engine, public/templates-html, components/html-editor).
- * This file now exists only to satisfy the legacy `getTemplateManifest` stub that
+ * Template registry — stub for the legacy `getTemplateManifest` symbol that
  * some consumers (LayoutRouter, EditorLayout, document.ts, etc.) still import.
  *
- * New code must NOT add anything here — there is no html-engine anymore.
+ * New code must NOT add anything here — manifest-shaped templates are no longer
+ * a render path.
  */
 import type { TemplateManifest } from '../manifest-types';
 
