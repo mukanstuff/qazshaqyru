@@ -1,8 +1,4 @@
 import prisma from '@/lib/shared/db';
-import { TEMPLATE_CONFIGS } from './configs';
-import { LEGACY_TEMPLATE_MAP } from './legacy';
-
-const DEFAULT_SLUG = 'luxe-gold';
 
 export interface ResolvedTemplate {
   id: string;
@@ -11,21 +7,21 @@ export interface ResolvedTemplate {
   nameRu: string;
 }
 
-/** Map legacy / removed keys to the active catalog template. */
-export function normalizeTemplateSlug(slug: string): string {
-  if (LEGACY_TEMPLATE_MAP[slug]) return LEGACY_TEMPLATE_MAP[slug];
-  if (TEMPLATE_CONFIGS[slug]) return slug;
-  return DEFAULT_SLUG;
-}
-
 /**
- * Resolve DB template row by slug. Step 1.2 removed the HTML-engine fallback;
- * templates only exist as Prisma Template rows now.
+ * Resolve DB template row by slug.
+ *
+ * Step 1.2 removed the HTML-engine fallback; templates only exist as Prisma
+ * `Template` rows now. Step A removed the default-template fallback too: an
+ * unknown slug returns `null`, and the caller decides how to surface that
+ * (404, redirect, or `ApiError`). This blocks the silent "unknown slug →
+ * luxe-gold" substitution that was useful during the HTML→canvas migration
+ * but is a foot-gun once real templates live in the catalog.
  */
-export async function resolveTemplateBySlug(slug: string): Promise<ResolvedTemplate | null> {
-  const normalized = normalizeTemplateSlug(slug);
+export async function resolveTemplateBySlug(
+  slug: string,
+): Promise<ResolvedTemplate | null> {
   return prisma.template.findFirst({
-    where: { slug: normalized, isActive: true },
+    where: { slug, isActive: true },
     select: { id: true, slug: true, priceKzt: true, nameRu: true },
   });
 }

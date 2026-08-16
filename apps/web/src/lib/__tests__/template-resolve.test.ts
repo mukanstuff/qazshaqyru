@@ -13,7 +13,6 @@ vi.mock('@/lib/shared/db', () => ({
 }));
 
 import {
-  normalizeTemplateSlug,
   resolveTemplateBySlug,
   resolveTemplateIdBySlug,
 } from '@/lib/templates/template-resolve';
@@ -25,18 +24,8 @@ beforeEach(() => {
   findFirst.mockReset();
 });
 
-describe('normalizeTemplateSlug', () => {
-  it('maps legacy slugs to default luxe-gold template', () => {
-    expect(normalizeTemplateSlug('classic')).toBe('luxe-gold');
-    expect(normalizeTemplateSlug('wedding-rose-blush')).toBe('luxe-gold');
-    expect(normalizeTemplateSlug('starter-blank')).toBe('luxe-gold');
-  });
-
-  it('passes through active slug unchanged', () => {
-    expect(normalizeTemplateSlug('luxe-gold')).toBe('luxe-gold');
-  });
-
-  it('queries active template by normalized slug', async () => {
+describe('resolveTemplateBySlug', () => {
+  it('queries the active template by exact slug', async () => {
     findFirst.mockResolvedValueOnce({
       id: 'tpl-1',
       slug: 'luxe-gold',
@@ -44,13 +33,25 @@ describe('normalizeTemplateSlug', () => {
       nameRu: 'Свадебная роскошь',
     });
 
-    const result = await resolveTemplateBySlug('classic');
+    const result = await resolveTemplateBySlug('luxe-gold');
 
     expect(findFirst).toHaveBeenCalledWith({
       where: { slug: 'luxe-gold', isActive: true },
       select: { id: true, slug: true, priceKzt: true, nameRu: true },
     });
     expect(result?.id).toBe('tpl-1');
+  });
+
+  it('returns null for unknown slug (no default-template fallback)', async () => {
+    findFirst.mockResolvedValueOnce(null);
+
+    const result = await resolveTemplateBySlug('classic');
+
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { slug: 'classic', isActive: true },
+      select: { id: true, slug: true, priceKzt: true, nameRu: true },
+    });
+    expect(result).toBeNull();
   });
 
   it('returns null id when template missing', async () => {
