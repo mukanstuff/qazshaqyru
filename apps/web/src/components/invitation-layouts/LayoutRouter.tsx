@@ -155,7 +155,8 @@ export function InvitationLayoutRouter({
   const framedPreview = previewChrome === 'framed';
   const hideGuestChrome = suppressGuestChrome || framedPreview;
   const shouldDelayMusicPrompt = !isEditing && !hideGuestChrome && !envelopeSeen;
-  const templateConfig = invitation ? resolveTemplateKey(invitation.templateKey) : resolveTemplateKey(demoLayout || DEFAULT_TEMPLATE_SLUG);
+  const templateConfig = resolveTemplateKey(invitation?.templateKey ?? (demoLayout || DEFAULT_TEMPLATE_SLUG));
+  if (!templateConfig) return null;
   const effectiveMusicUrl = invitation ? resolveTemplateMusicUrl(invitation.musicUrl, templateConfig) : null;
 
   const tokenStorageKey = useMemo(() => `qazshaqyru:guestToken:${slug}`, [slug]);

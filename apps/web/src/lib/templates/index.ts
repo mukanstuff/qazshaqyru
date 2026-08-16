@@ -3,7 +3,6 @@ export * from './types';
 export * from './flagship';
 export * from './asset-bundles';
 export * from './configs';
-export * from './legacy';
 export * from './helpers';
 export * from './manifest-types';
 export * from './manifest-fields';

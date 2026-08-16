@@ -82,6 +82,7 @@ export async function GET(request: NextRequest) {
     if (!data) return new Response('Not found', { status: 404 });
 
     const cfg = getTemplate(data.templateKey);
+    if (!cfg) return new Response('Template config not found', { status: 400 });
     const coverUrl = resolveAbsoluteUrl(cfg.coverUrl, origin);
     const dateStr = new Intl.DateTimeFormat('ru-RU', {
       day: 'numeric',
