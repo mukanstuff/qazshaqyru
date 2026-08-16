@@ -49,7 +49,6 @@ export function WizardBody({
     showLogin,
     closeLogin,
     submit,
-    onLoginSuccess,
   } = useWizardForm({
     templateKey,
     templateId,
@@ -195,11 +194,8 @@ export function WizardBody({
       )}
 
       <LoginModal
-        isOpen={showLogin}
+        open={showLogin}
         onClose={closeLogin}
-        onSuccess={() => void onLoginSuccess()}
-        title={t('auth.publishLoginTitle')}
-        subtitle={t('quickWizard.loginSubtitle')}
         returnTo={returnTo}
       />
     </div>
