@@ -1,0 +1,682 @@
+/* ────────────────────────────────────────────────────────────────────────────
+ * Canvas-editor WYSIWYG styles.
+ *
+ * Design tokens + component styles matching the html-editor light theme.
+ * Scoped to .canvas-editor-shell so they don't bleed into CanvasRenderer,
+ * SelectionChrome, or other canvas-level components that use zinc-* classes.
+ *
+ * Sections:
+ *   - .canvas-editor-shell     root container, light theme tokens
+ *   - .canvas-toolbar          top bar (replaces EditorToolbar.tsx styles)
+ *   - .canvas-palette          left panel (replaces ElementPalette.tsx styles)
+ *   - .canvas-inspector        right panel (replaces InspectorPanel.tsx styles)
+ *   - .canvas-inspector-input  shared form input
+ *   - .canvas-section-title    section header inside inspector
+ *   - .canvas-btn              shared button style
+ *   - .canvas-popover          portal popup container (SwatchColorPicker etc.)
+ * ────────────────────────────────────────────────────────────────────────────
+ */
+
+/* ═══ Design tokens — scoped to .canvas-editor-shell ════════════════════════ */
+.canvas-editor-shell {
+  --ed-bg: #f5f5f7;
+  --ed-surface: #ffffff;
+  --ed-surface-2: #f0f0f2;
+  --ed-border: rgba(0, 0, 0, 0.08);
+  --ed-border-strong: rgba(0, 0, 0, 0.14);
+  --ed-text: #1c1c1e;
+  --ed-text-muted: rgba(28, 28, 30, 0.5);
+  --ed-text-dim: rgba(28, 28, 30, 0.28);
+  --ed-accent: #16a34a;
+  --ed-accent-light: rgba(22, 163, 74, 0.12);
+  --ed-radius: 14px;
+  --ed-radius-sm: 10px;
+  --ed-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  --ed-shadow-lg: 0 12px 48px rgba(0, 0, 0, 0.12);
+
+  /* Shell background */
+  background: var(--ed-bg);
+  color: var(--ed-text);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ═══ Toolbar ════════════════════════════════════════════════════════════════ */
+.canvas-toolbar {
+  background: var(--ed-surface);
+  border-bottom: 1px solid var(--ed-border);
+  color: var(--ed-text);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 12px;
+  min-height: 44px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.canvas-toolbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Shared button style inside toolbar */
+.canvas-toolbar .ct-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border-radius: var(--ed-radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--ed-text-muted);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.canvas-toolbar .ct-btn:hover:not(:disabled) {
+  background: var(--ed-surface-2);
+  color: var(--ed-text);
+}
+
+.canvas-toolbar .ct-btn:active:not(:disabled) {
+  background: var(--ed-border);
+}
+
+.canvas-toolbar .ct-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.canvas-toolbar .ct-btn.is-active {
+  background: var(--ed-accent-light);
+  color: var(--ed-accent);
+}
+
+.canvas-toolbar .ct-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--ed-border-strong);
+  flex-shrink: 0;
+  margin: 0 4px;
+}
+
+/* Viewport toggle group */
+.canvas-toolbar .ct-viewport-group {
+  display: inline-flex;
+  align-items: center;
+  background: var(--ed-surface-2);
+  border-radius: var(--ed-radius-sm);
+  padding: 2px;
+  flex-shrink: 0;
+}
+
+/* Save indicator */
+.canvas-toolbar .ct-save-indicator {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.canvas-toolbar .ct-save-indicator.is-saved {
+  color: var(--ed-accent);
+}
+
+.canvas-toolbar .ct-save-indicator.is-saving {
+  color: var(--ed-text-muted);
+}
+
+.canvas-toolbar .ct-save-indicator.is-error {
+  color: #dc2626;
+  cursor: pointer;
+}
+
+.canvas-toolbar .ct-save-indicator.is-idle {
+  color: var(--ed-text-dim);
+}
+
+/* Template builder badge */
+.canvas-toolbar .ct-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #b45309;
+  border: 1px solid rgba(180, 83, 9, 0.3);
+  border-radius: 6px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+/* ═══ Palette (left panel) ════════════════════════════════════════════════════ */
+.canvas-palette {
+  background: var(--ed-surface);
+  border-right: 1px solid var(--ed-border);
+  overflow-y: auto;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  overscroll-behavior: contain;
+}
+
+.canvas-palette::-webkit-scrollbar {
+  width: 4px;
+}
+
+.canvas-palette::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.canvas-palette::-webkit-scrollbar-thumb {
+  background: var(--ed-border-strong);
+  border-radius: 2px;
+}
+
+.canvas-palette .cp-header {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ed-text-muted);
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--ed-border);
+  flex-shrink: 0;
+}
+
+.canvas-palette .cp-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  cursor: pointer;
+  color: var(--ed-text);
+  font-size: 13px;
+  font-weight: 500;
+  border-bottom: 1px solid var(--ed-border);
+  background: transparent;
+  border-left: none;
+  border-right: none;
+  width: 100%;
+  text-align: left;
+  transition: background 150ms ease;
+}
+
+.canvas-palette .cp-section-header:hover {
+  background: var(--ed-surface-2);
+}
+
+.canvas-palette .cp-section-header.is-gold {
+  color: #b45309;
+  font-weight: 600;
+}
+
+.canvas-palette .cp-section-header .cp-chevron {
+  color: var(--ed-text-dim);
+  font-size: 10px;
+}
+
+.canvas-palette .cp-section-body {
+  padding: 8px;
+}
+
+/* Element card (grid inside a section) */
+.canvas-palette .cp-element-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.canvas-palette .cp-element-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px 6px;
+  border-radius: var(--ed-radius-sm);
+  border: 1px solid var(--ed-border);
+  background: var(--ed-surface);
+  color: var(--ed-text);
+  font-size: 11px;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
+  min-width: 0;
+  user-select: none;
+}
+
+.canvas-palette .cp-element-card:hover {
+  border-color: var(--ed-accent);
+  background: var(--ed-accent-light);
+}
+
+.canvas-palette .cp-element-card:active {
+  transform: scale(0.97);
+}
+
+.canvas-palette .cp-element-card .cp-element-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.canvas-palette .cp-element-card .cp-element-label {
+  color: var(--ed-text-muted);
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+/* Section insert card */
+.canvas-palette .cp-section-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--ed-radius-sm);
+  border: 1px solid var(--ed-border);
+  background: var(--ed-surface);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 150ms ease, background 150ms ease;
+  width: 100%;
+}
+
+.canvas-palette .cp-section-card:hover {
+  border-color: var(--ed-accent);
+  background: var(--ed-accent-light);
+}
+
+.canvas-palette .cp-section-card .cp-section-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(22, 163, 74, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.canvas-palette .cp-section-card .cp-section-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ed-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.canvas-palette .cp-section-card .cp-section-desc {
+  font-size: 10px;
+  color: var(--ed-text-dim);
+  line-height: 1.3;
+  margin-top: 2px;
+}
+
+/* ═══ Inspector (right panel) ══════════════════════════════════════════════════ */
+.canvas-inspector {
+  background: var(--ed-surface);
+  border-left: 1px solid var(--ed-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.canvas-inspector .ci-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--ed-border);
+  flex-shrink: 0;
+}
+
+.canvas-inspector .ci-tab {
+  flex: 1;
+  padding: 10px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ed-text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+  font-family: inherit;
+}
+
+.canvas-inspector .ci-tab:hover:not(.is-active) {
+  background: var(--ed-surface-2);
+}
+
+.canvas-inspector .ci-tab.is-active {
+  color: var(--ed-accent);
+  background: var(--ed-accent-light);
+}
+
+.canvas-inspector .ci-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  overscroll-behavior: contain;
+}
+
+.canvas-inspector .ci-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.canvas-inspector .ci-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.canvas-inspector .ci-body::-webkit-scrollbar-thumb {
+  background: var(--ed-border-strong);
+  border-radius: 2px;
+}
+
+/* Inspector section */
+.canvas-inspector .ci-section {
+  margin-bottom: 20px;
+}
+
+.canvas-inspector .ci-section:last-child {
+  margin-bottom: 0;
+}
+
+.canvas-inspector .ci-section-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ed-text-muted);
+  margin-bottom: 10px;
+}
+
+/* Inspector row */
+.canvas-inspector .ci-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.canvas-inspector .ci-row:last-child {
+  margin-bottom: 0;
+}
+
+.canvas-inspector .ci-row-label {
+  font-size: 12px;
+  color: var(--ed-text-muted);
+  flex-shrink: 0;
+}
+
+/* Shared form input */
+.canvas-inspector-input {
+  background: var(--ed-surface-2);
+  border: 1px solid var(--ed-border);
+  border-radius: var(--ed-radius-sm);
+  padding: 6px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--ed-text);
+  outline: none;
+  transition: border-color 150ms ease;
+  min-width: 0;
+  width: auto;
+  max-width: 100%;
+}
+
+.canvas-inspector-input.is-block {
+  width: 100%;
+}
+
+.canvas-inspector-input:focus {
+  border-color: var(--ed-accent);
+}
+
+.canvas-inspector-input::placeholder {
+  color: var(--ed-text-dim);
+}
+
+/* Select specific (full-width variant) */
+select.canvas-inspector-input {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23222' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 24px;
+  cursor: pointer;
+}
+
+/* Number input — text variant (for position fields) */
+.canvas-inspector-num {
+  background: var(--ed-surface-2);
+  border: 1px solid var(--ed-border);
+  border-radius: var(--ed-radius-sm);
+  padding: 6px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--ed-text);
+  outline: none;
+  transition: border-color 150ms ease;
+  min-width: 0;
+  width: auto;
+  -moz-appearance: textfield;
+}
+
+.canvas-inspector-num:focus {
+  border-color: var(--ed-accent);
+}
+
+.canvas-inspector-num::-webkit-outer-spin-button,
+.canvas-inspector-num::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Textarea (content editing) */
+.canvas-inspector-textarea {
+  background: var(--ed-surface-2);
+  border: 1px solid var(--ed-border);
+  border-radius: var(--ed-radius-sm);
+  padding: 8px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--ed-text);
+  outline: none;
+  resize: none;
+  transition: border-color 150ms ease;
+  min-width: 0;
+  width: 100%;
+  line-height: 1.5;
+}
+
+.canvas-inspector-textarea:focus {
+  border-color: var(--ed-accent);
+}
+
+/* Action grid (duplicate/delete) */
+.canvas-inspector .ci-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.canvas-inspector .ci-action-btn {
+  padding: 6px 8px;
+  border-radius: var(--ed-radius-sm);
+  border: 1px solid var(--ed-border);
+  background: var(--ed-surface-2);
+  color: var(--ed-text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: center;
+  font-family: inherit;
+  transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+.canvas-inspector .ci-action-btn:hover {
+  background: var(--ed-surface);
+  color: var(--ed-text);
+  border-color: var(--ed-border-strong);
+}
+
+.canvas-inspector .ci-action-btn.is-danger {
+  background: rgba(220, 38, 38, 0.08);
+  border-color: rgba(220, 38, 38, 0.2);
+  color: #dc2626;
+}
+
+.canvas-inspector .ci-action-btn.is-danger:hover {
+  background: rgba(220, 38, 38, 0.14);
+}
+
+/* Checkbox */
+.canvas-inspector .ci-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  margin-bottom: 6px;
+}
+
+.canvas-inspector .ci-checkbox input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--ed-accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.canvas-inspector .ci-checkbox-label {
+  font-size: 12px;
+  color: var(--ed-text-muted);
+}
+
+/* Range input */
+.canvas-inspector .ci-range {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--ed-accent);
+  cursor: pointer;
+}
+
+/* Empty state */
+.canvas-inspector .ci-empty {
+  font-size: 12px;
+  color: var(--ed-text-dim);
+  text-align: center;
+  padding: 24px 16px;
+  line-height: 1.5;
+}
+
+/* ═══ Shared button ══════════════════════════════════════════════════════════ */
+.canvas-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: var(--ed-radius-sm);
+  border: 1px solid var(--ed-border);
+  background: var(--ed-surface-2);
+  color: var(--ed-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+.canvas-btn:hover {
+  background: var(--ed-surface);
+  color: var(--ed-text);
+  border-color: var(--ed-border-strong);
+}
+
+.canvas-btn:active {
+  transform: scale(0.98);
+}
+
+/* ═══ Popover (createPortal in document.body) ════════════════════════════════ */
+.canvas-popover {
+  position: fixed;
+  z-index: 9999;
+  background: var(--ed-surface);
+  border: 1px solid var(--ed-border-strong);
+  border-radius: var(--ed-radius);
+  box-shadow: var(--ed-shadow-lg);
+  padding: 10px;
+  min-width: 160px;
+}
+
+/* Color picker popover */
+.canvas-popover .cpp-swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 24px);
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.canvas-popover .cpp-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid var(--ed-border);
+  cursor: pointer;
+  transition: border-color 150ms ease, transform 100ms ease;
+}
+
+.canvas-popover .cpp-swatch:hover {
+  border-color: var(--ed-accent);
+  transform: scale(1.1);
+}
+
+.canvas-popover .cpp-swatch.is-active {
+  border-color: var(--ed-accent);
+  box-shadow: 0 0 0 2px var(--ed-accent-light);
+}
+
+.canvas-popover .cpp-hex-input {
+  background: var(--ed-surface-2);
+  border: 1px solid var(--ed-border);
+  border-radius: var(--ed-radius-sm);
+  padding: 6px 8px;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--ed-text);
+  outline: none;
+  width: 100%;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: border-color 150ms ease;
+}
+
+.canvas-popover .cpp-hex-input:focus {
+  border-color: var(--ed-accent);
+}
+
+.canvas-popover .cpp-native-color {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px dashed var(--ed-border-strong);
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+}
+
+.canvas-popover .cpp-native-color input[type="color"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
