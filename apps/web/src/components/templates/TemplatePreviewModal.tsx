@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/i18n';
-import { quickWizardHref } from '@/lib/shared/quick-wizard-url';
+import { quickWizardHref, editorHref } from '@/lib/shared/quick-wizard-url';
 import type { Template } from '@prisma/client';
 
 interface TemplatePreviewModalProps {
@@ -26,7 +26,7 @@ export function TemplatePreviewModal({ template, displayName, onClose }: Templat
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Button variant="default" size="default" asChild className="hidden min-h-11 sm:inline-flex">
-            <Link href={quickWizardHref(template.slug)}>{t('templatesPage.quickStart')}</Link>
+            <Link href={editorHref(template.slug)}>{t('templatesPage.quickStart')}</Link>
           </Button>
           <Button
             type="button"
@@ -51,7 +51,7 @@ export function TemplatePreviewModal({ template, displayName, onClose }: Templat
 
       <div className="us-glass-strong flex items-center justify-center gap-3 border-t px-4 py-3 sm:hidden">
         <Button variant="default" className="min-h-11 flex-1" asChild>
-          <Link href={quickWizardHref(template.slug)}>{t('templatesPage.quickStart')}</Link>
+          <Link href={editorHref(template.slug)}>{t('templatesPage.quickStart')}</Link>
         </Button>
         <Button type="button" variant="outline" className="min-h-11" onClick={onClose}>
           {t('templatesPage.previewClose')}

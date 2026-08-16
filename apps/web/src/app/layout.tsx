@@ -13,6 +13,7 @@ import { SITE_ORIGIN_FALLBACK } from '@/lib/seo/site';
 import './globals.css';
 import '@/styles/kz-fonts.css';
 import '@/styles/editor-scrollbars.css';
+import '@/styles/canvas-editor.css';
 
 export const metadata = {
   title: {

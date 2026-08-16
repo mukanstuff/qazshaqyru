@@ -13,6 +13,16 @@ export function liveEditorHref(
   return `/create?template=${encodeURIComponent(templateSlug)}`;
 }
 
+/**
+ * Direct catalog → editor entry (toi.com.kz style).
+ * `/editor/[templateKey]` opens the canvas editor at a stable URL with no
+ * /invitations/{uuid}/canvas hop. Server creates a draft on first visit,
+ * cookie binds the user to the same draft on subsequent visits.
+ */
+export function editorHref(templateSlug: string = DEFAULT_QUICK_TEMPLATE): string {
+  return `/editor/${encodeURIComponent(templateSlug)}`;
+}
+
 /** Create/start from a template — goes through demo preview, then wizard → canvas. */
 export function quickWizardHref(templateSlug: string = DEFAULT_QUICK_TEMPLATE): string {
   return `/preview/${encodeURIComponent(templateSlug)}`;

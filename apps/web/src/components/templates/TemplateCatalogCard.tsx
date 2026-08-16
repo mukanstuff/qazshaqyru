@@ -9,7 +9,7 @@ import { Card } from '@/components/ui/card';
 import { useI18n } from '@/i18n';
 import { getTemplateSignature } from '@/lib/templates/template-identity';
 import { getTemplatePreviewUrl } from '@/lib/templates';
-import { quickWizardHref } from '@/lib/shared/quick-wizard-url';
+import { quickWizardHref, editorHref } from '@/lib/shared/quick-wizard-url';
 import { cn } from '@/lib/shared/utils';
 import type { Template } from '@prisma/client';
 
@@ -92,7 +92,7 @@ export function TemplateCatalogCard({
 
       <div className="us-glass-soft border-t border-us-border/50 p-3">
         <Link
-          href={quickWizardHref(template.slug)}
+          href={editorHref(template.slug)}
           data-testid={`template-quick-${template.slug}`}
           className={cn(
             buttonVariants({ variant: 'default', size: 'sm' }),
