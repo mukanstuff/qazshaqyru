@@ -50,7 +50,6 @@ export function CanvasEditorClient({ invitationId, initialDocument, shareUrl, lo
           onSaveRequest={save}
           shareUrl={shareUrl}
           locale={locale}
-          chrome="full"
           editorMode={editorMode}
         />
       </div>

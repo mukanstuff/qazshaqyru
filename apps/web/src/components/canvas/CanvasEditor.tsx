@@ -1,21 +1,50 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { CanvasElement, CanvasElementType, InvitationCanvasDocument } from '@/lib/canvas/types';
+import type {
+  CanvasElement,
+  HeadingElement,
+  InvitationCanvasDocument,
+  TextElement,
+} from '@/lib/canvas/types';
 import { CanvasRenderer } from './CanvasRenderer';
-import { HistoryStack, addElement, deleteElement, duplicateElement, moveElement, updateElement, deriveMobileDocument } from '@/lib/canvas/mutations';
-import { InspectorPanel } from './InspectorPanel';
-import { ElementPalette } from './ElementPalette';
-import { EditorToolbar } from './EditorToolbar';
-import { GuestCanvasHeader } from './GuestCanvasHeader';
+import {
+  HistoryStack,
+  deleteElement,
+  deriveMobileDocument,
+  duplicateElement,
+  moveElement,
+  updateElement,
+} from '@/lib/canvas/mutations';
 import { SelectionChrome } from './SelectionChrome';
 import { ElementContextMenu } from './ElementContextMenu';
-import { useDrag } from './hooks/useDrag';
-import { useResize } from './hooks/useResize';
-import { useRotate } from './hooks/useRotate';
-import { snapElementPosition, snapFinal, type GuideLine } from '@/lib/canvas/snap-guides';
-import { cn } from '@/lib/shared/utils';
+import { ElementSettingsCard } from './ElementSettingsCard';
+import { CompactFloatingPanel } from './CompactFloatingPanel';
+import { EditorFloatingClusters } from './EditorFloatingClusters';
+import {
+  ElementSectionsBottomIsland,
+  highlightedIdsForSection,
+  HIGHLIGHT_CLASS,
+} from './ElementSectionsBottomIsland';
 import { useI18n } from '@/i18n';
+
+/**
+ * 2026-08-17 (pilot-2): floating-everything chrome.
+ *
+ *  - NO top toolbar (replaced by `EditorFloatingClusters`).
+ *  - NO left palette (this version is for editing pre-made templates ONLY;
+ *    adding new blocks lives behind a separate "make your own" mode).
+ *  - NO right inspector / sidebar.
+ *  - Bottom of the viewport: `ElementSectionsBottomIsland` for quick
+ *    jumps to elements grouped by type.
+ *  - Selected text: thin strip floats above/below the element with
+ *    style controls only.
+ *  - Selected non-text: `ElementSettingsCard` floats in the lower
+ *    half of the viewport, centered, content-sized — NOT fullscreen,
+ *    NOT a sidebar.
+ *  - NO drag/resize/rotate handles (template vs accidental edit).
+ *  - Highlight pulse (sections island) uses the brand emerald accent.
+ */
 
 export interface SaveRequestOptions {
   keepalive?: boolean;
@@ -28,62 +57,40 @@ export interface CanvasEditorProps {
   shareUrl?: string;
   locale?: 'ru' | 'kz';
   mode?: 'user' | 'template-builder';
-  /** 2026-07-30: chrome controls how much UI is shown.
-   * 'full' = complete editor with palette + inspector (default).
-   * 'minimal' = stage + basic toolbar only (for "simple view inside editor").
-   * This is the start of the "one shell" pattern requested in review.
-   */
-  chrome?: 'minimal' | 'full';
-  /** Template ID — used to reset editor when a different template is loaded.
-   * When omitted, the editor only syncs on initial mount (safe for invitations).
-   */
   templateId?: string;
-  /**
-   * 2026-08-14: editorMode controls WHO is at the keyboard.
-   *   'admin' (default) — full chrome (toolbar, palette, inspector), double-click to edit text,
-   *                       selection chrome with resize/rotate handles.
-   *   'guest'           — minimal header (back / save status), single-tap to edit text,
-   *                       no selection chrome, no palette, no inspector.
-   *
-   * Both modes share the same document / autosave / history. This is the first step of the
-   * "one engine, two surfaces" plan (see admin/guest split, 2026-08-14).
-   */
   editorMode?: 'admin' | 'guest';
 }
 
 export type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 export function CanvasEditor(props: CanvasEditorProps) {
-  const { initialDocument, onChange, onSaveRequest, shareUrl, locale = 'ru', mode = 'user', chrome = 'full', templateId, editorMode = 'admin' } = props;
+  const {
+    initialDocument,
+    onChange,
+    onSaveRequest,
+    shareUrl,
+    locale = 'ru',
+    mode = 'user',
+    templateId,
+    editorMode = 'admin',
+  } = props;
   const [doc, setDoc] = useState<InvitationCanvasDocument>(initialDocument);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  // 2026-08-09: in-place text editing. Only one element can be in edit
-  // mode at a time. Cleared automatically when the user clicks outside or
-  // hits Esc (handled inside EditableTextView).
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
-  // 2026-08-17: in-editor guest-view preview toggle.
-  // Distinct from editorMode="guest" (a separate visitor surface).
-  // When true: chrome is hidden via the chrome prop, selection chrome is
-  // suppressed (renderEditorShell becomes a pass-through), selectedId is
-  // NOT cleared (so returning to edit preserves the selection).
   const [previewMode, setPreviewMode] = useState(false);
+  const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
 
   const historyRef = useRef<HistoryStack | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
 
-  // Initialize history once.
   if (!historyRef.current) historyRef.current = new HistoryStack(initialDocument);
 
-  // Sync ONLY on templateId change (e.g. user switches from one template to another).
-  // We intentionally do NOT depend on initialDocument here — that would reset the editor
-  // every time the parent re-renders with a freshly-fetched copy from autosave.
   const prevTemplateId = useRef<string | null>(null);
   useEffect(() => {
     if (prevTemplateId.current !== null && prevTemplateId.current !== templateId) {
-      // Template changed — reload.
       setDoc(initialDocument);
       historyRef.current = new HistoryStack(initialDocument);
     }
@@ -101,11 +108,8 @@ export function CanvasEditor(props: CanvasEditorProps) {
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; el: CanvasElement } | null>(null);
 
-  const [activeGuides, setActiveGuides] = useState<GuideLine[]>([]);
-
   // Autosave with 1s debounce.
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const clipboardRef = useRef<CanvasElement | null>(null);
   const pendingSaveRef = useRef<InvitationCanvasDocument | null>(null);
   const scheduleSave = useCallback(
     (d: InvitationCanvasDocument) => {
@@ -124,7 +128,6 @@ export function CanvasEditor(props: CanvasEditorProps) {
           setLastSaved(new Date());
         } catch {
           setSaveState('error');
-          // Keep the pending doc so the next debounce tick retries
           pendingSaveRef.current = payload;
         }
       }, 1000);
@@ -132,8 +135,7 @@ export function CanvasEditor(props: CanvasEditorProps) {
     [onSaveRequest]
   );
 
-  // Flush pending save on tab close / mobile hide. Uses fetch keepalive so the
-  // PATCH actually reaches the server before the document is unloaded.
+  // Flush pending save on tab close / hide.
   useEffect(() => {
     if (!onSaveRequest) return;
     const flush = () => {
@@ -161,11 +163,6 @@ export function CanvasEditor(props: CanvasEditorProps) {
     };
   }, [onSaveRequest]);
 
-  // On unmount (SPA navigation, route change): cancel any pending debounced save.
-  // The pagehide/visibilitychange listeners above handle hard shutdown; this
-  // closes the SPA-navigation gap where the tab isn't hidden but the component
-  // is gone. We do NOT flush here because setState after unmount would warn
-  // and the document is about to be re-fetched by the parent.
   useEffect(() => {
     return () => {
       if (saveTimer.current) {
@@ -175,9 +172,6 @@ export function CanvasEditor(props: CanvasEditorProps) {
     };
   }, []);
 
-  // Trigger autosave on each doc change. Skip the very first run (mount) —
-  // scheduling a save with the initial document would PATCH the server with
-  // the same payload it just gave us.
   const didMountRef = useRef(false);
   useEffect(() => {
     if (!didMountRef.current) {
@@ -192,77 +186,10 @@ export function CanvasEditor(props: CanvasEditorProps) {
     [doc.elements, selectedId]
   );
 
-  // Drag logic.
-  const { beginDrag } = useDrag({
-    stageRef: stageRef as React.RefObject<HTMLElement>,
-    scale: 1,
-    docWidth: doc.width,
-    getInitial: (id) => {
-      const el = doc.elements.find((e) => e.id === id);
-      return el ? { x: el.x, y: el.y } : { x: 0, y: 0 };
-    },
-    onStart: (id) => setSelectedId(id),
-    onMove: (id, x, y) => {
-      const el = doc.elements.find((e) => e.id === id);
-      const res = snapElementPosition(id, x, y, el?.w || 20, typeof el?.h === 'number' ? el.h : 40, doc.elements);
-      setActiveGuides(res.guides);
-      setDoc((d) => updateElement(d, id, { x: res.x, y: res.y } as Partial<CanvasElement>));
-    },
-    onEnd: (id, x, y) => {
-      setActiveGuides([]);
-      const el = doc.elements.find((e) => e.id === id);
-      const w = el?.w || 20;
-      const h = typeof el?.h === 'number' ? el.h : 40;
-      const final = snapFinal(id, x, y, w, h, doc.elements);
-      setDoc((d) => {
-        const next = updateElement(d, id, { x: final.x, y: final.y } as Partial<CanvasElement>);
-        commit(next);
-        return next;
-      });
-    },
-  });
-
-  // Resize logic.
-  const { beginResize } = useResize({
-    stageRef: stageRef as React.RefObject<HTMLElement>,
-    scale: 1,
-    docWidth: doc.width,
-    getInitial: (id) => {
-      const el = doc.elements.find((e) => e.id === id);
-      return el ? { x: el.x, y: el.y, w: el.w, h: el.h } : { x: 0, y: 0, w: 20, h: 40 };
-    },
-    onStart: (id) => setSelectedId(id),
-    onResize: (id, x, y, w, h) => {
-      setDoc((d) => updateElement(d, id, { x, y, w, h } as Partial<CanvasElement>));
-    },
-    onEnd: (id, x, y, w, h) => {
-      setDoc((d) => {
-        const next = updateElement(d, id, { x, y, w, h } as Partial<CanvasElement>);
-        commit(next);
-        return next;
-      });
-    },
-  });
-
-  // Rotate logic.
-  const { beginRotate } = useRotate({
-    stageRef: stageRef as React.RefObject<HTMLElement>,
-    getInitial: (id) => {
-      const el = doc.elements.find((e) => e.id === id);
-      return el ? { rotation: el.rotation || 0 } : { rotation: 0 };
-    },
-    onStart: (id) => setSelectedId(id),
-    onRotate: (id, angleDeg) => {
-      setDoc((d) => updateElement(d, id, { rotation: angleDeg } as Partial<CanvasElement>));
-    },
-    onEnd: (id, angleDeg) => {
-      setDoc((d) => {
-        const next = updateElement(d, id, { rotation: angleDeg } as Partial<CanvasElement>);
-        commit(next);
-        return next;
-      });
-    },
-  });
+  const highlightedIds = useMemo(
+    () => highlightedIdsForSection(doc, activeSectionId),
+    [doc, activeSectionId]
+  );
 
   // Hotkeys.
   useEffect(() => {
@@ -295,120 +222,17 @@ export function CanvasEditor(props: CanvasEditorProps) {
         commit(next);
         return;
       }
-      if (mod && e.key.toLowerCase() === 'd' && selectedId) {
-        e.preventDefault();
-        const next = duplicateElement(doc, selectedId);
-        commit(next);
-        return;
-      }
-      if (mod && e.key.toLowerCase() === 'c' && selectedId) {
-        e.preventDefault();
-        const el = doc.elements.find((x) => x.id === selectedId);
-        if (el) clipboardRef.current = el;
-        return;
-      }
-      if (mod && e.key.toLowerCase() === 'v' && clipboardRef.current) {
-        e.preventDefault();
-        const src = clipboardRef.current;
-        let next = addElement(doc, src.type);
-        const newId = next.elements[next.elements.length - 1].id;
-        const patch: Partial<CanvasElement> = {
-          ...src,
-          id: newId,
-          x: Math.min(80, src.x + 5),
-          y: src.y + 20,
-        };
-        next = updateElement(next, newId, patch);
-        commit(next);
-        setSelectedId(newId);
-        return;
-      }
       if (e.key === 'Escape') {
-        setSelectedId(null);
-      }
-      if (selectedId && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
-        e.preventDefault();
-        const step = e.shiftKey ? 10 : 1;
-        setDoc((d) => {
-          const el = d.elements.find((x) => x.id === selectedId);
-          if (!el) return d;
-          let { x, y } = el;
-          if (e.key === 'ArrowLeft') x -= step;
-          if (e.key === 'ArrowRight') x += step;
-          if (e.key === 'ArrowUp') y -= step;
-          if (e.key === 'ArrowDown') y += step;
-          x = Math.max(0, Math.min(100, x));
-          return updateElement(d, selectedId, { x, y } as Partial<CanvasElement>);
-        });
+        if (activeSectionId) {
+          setActiveSectionId(null);
+          return;
+        }
+        if (selectedId) setSelectedId(null);
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [doc, selectedId, commit]);
-
-  const handleAdd = useCallback(
-    (type: CanvasElementType, xPercent?: number, yPx?: number) => {
-      let next = addElement(doc, type);
-      const newId = next.elements[next.elements.length - 1].id;
-      if (typeof xPercent === 'number' && typeof yPx === 'number') {
-        next = updateElement(next, newId, { x: Math.round(xPercent), y: Math.round(yPx) } as Partial<CanvasElement>);
-      }
-      commit(next);
-      setSelectedId(newId);
-    },
-    [doc, commit]
-  );
-
-  // Mini-toolbar callbacks
-  const toolbarUndo = useCallback(() => {
-    const p = historyRef.current!.undo();
-    if (p) setDoc(p);
-  }, []);
-
-  const toolbarRedo = useCallback(() => {
-    const p = historyRef.current!.redo();
-    if (p) setDoc(p);
-  }, []);
-
-  const toolbarDuplicate = useCallback(() => {
-    if (!selectedId) return;
-    const next = duplicateElement(doc, selectedId);
-    commit(next);
-  }, [doc, selectedId, commit]);
-
-  const toolbarDelete = useCallback(() => {
-    if (!selectedId) return;
-    const next = deleteElement(doc, selectedId);
-    setSelectedId(null);
-    commit(next);
-  }, [doc, selectedId, commit]);
-
-  const toolbarColorChange = useCallback(
-    (color: string) => {
-      if (!selectedId) return;
-      const el = doc.elements.find((e) => e.id === selectedId);
-      if (!el) return;
-      let patch: Partial<CanvasElement> = {};
-      if ('color' in el) patch = { color } as Partial<CanvasElement>;
-      else if ('bgColor' in el) patch = { bgColor: color } as Partial<CanvasElement>;
-      else if ('textColor' in el) patch = { textColor: color } as Partial<CanvasElement>;
-      else return;
-      const next = updateElement(doc, selectedId, patch);
-      commit(next);
-    },
-    [doc, selectedId, commit]
-  );
-
-  const toolbarFontSizeChange = useCallback(
-    (fontSize: number) => {
-      if (!selectedId) return;
-      const el = doc.elements.find((e) => e.id === selectedId);
-      if (!el || !('fontSize' in el)) return;
-      const next = updateElement(doc, selectedId, { fontSize } as Partial<CanvasElement>);
-      commit(next);
-    },
-    [doc, selectedId, commit]
-  );
+  }, [doc, selectedId, activeSectionId, commit]);
 
   const handleUpdateSelected = useCallback(
     (patch: Partial<CanvasElement>) => {
@@ -419,10 +243,6 @@ export function CanvasEditor(props: CanvasEditorProps) {
     [doc, selectedId, commit]
   );
 
-  // ── 2026-08-09: in-place text editing callbacks ──────────────────────────
-  // Text typing updates the doc WITHOUT a history snapshot — too noisy.
-  // The snapshot is pushed on commit (blur/Esc/Enter). Font/color/align
-  // patches do push a snapshot because they are discrete user actions.
   const handleTextChange = useCallback(
     (id: string, patch: { text: string }) => {
       setDoc((d) => updateElement(d, id, patch as Partial<CanvasElement>));
@@ -431,10 +251,9 @@ export function CanvasEditor(props: CanvasEditorProps) {
   );
 
   const handleTextPatch = useCallback(
-    (id: string, patch: Partial<import('@/lib/canvas/types').TextProps>) => {
+    (id: string, patch: Partial<CanvasElement>) => {
       setDoc((d) => {
-        const next = updateElement(d, id, patch as Partial<CanvasElement>);
-        // Commit (pushes a history snapshot) for discrete property edits.
+        const next = updateElement(d, id, patch);
         historyRef.current!.pushSnapshot(next);
         return next;
       });
@@ -451,31 +270,57 @@ export function CanvasEditor(props: CanvasEditorProps) {
     setEditingTextId(null);
   }, []);
 
+  const handleSelect = useCallback((id: string | null) => {
+    setSelectedId(id);
+  }, []);
+
+  const handleDeleteSelected = useCallback(() => {
+    if (!selectedId) return;
+    const next = deleteElement(doc, selectedId);
+    setSelectedId(null);
+    commit(next);
+  }, [doc, selectedId, commit]);
+
+  const handleSectionActivate = useCallback((sectionId: string) => {
+    setActiveSectionId((prev) => (prev === sectionId ? null : sectionId));
+    setSelectedId(null);
+  }, []);
+
+  const handleSectionClear = useCallback(() => {
+    setActiveSectionId(null);
+  }, []);
+
+  const isGuest = editorMode === 'guest';
   const stageWidth = 390;
   const effectiveDoc = useMemo(() => deriveMobileDocument(doc), [doc]);
-
-  // 2026-08-17: previewMode is a VISUAL toggle inside admin editor.
-  // It piggy-backs on the existing chrome prop (minimal = hide toolbar/palette/inspector)
-  // but ONLY flips the chrome — it does NOT change editorMode, selectedId,
-  // history, or autosave. Toggle off → editor state is identical.
-  const isMinimal = chrome === 'minimal' || previewMode;
-  const isGuest = editorMode === 'guest';
-
   const { t } = useI18n();
 
+  const handleBack = useCallback(() => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      window.history.back();
+    }
+  }, []);
+
+  const handlePublish = useCallback(() => {
+    // Force-flush pending save so the publish action sees the latest doc.
+    if (onSaveRequest && pendingSaveRef.current) {
+      void onSaveRequest(pendingSaveRef.current).catch(() => {});
+    }
+    // For this version, publish is a no-op (the share screen is a separate
+    // route). The button is wired so the rest of the chrome is honest about
+    // what exists.
+  }, [onSaveRequest]);
+
   return (
-    <div className="canvas-editor-shell flex h-full flex-col" data-editor-mode={editorMode} data-preview-mode={previewMode ? 'on' : 'off'}>
-      {/* 2026-08-14: editorMode === 'guest' shows a lightweight header (back / save status / save).
-          2026-08-17: Admin keeps the toolbar EXCEPT in previewMode, where the toolbar is
-          replaced by a minimal "return to editing" floating button (rendered below). */}
-      {isGuest ? (
-        <GuestCanvasHeader
-          saveState={saveState}
-          lastSaved={lastSaved}
-          onSaveNow={() => scheduleSave(doc)}
-        />
-      ) : !previewMode ? (
-        <EditorToolbar
+    <div
+      className="canvas-editor-shell flex h-full flex-col"
+      data-editor-mode={editorMode}
+      data-preview-mode={previewMode ? 'on' : 'off'}
+      data-section-active={activeSectionId ? 'on' : 'off'}
+    >
+      {/* Top floating clusters — admin only, hidden in preview/guest. */}
+      {!isGuest && !previewMode && (
+        <EditorFloatingClusters
           canUndo={historyRef.current?.canUndo() ?? false}
           canRedo={historyRef.current?.canRedo() ?? false}
           onUndo={() => {
@@ -486,198 +331,99 @@ export function CanvasEditor(props: CanvasEditorProps) {
             const p = historyRef.current!.redo();
             if (p) setDoc(p);
           }}
+          onBack={handleBack}
           saveState={saveState}
           lastSaved={lastSaved}
           onSaveNow={() => scheduleSave(doc)}
-          mode={mode}
-          previewMode={previewMode}
-          onTogglePreview={() => setPreviewMode((v) => !v)}
+          onPublish={handlePublish}
         />
-      ) : null}
-      {!isMinimal && !isGuest && (
-        <div className="md:hidden px-4 py-2 border-b text-xs text-center" role="status" style={{ borderColor: 'var(--ed-border)', background: 'rgba(22, 163, 74, 0.06)', color: 'var(--ed-accent)' }}>
-          {t('invitation.edit.canvas.mobileHint')}
-        </div>
       )}
-      <div className="flex flex-1 min-h-0">
-        {/* Hide full palette in minimal chrome OR in guest mode (guest never adds elements) */}
-        {!isMinimal && !isGuest && (
-          <div className="hidden md:flex" style={{ flexShrink: 0 }}>
-            <ElementPalette
-              onAdd={handleAdd}
-              locale={locale}
-              document={doc}
-              onInsertSection={(next) => commit(next)}
-            />
-          </div>
-        )}
 
-        <div className="flex-1 overflow-auto p-6 flex items-start justify-center" data-testid="canvas-stage-wrap">
+      {/* Canvas — center stage, no side panels. */}
+      <div
+        className="flex-1 overflow-auto p-6 flex items-start justify-center"
+        data-testid="canvas-stage-wrap"
+      >
+        <div
+          className="relative shadow-2xl"
+          style={{ width: stageWidth }}
+        >
           <div
-            className={cn('relative shadow-2xl')}
-            style={{
-              width: stageWidth,
-            }}
+            ref={stageRef}
+            style={{ width: stageWidth }}
           >
-            <div
-              ref={stageRef}
-              style={{
-                width: stageWidth,
-              }}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'copy';
-              }}
-              onDrop={(e) => {
-                if (previewMode || isGuest) return;
-                e.preventDefault();
-                const type = e.dataTransfer.getData('text/plain') as CanvasElementType;
-                if (!type) return;
-                const rect = stageRef.current?.getBoundingClientRect();
-                if (!rect) return;
-                const xPx = e.clientX - rect.left;
-                const yPx = e.clientY - rect.top;
-                const stagePxPerPercent = rect.width / 100;
-                const xPercent = Math.max(0, Math.min(80, xPx / stagePxPerPercent));
-                handleAdd(type, xPercent, yPx);
-              }}
-            >
-              <CanvasRenderer
-                ref={previewRef}
-                document={effectiveDoc}
-                mode="editor"
-                selectedId={selectedId}
-                onSelect={isGuest || previewMode ? undefined : setSelectedId}
-                editingTextId={editingTextId}
-                onStartTextEdit={handleStartTextEdit}
-                onStopTextEdit={handleStopTextEdit}
-                onTextChange={handleTextChange}
-                onTextPatch={handleTextPatch}
-                editingTrigger={isGuest ? 'single' : 'double'}
-                renderEditorShell={
-                  isGuest || previewMode
-                    ? // Guest / previewMode: NO selection chrome, no drag/resize/rotate, no mini-toolbar.
-                      (_el, children) => <>{children}</>
-                    : (el, children) => (
+            <CanvasRenderer
+              ref={previewRef}
+              document={effectiveDoc}
+              mode="editor"
+              selectedId={selectedId}
+              onSelect={isGuest || previewMode ? undefined : handleSelect}
+              editingTextId={editingTextId}
+              onStartTextEdit={handleStartTextEdit}
+              onStopTextEdit={handleStopTextEdit}
+              onTextChange={handleTextChange}
+              onTextPatch={handleTextPatch}
+              editingTrigger="single"
+              renderEditorShell={
+                isGuest || previewMode
+                  ? (_el, children) => <>{children}</>
+                  : (el, children) => {
+                      const isHighlighted = highlightedIds.includes(el.id);
+                      return (
                         <SelectionChrome
                           el={el}
                           selected={el.id === selectedId}
-                          zoom={1}
-                          onDragStart={(e) => beginDrag(el.id, e)}
-                          onResizeStart={(e, handle) => beginResize(el.id, handle, e)}
-                          onRotateStart={(e) => beginRotate(el.id, e)}
-                          onContextMenu={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setSelectedId(el.id);
-                            setContextMenu({ x: e.clientX, y: e.clientY, el });
+                          highlighted={isHighlighted}
+                          onTap={() => handleSelect(el.id)}
+                          onDelete={() => {
+                            const next = deleteElement(doc, el.id);
+                            if (selectedId === el.id) setSelectedId(null);
+                            commit(next);
                           }}
-                          onToolbarColorChange={toolbarColorChange}
-                          onToolbarFontSizeChange={toolbarFontSizeChange}
-                          onToolbarDuplicate={toolbarDuplicate}
-                          onToolbarDelete={toolbarDelete}
-                          onToolbarUndo={toolbarUndo}
-                          onToolbarRedo={toolbarRedo}
                         >
                           {children}
                         </SelectionChrome>
-                      )
-                }
-                shareUrl={shareUrl}
-                locale={locale}
-              />
-              {activeGuides.map((g, idx) => (
-                <div
-                  key={`${g.type}-${idx}`}
-                  style={
-                    g.type === 'vertical'
-                      ? {
-                          position: 'absolute',
-                          left: `${g.pos}%`,
-                          top: 0,
-                          bottom: 0,
-                          width: 1,
-                          backgroundColor: '#c9a961',
-                          pointerEvents: 'none',
-                          zIndex: 9999,
-                        }
-                      : {
-                          position: 'absolute',
-                          top: g.pos,
-                          left: 0,
-                          right: 0,
-                          height: 1,
-                          backgroundColor: '#c9a961',
-                          pointerEvents: 'none',
-                          zIndex: 9999,
-                        }
-                  }
-                />
-              ))}
-            </div>
+                      );
+                    }
+              }
+              shareUrl={shareUrl}
+              locale={locale}
+            />
           </div>
         </div>
-
-        {/* 2026-08-17: Inspector — desktop sidebar (md+) OR mobile bottom-sheet (<md).
-            Bottom-sheet opens when user taps an element; tap on canvas (already handled
-            by CanvasRenderer) clears selectedId which auto-closes the sheet via effect. */}
-        {!isMinimal && !isGuest && (
-          <>
-            <div className="hidden md:block" style={{ flexShrink: 0 }}>
-              <InspectorPanel
-                selected={selected}
-                onUpdate={handleUpdateSelected}
-                onDelete={() => {
-                  if (!selectedId) return;
-                  commit(deleteElement(doc, selectedId));
-                  setSelectedId(null);
-                }}
-                onDuplicate={() => {
-                  if (!selectedId) return;
-                  const next = duplicateElement(doc, selectedId);
-                  commit(next);
-                }}
-                onLayer={(dir) => {
-                  if (!selectedId) return;
-                  commit(moveElement(doc, selectedId, dir));
-                }}
-                locale={locale}
-                mode={mode}
-                document={doc}
-                onDocumentChange={(patch) => commit({ ...doc, ...patch })}
-              />
-            </div>
-            <div className="md:hidden">
-              {selectedId && (
-                <InspectorPanel
-                  selected={selected}
-                  onUpdate={handleUpdateSelected}
-                  onDelete={() => {
-                    if (!selectedId) return;
-                    commit(deleteElement(doc, selectedId));
-                    setSelectedId(null);
-                  }}
-                  onDuplicate={() => {
-                    if (!selectedId) return;
-                    const next = duplicateElement(doc, selectedId);
-                    commit(next);
-                  }}
-                  onLayer={(dir) => {
-                    if (!selectedId) return;
-                    commit(moveElement(doc, selectedId, dir));
-                  }}
-                  locale={locale}
-                  mode={mode}
-                  document={doc}
-                  onDocumentChange={(patch) => commit({ ...doc, ...patch })}
-                  asSheet
-                  onClose={() => setSelectedId(null)}
-                />
-              )}
-            </div>
-          </>
-        )}
       </div>
+
+      {/* Bottom sections island — quick access to elements grouped by type. */}
+      {!isGuest && !previewMode && (
+        <ElementSectionsBottomIsland
+          document={doc}
+          highlightedIds={highlightedIds}
+          activeSectionId={activeSectionId}
+          onActivate={handleSectionActivate}
+          onClear={handleSectionClear}
+        />
+      )}
+
+      {/* Settings UI — text strip OR settings card. Mutually exclusive. */}
+      {!isGuest && !previewMode && selected && (
+        <>
+          {selected.type === 'text' || selected.type === 'heading' ? (
+            <TextStripAnchor
+              el={selected as TextElement | HeadingElement}
+              onUpdate={handleUpdateSelected}
+              onDelete={handleDeleteSelected}
+            />
+          ) : (
+            <ElementSettingsCard
+              el={selected}
+              onUpdate={handleUpdateSelected}
+              onDelete={handleDeleteSelected}
+              onClose={() => setSelectedId(null)}
+            />
+          )}
+        </>
+      )}
+
       {contextMenu && (
         <ElementContextMenu
           x={contextMenu.x}
@@ -708,6 +454,7 @@ export function CanvasEditor(props: CanvasEditorProps) {
           onClose={() => setContextMenu(null)}
         />
       )}
+
       {previewMode && !isGuest && (
         <button
           type="button"
@@ -721,3 +468,51 @@ export function CanvasEditor(props: CanvasEditorProps) {
     </div>
   );
 }
+
+/**
+ * Anchor wrapper for CompactFloatingPanel (measures the element's rect
+ * after layout so the strip can position itself above/below).
+ */
+function TextStripAnchor({
+  el,
+  onUpdate,
+  onDelete,
+}: {
+  el: TextElement | HeadingElement;
+  onUpdate: (patch: Partial<CanvasElement>) => void;
+  onDelete: () => void;
+}) {
+  const [rect, setRect] = useState<DOMRect | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const measure = () => {
+      const node = window.document.querySelector(
+        `[data-selected-id="${el.id}"]`
+      ) as HTMLElement | null;
+      if (node) setRect(node.getBoundingClientRect());
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    window.addEventListener('scroll', measure, true);
+    const id = window.requestAnimationFrame(measure);
+    return () => {
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('scroll', measure, true);
+      window.cancelAnimationFrame(id);
+    };
+  }, [el.id]);
+
+  if (!rect) return null;
+  return (
+    <CompactFloatingPanel
+      el={el}
+      anchorRect={rect}
+      onUpdate={onUpdate}
+      onDelete={onDelete}
+    />
+  );
+}
+
+// Re-export so the `HIGHLIGHT_CLASS` is reachable from older imports / tests.
+export { HIGHLIGHT_CLASS };

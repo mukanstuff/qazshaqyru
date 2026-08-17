@@ -407,6 +407,7 @@ export const kz: Translations = {
         hide: 'Жасыру',
         show: 'Көрсету',
         mobileHint: 'Толық түзету тек десктопта қолжетімді — мұнда алдын ала қарау көрсетілген',
+        settingsComingSoon: 'Бұл элемент баптаулары жуырда пайда болады',
       },
     },
     publishCheck: {
