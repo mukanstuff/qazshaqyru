@@ -4,24 +4,22 @@ import { useI18n } from '@/i18n';
 import type { SaveState } from './CanvasEditor';
 
 interface ToolbarProps {
-  viewport: 'mobile' | 'desktop';
-  onViewportChange: (v: 'mobile' | 'desktop') => void;
-  zoom: number;
-  onZoomChange: (z: number) => void;
-  showGrid: boolean;
-  onToggleGrid: () => void;
   canUndo: boolean;
   canRedo: boolean;
   onUndo: () => void;
   onRedo: () => void;
-  onPreviewGuest: () => void;
-  onPreviewAnimations: () => void;
-  onOpenPresets?: () => void;
-  onExportPNG?: () => void;
   saveState: SaveState;
   lastSaved: Date | null;
   onSaveNow: () => void;
   mode: 'user' | 'template-builder';
+  /**
+   * 2026-08-17: in-app "guest view" preview. When true, the canvas
+   * renders clean (no chrome, no selection handles) but the editor
+   * state — selected element, history, autosave — is preserved.
+   * Distinct from editorMode="guest" which is a separate visitor surface.
+   */
+  previewMode: boolean;
+  onTogglePreview: () => void;
 }
 
 function formatAgo(d: Date | null, locale: 'ru' | 'kz') {
@@ -46,68 +44,11 @@ export function EditorToolbar(p: ToolbarProps) {
       </button>
       <span className="ct-divider" />
 
-      <div className="ct-viewport-group">
-        <button
-          className={`ct-btn ${p.viewport === 'mobile' ? 'is-active' : ''}`}
-          onClick={() => p.onViewportChange('mobile')}
-        >
-          📱 {t('invitation.edit.canvas.mobile')}
-        </button>
-        <button
-          className={`ct-btn ${p.viewport === 'desktop' ? 'is-active' : ''}`}
-          onClick={() => p.onViewportChange('desktop')}
-        >
-          🖥 {t('invitation.edit.canvas.desktop')}
-        </button>
-      </div>
-
-      <span className="ct-divider" />
-
-      <select
-        value={p.zoom}
-        onChange={(e) => p.onZoomChange(Number(e.target.value))}
-        className="canvas-inspector-input"
-        style={{ width: 'auto', display: 'inline-flex', padding: '4px 24px 4px 8px', fontSize: '12px' }}
+      <button
+        className={`ct-btn ${p.previewMode ? 'is-active' : ''}`}
+        onClick={p.onTogglePreview}
+        aria-pressed={p.previewMode}
       >
-        <option value={0.5}>50%</option>
-        <option value={0.75}>75%</option>
-        <option value={1}>100%</option>
-        <option value={1.25}>125%</option>
-      </select>
-
-      <button className="ct-btn" onClick={() => p.onZoomChange(1)}>
-        {t('invitation.edit.canvas.zoomFit')}
-      </button>
-
-      <label className="ct-btn" style={{ gap: '6px', cursor: 'pointer' }}>
-        <input
-          type="checkbox"
-          checked={p.showGrid}
-          onChange={p.onToggleGrid}
-          style={{ accentColor: 'var(--ed-accent)' }}
-        />
-        {t('invitation.edit.canvas.grid')}
-      </label>
-
-      <span className="ct-divider" />
-
-      {p.onOpenPresets && (
-        <button className="ct-btn" onClick={p.onOpenPresets}>
-          ✨ {t('invitation.edit.canvas.presets')}
-        </button>
-      )}
-
-      {p.onExportPNG && (
-        <button className="ct-btn" onClick={p.onExportPNG}>
-          ⬇ {t('invitation.edit.canvas.exportPng')}
-        </button>
-      )}
-
-      <button className="ct-btn" onClick={p.onPreviewAnimations}>
-        ▶ {t('invitation.edit.canvas.animPreview')}
-      </button>
-
-      <button className="ct-btn" onClick={p.onPreviewGuest}>
         👁 {t('invitation.edit.canvas.preview')}
       </button>
 

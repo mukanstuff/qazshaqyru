@@ -10,14 +10,12 @@ import { EditorToolbar } from './EditorToolbar';
 import { GuestCanvasHeader } from './GuestCanvasHeader';
 import { SelectionChrome } from './SelectionChrome';
 import { ElementContextMenu } from './ElementContextMenu';
-import { PresetLibraryModal } from './PresetLibraryModal';
 import { useDrag } from './hooks/useDrag';
 import { useResize } from './hooks/useResize';
 import { useRotate } from './hooks/useRotate';
 import { snapElementPosition, snapFinal, type GuideLine } from '@/lib/canvas/snap-guides';
 import { cn } from '@/lib/shared/utils';
 import { useI18n } from '@/i18n';
-import html2canvas from 'html2canvas';
 
 export interface SaveRequestOptions {
   keepalive?: boolean;
@@ -36,8 +34,6 @@ export interface CanvasEditorProps {
    * This is the start of the "one shell" pattern requested in review.
    */
   chrome?: 'minimal' | 'full';
-  /** Invitation ID for naming the exported PNG file */
-  invitationId?: string;
   /** Template ID — used to reset editor when a different template is loaded.
    * When omitted, the editor only syncs on initial mount (safe for invitations).
    */
@@ -58,20 +54,21 @@ export interface CanvasEditorProps {
 export type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 export function CanvasEditor(props: CanvasEditorProps) {
-  const { initialDocument, onChange, onSaveRequest, shareUrl, locale = 'ru', mode = 'user', chrome = 'full', invitationId, templateId, editorMode = 'admin' } = props;
+  const { initialDocument, onChange, onSaveRequest, shareUrl, locale = 'ru', mode = 'user', chrome = 'full', templateId, editorMode = 'admin' } = props;
   const [doc, setDoc] = useState<InvitationCanvasDocument>(initialDocument);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [viewport, setViewport] = useState<'mobile' | 'desktop'>('mobile');
-  const [zoom, setZoom] = useState(1);
-  const [showGrid, setShowGrid] = useState(false);
-  const [previewAnim, setPreviewAnim] = useState(false);
-  const [showPresets, setShowPresets] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   // 2026-08-09: in-place text editing. Only one element can be in edit
   // mode at a time. Cleared automatically when the user clicks outside or
   // hits Esc (handled inside EditableTextView).
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  // 2026-08-17: in-editor guest-view preview toggle.
+  // Distinct from editorMode="guest" (a separate visitor surface).
+  // When true: chrome is hidden via the chrome prop, selection chrome is
+  // suppressed (renderEditorShell becomes a pass-through), selectedId is
+  // NOT cleared (so returning to edit preserves the selection).
+  const [previewMode, setPreviewMode] = useState(false);
 
   const historyRef = useRef<HistoryStack | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
@@ -178,38 +175,6 @@ export function CanvasEditor(props: CanvasEditorProps) {
     };
   }, []);
 
-  // PNG export: captures the invitation preview div via html2canvas. We capture
-  // the dedicated preview node (data-canvas-export-preview) so the toolbar,
-  // palette, and inspector chrome are NOT baked into the downloaded PNG.
-  const handleExportPNG = useCallback(async () => {
-    const preview = previewRef.current ?? stageRef.current?.querySelector<HTMLElement>('[data-canvas-export-preview]');
-    if (!preview) return;
-    setSaveState('saving');
-    try {
-      const canvas = await html2canvas(preview, {
-        useCORS: true,
-        allowTaint: false,
-        backgroundColor: '#ffffff',
-        scale: 2,
-      });
-      const blob = await new Promise<Blob | null>((resolve) =>
-        canvas.toBlob(resolve, 'image/png', 1.0)
-      );
-      if (!blob) throw new Error('No blob');
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `invitation-${invitationId ?? 'export'}.png`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      setSaveState('saved');
-    } catch {
-      setSaveState('error');
-    }
-  }, [invitationId]);
-
   // Trigger autosave on each doc change. Skip the very first run (mount) —
   // scheduling a save with the initial document would PATCH the server with
   // the same payload it just gave us.
@@ -230,7 +195,7 @@ export function CanvasEditor(props: CanvasEditorProps) {
   // Drag logic.
   const { beginDrag } = useDrag({
     stageRef: stageRef as React.RefObject<HTMLElement>,
-    scale: zoom,
+    scale: 1,
     docWidth: doc.width,
     getInitial: (id) => {
       const el = doc.elements.find((e) => e.id === id);
@@ -239,9 +204,7 @@ export function CanvasEditor(props: CanvasEditorProps) {
     onStart: (id) => setSelectedId(id),
     onMove: (id, x, y) => {
       const el = doc.elements.find((e) => e.id === id);
-      const res = snapElementPosition(id, x, y, el?.w || 20, typeof el?.h === 'number' ? el.h : 40, doc.elements, {
-        snapGrid: showGrid,
-      });
+      const res = snapElementPosition(id, x, y, el?.w || 20, typeof el?.h === 'number' ? el.h : 40, doc.elements);
       setActiveGuides(res.guides);
       setDoc((d) => updateElement(d, id, { x: res.x, y: res.y } as Partial<CanvasElement>));
     },
@@ -262,7 +225,7 @@ export function CanvasEditor(props: CanvasEditorProps) {
   // Resize logic.
   const { beginResize } = useResize({
     stageRef: stageRef as React.RefObject<HTMLElement>,
-    scale: zoom,
+    scale: 1,
     docWidth: doc.width,
     getInitial: (id) => {
       const el = doc.elements.find((e) => e.id === id);
@@ -488,62 +451,49 @@ export function CanvasEditor(props: CanvasEditorProps) {
     setEditingTextId(null);
   }, []);
 
-  const stageWidth = viewport === 'mobile' ? 390 : doc.width;
-  const effectiveDoc = useMemo(() => {
-    if (viewport === 'mobile') {
-      return deriveMobileDocument(doc);
-    }
-    return { ...doc, width: stageWidth };
-  }, [doc, stageWidth, viewport]);
+  const stageWidth = 390;
+  const effectiveDoc = useMemo(() => deriveMobileDocument(doc), [doc]);
 
-  const isMinimal = chrome === 'minimal';
+  // 2026-08-17: previewMode is a VISUAL toggle inside admin editor.
+  // It piggy-backs on the existing chrome prop (minimal = hide toolbar/palette/inspector)
+  // but ONLY flips the chrome — it does NOT change editorMode, selectedId,
+  // history, or autosave. Toggle off → editor state is identical.
+  const isMinimal = chrome === 'minimal' || previewMode;
   const isGuest = editorMode === 'guest';
 
   const { t } = useI18n();
 
   return (
-    <div className="canvas-editor-shell flex h-full flex-col" data-editor-mode={editorMode}>
+    <div className="canvas-editor-shell flex h-full flex-col" data-editor-mode={editorMode} data-preview-mode={previewMode ? 'on' : 'off'}>
       {/* 2026-08-14: editorMode === 'guest' shows a lightweight header (back / save status / save).
-          Admin keeps the full EditorToolbar (viewport, zoom, grid, undo/redo, presets, PNG). */}
+          2026-08-17: Admin keeps the toolbar EXCEPT in previewMode, where the toolbar is
+          replaced by a minimal "return to editing" floating button (rendered below). */}
       {isGuest ? (
         <GuestCanvasHeader
           saveState={saveState}
           lastSaved={lastSaved}
           onSaveNow={() => scheduleSave(doc)}
         />
-      ) : (
+      ) : !previewMode ? (
         <EditorToolbar
-          viewport={viewport}
-          onViewportChange={setViewport}
-          zoom={zoom}
-          onZoomChange={setZoom}
-          showGrid={showGrid}
-          onToggleGrid={() => setShowGrid((g) => !g)}
           canUndo={historyRef.current?.canUndo() ?? false}
           canRedo={historyRef.current?.canRedo() ?? false}
-        onUndo={() => {
-          const p = historyRef.current!.undo();
-          if (p) setDoc(p);
-        }}
-        onRedo={() => {
-          const p = historyRef.current!.redo();
-          if (p) setDoc(p);
-        }}
-        onPreviewGuest={() => {
-          if (shareUrl) window.open(shareUrl, '_blank', 'noopener,noreferrer');
-        }}
-        onPreviewAnimations={() => {
-          setPreviewAnim(true);
-          setTimeout(() => setPreviewAnim(false), 2500);
-        }}
-        onOpenPresets={() => setShowPresets(true)}
-        onExportPNG={handleExportPNG}
-        saveState={saveState}
-        lastSaved={lastSaved}
-        onSaveNow={() => scheduleSave(doc)}
-        mode={mode}
-      />
-      )}
+          onUndo={() => {
+            const p = historyRef.current!.undo();
+            if (p) setDoc(p);
+          }}
+          onRedo={() => {
+            const p = historyRef.current!.redo();
+            if (p) setDoc(p);
+          }}
+          saveState={saveState}
+          lastSaved={lastSaved}
+          onSaveNow={() => scheduleSave(doc)}
+          mode={mode}
+          previewMode={previewMode}
+          onTogglePreview={() => setPreviewMode((v) => !v)}
+        />
+      ) : null}
       {!isMinimal && !isGuest && (
         <div className="md:hidden px-4 py-2 border-b text-xs text-center" role="status" style={{ borderColor: 'var(--ed-border)', background: 'rgba(22, 163, 74, 0.06)', color: 'var(--ed-accent)' }}>
           {t('invitation.edit.canvas.mobileHint')}
@@ -564,34 +514,30 @@ export function CanvasEditor(props: CanvasEditorProps) {
 
         <div className="flex-1 overflow-auto p-6 flex items-start justify-center" data-testid="canvas-stage-wrap">
           <div
-            className={cn('relative shadow-2xl', showGrid && 'canvas-grid-bg')}
+            className={cn('relative shadow-2xl')}
             style={{
-              width: stageWidth * zoom,
-              transform: `scale(1)`,
-              transformOrigin: 'top center',
+              width: stageWidth,
             }}
           >
             <div
               ref={stageRef}
               style={{
                 width: stageWidth,
-                transform: `scale(${zoom})`,
-                transformOrigin: 'top center',
-                marginBottom: (zoom - 1) * -200,
               }}
               onDragOver={(e) => {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = 'copy';
               }}
               onDrop={(e) => {
+                if (previewMode || isGuest) return;
                 e.preventDefault();
                 const type = e.dataTransfer.getData('text/plain') as CanvasElementType;
                 if (!type) return;
                 const rect = stageRef.current?.getBoundingClientRect();
                 if (!rect) return;
-                const xPx = (e.clientX - rect.left) / zoom;
-                const yPx = (e.clientY - rect.top) / zoom;
-                const stagePxPerPercent = (rect.width / zoom) / 100;
+                const xPx = e.clientX - rect.left;
+                const yPx = e.clientY - rect.top;
+                const stagePxPerPercent = rect.width / 100;
                 const xPercent = Math.max(0, Math.min(80, xPx / stagePxPerPercent));
                 handleAdd(type, xPercent, yPx);
               }}
@@ -601,7 +547,7 @@ export function CanvasEditor(props: CanvasEditorProps) {
                 document={effectiveDoc}
                 mode="editor"
                 selectedId={selectedId}
-                onSelect={isGuest ? undefined : setSelectedId}
+                onSelect={isGuest || previewMode ? undefined : setSelectedId}
                 editingTextId={editingTextId}
                 onStartTextEdit={handleStartTextEdit}
                 onStopTextEdit={handleStopTextEdit}
@@ -609,15 +555,14 @@ export function CanvasEditor(props: CanvasEditorProps) {
                 onTextPatch={handleTextPatch}
                 editingTrigger={isGuest ? 'single' : 'double'}
                 renderEditorShell={
-                  isGuest
-                    ? // Guest mode: NO selection chrome, no drag/resize/rotate, no mini-toolbar.
-                      // EditableTextView handles its own affordance (cursor on hover).
+                  isGuest || previewMode
+                    ? // Guest / previewMode: NO selection chrome, no drag/resize/rotate, no mini-toolbar.
                       (_el, children) => <>{children}</>
                     : (el, children) => (
                         <SelectionChrome
                           el={el}
                           selected={el.id === selectedId}
-                          zoom={zoom}
+                          zoom={1}
                           onDragStart={(e) => beginDrag(el.id, e)}
                           onResizeStart={(e, handle) => beginResize(el.id, handle, e)}
                           onRotateStart={(e) => beginRotate(el.id, e)}
@@ -638,7 +583,6 @@ export function CanvasEditor(props: CanvasEditorProps) {
                         </SelectionChrome>
                       )
                 }
-                forceAnimations={previewAnim}
                 shareUrl={shareUrl}
                 locale={locale}
               />
@@ -674,32 +618,64 @@ export function CanvasEditor(props: CanvasEditorProps) {
           </div>
         </div>
 
-        {/* Hide inspector in minimal chrome OR guest mode, or on mobile (< md) — inspector is 288px and breaks the layout on phones. */}
+        {/* 2026-08-17: Inspector — desktop sidebar (md+) OR mobile bottom-sheet (<md).
+            Bottom-sheet opens when user taps an element; tap on canvas (already handled
+            by CanvasRenderer) clears selectedId which auto-closes the sheet via effect. */}
         {!isMinimal && !isGuest && (
-          <div className="hidden md:block" style={{ flexShrink: 0 }}>
-            <InspectorPanel
-            selected={selected}
-            onUpdate={handleUpdateSelected}
-            onDelete={() => {
-              if (!selectedId) return;
-              commit(deleteElement(doc, selectedId));
-              setSelectedId(null);
-            }}
-            onDuplicate={() => {
-              if (!selectedId) return;
-              const next = duplicateElement(doc, selectedId);
-              commit(next);
-            }}
-            onLayer={(dir) => {
-              if (!selectedId) return;
-              commit(moveElement(doc, selectedId, dir));
-            }}
-            locale={locale}
-            mode={mode}
-            document={doc}
-            onDocumentChange={(patch) => commit({ ...doc, ...patch })}
-          />
-          </div>
+          <>
+            <div className="hidden md:block" style={{ flexShrink: 0 }}>
+              <InspectorPanel
+                selected={selected}
+                onUpdate={handleUpdateSelected}
+                onDelete={() => {
+                  if (!selectedId) return;
+                  commit(deleteElement(doc, selectedId));
+                  setSelectedId(null);
+                }}
+                onDuplicate={() => {
+                  if (!selectedId) return;
+                  const next = duplicateElement(doc, selectedId);
+                  commit(next);
+                }}
+                onLayer={(dir) => {
+                  if (!selectedId) return;
+                  commit(moveElement(doc, selectedId, dir));
+                }}
+                locale={locale}
+                mode={mode}
+                document={doc}
+                onDocumentChange={(patch) => commit({ ...doc, ...patch })}
+              />
+            </div>
+            <div className="md:hidden">
+              {selectedId && (
+                <InspectorPanel
+                  selected={selected}
+                  onUpdate={handleUpdateSelected}
+                  onDelete={() => {
+                    if (!selectedId) return;
+                    commit(deleteElement(doc, selectedId));
+                    setSelectedId(null);
+                  }}
+                  onDuplicate={() => {
+                    if (!selectedId) return;
+                    const next = duplicateElement(doc, selectedId);
+                    commit(next);
+                  }}
+                  onLayer={(dir) => {
+                    if (!selectedId) return;
+                    commit(moveElement(doc, selectedId, dir));
+                  }}
+                  locale={locale}
+                  mode={mode}
+                  document={doc}
+                  onDocumentChange={(patch) => commit({ ...doc, ...patch })}
+                  asSheet
+                  onClose={() => setSelectedId(null)}
+                />
+              )}
+            </div>
+          </>
         )}
       </div>
       {contextMenu && (
@@ -732,24 +708,16 @@ export function CanvasEditor(props: CanvasEditorProps) {
           onClose={() => setContextMenu(null)}
         />
       )}
-      {showPresets && (
-        <PresetLibraryModal
-          doc={doc}
-          onApplyDoc={(nextDoc) => {
-            commit(nextDoc);
-          }}
-          onClose={() => setShowPresets(false)}
-          locale={locale}
-        />
+      {previewMode && !isGuest && (
+        <button
+          type="button"
+          onClick={() => setPreviewMode(false)}
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[70] rounded-full bg-us-ink px-5 py-3 text-sm font-medium text-white shadow-lg hover:bg-us-ink/90"
+          data-testid="canvas-exit-preview"
+        >
+          ✏ {t('invitation.edit.canvas.backToEdit')}
+        </button>
       )}
-      <style>{`
-        .canvas-grid-bg {
-          background-image:
-            linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px);
-          background-size: 20px 20px;
-        }
-      `}</style>
     </div>
   );
 }

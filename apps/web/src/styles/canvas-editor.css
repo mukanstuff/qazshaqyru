@@ -328,6 +328,19 @@
   flex-shrink: 0;
 }
 
+/* 2026-08-17: When the inspector renders inside the EditorPanelShell bottom-sheet
+   we strip its own border/background (the shell already provides chrome) and let
+   it stretch the available height. */
+.canvas-inspector--in-sheet {
+  background: transparent;
+  border-left: none;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
 .canvas-inspector .ci-tabs {
   display: flex;
   border-bottom: 1px solid var(--ed-border);

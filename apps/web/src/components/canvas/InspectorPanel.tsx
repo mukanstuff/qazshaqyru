@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { EditorPanelShell } from '@/components/editor/EditorPanelShell';
 import type {
   CanvasElement,
   TextElement,
@@ -36,6 +37,13 @@ interface InspectorProps {
   /** Document-level controls (Stage 1). */
   document?: InvitationCanvasDocument;
   onDocumentChange?: (patch: Partial<InvitationCanvasDocument>) => void;
+  /**
+   * 2026-08-17: When true, renders as a bottom-sheet (mobile) instead of
+   * a desktop sidebar. The parent CanvasEditor controls this via CSS visibility,
+   * but the panel itself stays mounted.
+   */
+  asSheet?: boolean;
+  onClose?: () => void;
 }
 
 // 40 popular fonts (Stage 1) — keep alphabetical-ish but grouped by vibe.
@@ -269,11 +277,23 @@ const T = {
 };
 
 export function InspectorPanel(props: InspectorProps) {
-  const { selected, onUpdate, onDelete, onDuplicate, onLayer, locale, mode, document, onDocumentChange } = props;
+  const { selected, onUpdate, onDelete, onDuplicate, onLayer, locale, mode, document, onDocumentChange, asSheet = false, onClose } = props;
   const t = T[locale];
   const [tab, setTab] = useState<'element' | 'document'>('element');
 
+  // 2026-08-17: Tap-to-select sync — opening the bottom-sheet when an element
+  // is selected. Esc closes it. Only when rendered as a sheet on mobile.
+  useEffect(() => {
+    if (!asSheet) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose?.();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [asSheet, onClose]);
+
   if (!selected && !document) {
+    if (asSheet) return null;
     return (
       <aside className="canvas-inspector">
         <div className="ci-empty">{t.emptyHint}</div>
@@ -304,8 +324,8 @@ export function InspectorPanel(props: InspectorProps) {
   const showElement = !noSelection && tab === 'element';
   const showDocument = tab === 'document';
 
-  return (
-    <aside className="canvas-inspector">
+  const body = (
+    <>
       <div className="ci-tabs">
         <button
           type="button"
@@ -360,6 +380,26 @@ export function InspectorPanel(props: InspectorProps) {
           <DocumentSection doc={document} onChange={onDocumentChange} t={t} locale={locale} />
         )}
       </div>
+    </>
+  );
+
+  if (asSheet) {
+    return (
+      <EditorPanelShell
+        title={selected ? (locale === 'ru' ? 'Свойства' : 'Қасиеттері') : (locale === 'ru' ? 'Документ' : 'Құжат')}
+        onClose={onClose ?? (() => {})}
+        className="canvas-inspector-sheet"
+      >
+        <aside className="canvas-inspector canvas-inspector--in-sheet">
+          {body}
+        </aside>
+      </EditorPanelShell>
+    );
+  }
+
+  return (
+    <aside className="canvas-inspector">
+      {body}
     </aside>
   );
 }

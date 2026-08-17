@@ -2,7 +2,6 @@
 
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import html2canvas from 'html2canvas';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { I18nProvider } from '@/i18n';
 import type { InvitationCanvasDocument } from '@/lib/canvas/types';
@@ -14,10 +13,6 @@ Object.assign(globalThis, {
   React,
   IS_REACT_ACT_ENVIRONMENT: true,
 });
-
-vi.mock('html2canvas', () => ({
-  default: vi.fn(),
-}));
 
 const documentFixture: InvitationCanvasDocument = {
   version: 1,
@@ -46,28 +41,20 @@ function renderWithChildren(
 
 function toolbarProps() {
   return {
-    viewport: 'mobile' as const,
-    onViewportChange: vi.fn(),
-    zoom: 1,
-    onZoomChange: vi.fn(),
-    showGrid: false,
-    onToggleGrid: vi.fn(),
     canUndo: false,
     canRedo: false,
     onUndo: vi.fn(),
     onRedo: vi.fn(),
-    onPreviewGuest: vi.fn(),
-    onPreviewAnimations: vi.fn(),
-    onOpenPresets: vi.fn(),
-    onExportPNG: vi.fn(),
     saveState: 'idle' as const,
     lastSaved: null,
     onSaveNow: vi.fn(),
     mode: 'user' as const,
+    previewMode: false,
+    onTogglePreview: vi.fn(),
   };
 }
 
-describe('canvas editor durability and export', () => {
+describe('canvas editor durability', () => {
   let roots: Root[];
 
   beforeEach(() => {
@@ -79,44 +66,6 @@ describe('canvas editor durability and export', () => {
     roots.forEach((root) => act(() => root.unmount()));
     document.body.innerHTML = '';
     vi.restoreAllMocks();
-  });
-
-  it('captures only the invitation preview and downloads a named PNG', async () => {
-    const blob = new Blob(['png'], { type: 'image/png' });
-    const capture = vi.mocked(html2canvas);
-    capture.mockResolvedValue({
-      toBlob: (callback: BlobCallback) => callback(blob),
-    } as HTMLCanvasElement);
-    const createObjectURL = vi.fn(() => 'blob:invitation');
-    const revokeObjectURL = vi.fn();
-    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectURL });
-    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revokeObjectURL });
-    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
-
-    const rendered = render(
-      React.createElement(CanvasEditor, {
-        initialDocument: documentFixture,
-        invitationId: 'invite-42',
-      }),
-    );
-    roots.push(rendered.root);
-
-    const exportButton = Array.from(rendered.container.querySelectorAll('button')).find((button) =>
-      button.textContent?.includes('PNG'),
-    );
-    expect(exportButton).toBeDefined();
-
-    await act(async () => exportButton?.click());
-
-    const preview = rendered.container.querySelector('[data-canvas-export-preview]');
-    expect(preview).not.toBeNull();
-    expect(capture).toHaveBeenCalledWith(
-      preview,
-      expect.objectContaining({ useCORS: true, scale: 2 }),
-    );
-    expect(anchorClick).toHaveBeenCalledOnce();
-    expect(createObjectURL).toHaveBeenCalledWith(blob);
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:invitation');
   });
 
   it('starts a keepalive save synchronously before unload', () => {
@@ -156,8 +105,7 @@ describe('canvas editor translations', () => {
     const rendered = renderWithChildren(I18nProvider, React.createElement(EditorToolbar, toolbarProps()));
     rootsForCleanup.push(rendered.root);
 
-    expect(rendered.container.textContent).toContain('PNG жүктеу');
-    expect(rendered.container.textContent).toContain('Пресеттер');
+    expect(rendered.container.textContent).toContain('Қайтару');
   });
 
   it('gets context-menu state labels from the active i18n provider', () => {
