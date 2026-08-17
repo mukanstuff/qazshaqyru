@@ -94,7 +94,7 @@ export default async function TemplateEditorPage({ params, searchParams }: Props
         initialDocument={JSON.parse(JSON.stringify(document))}
         shareUrl={shareUrl}
         locale={locale}
-        editorMode="guest"
+        editorMode="admin"
       />
     </div>
   );
