@@ -7,10 +7,10 @@
  * Sections:
  *   - .canvas-editor-shell      root container, scope for tokens
  *   - .editor-top-cluster       floating top-left / top-right clusters
- *   - .editor-bottom-island     bottom floating sections island
+ *   - .editor-fab               floating action button (opens quick-edit sheet)
+ *   - .editor-sheet, .editor-sheet-*  bottom sheet + tabs (quick edit)
  *   - .editor-settings-card     floating settings card (non-text)
  *   - .editor-text-strip        thin floating strip (text style controls)
- *   - .editor-highlight-pulse   section highlight pulse on canvas
  *   - .canvas-selection-delete  universal element trash button
  *   - .canvas-inspector-input   shared form input
  *   - .canvas-popover           portal popup container
@@ -125,6 +125,25 @@
   margin: 0 2px;
 }
 
+/* Stronger divider separates the "exit editor" Back button from the
+   undo/redo pair — they have very different consequences. */
+.editor-cluster-divider--strong {
+  width: 1px;
+  height: 22px;
+  background: var(--ed-border-strong);
+  margin: 0 6px 0 4px;
+}
+
+.editor-cluster-btn--back {
+  color: var(--ed-text);
+  font-weight: 500;
+}
+
+.editor-cluster-btn--back:hover:not(:disabled) {
+  background: var(--ed-accent-light);
+  color: var(--ed-accent-strong);
+}
+
 .editor-save-pill {
   font-size: 12px;
   font-weight: 500;
@@ -157,118 +176,6 @@
 
 .editor-save-pill.is-idle {
   color: var(--ed-text-dim);
-}
-
-/* ═══ Bottom sections island (pilot-2) ════════════════════════════════════════ */
-.editor-bottom-island {
-  position: fixed;
-  bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 50;
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 4px;
-  background: var(--ed-surface);
-  border: 1px solid var(--ed-border);
-  border-radius: var(--ed-radius-pill);
-  box-shadow: var(--ed-shadow);
-  max-width: calc(100vw - 24px);
-  overflow: hidden;
-}
-
-.editor-island-clear {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: none;
-  background: transparent;
-  color: var(--ed-text-muted);
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 14px;
-  flex-shrink: 0;
-  margin-right: 2px;
-}
-
-.editor-island-clear:hover {
-  background: var(--ed-surface-2);
-  color: var(--ed-text);
-}
-
-.editor-island-buttons {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.editor-island-buttons::-webkit-scrollbar {
-  display: none;
-}
-
-.editor-island-chip {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: none;
-  background: transparent;
-  color: var(--ed-text-muted);
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 16px;
-  font-family: inherit;
-  transition: background 150ms ease, color 150ms ease;
-  flex-shrink: 0;
-}
-
-.editor-island-chip:hover {
-  background: var(--ed-surface-2);
-  color: var(--ed-text);
-}
-
-.editor-island-chip.is-active {
-  background: var(--ed-accent);
-  color: #ffffff;
-}
-
-.editor-island-chip-count {
-  position: absolute;
-  bottom: 1px;
-  right: 1px;
-  font-size: 9px;
-  font-weight: 600;
-  line-height: 1;
-  padding: 1px 3px;
-  border-radius: 6px;
-  background: var(--ed-surface);
-  color: var(--ed-text-muted);
-  border: 1px solid var(--ed-border);
-}
-
-.editor-island-chip.is-active .editor-island-chip-count {
-  background: var(--ed-accent-strong);
-  color: #ffffff;
-  border-color: transparent;
-}
-
-.editor-island-active-label {
-  padding: 0 12px 0 6px;
-  font-size: 12px;
-  color: var(--ed-text);
-  white-space: nowrap;
-}
-
-.editor-island-active-label strong {
-  font-weight: 600;
-  color: var(--ed-accent);
 }
 
 /* ═══ Settings card (pilot-2) — non-text elements ═══════════════════════════ */
@@ -429,7 +336,8 @@
   background: rgba(220, 38, 38, 0.1);
 }
 
-/* ═══ Text strip (pilot-2) — text/heading style controls ═════════════════════ */
+/* ═══ Text strip (pilot-2) — unified style controls for every element
+     type (Bug #4+#5). Same component for text/heading/image/button/etc. ══ */
 .editor-text-strip {
   display: inline-flex;
   align-items: center;
@@ -442,24 +350,45 @@
   font-family: inherit;
   max-width: calc(100vw - 16px);
   height: 40px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
 }
 
+.editor-text-strip::-webkit-scrollbar {
+  display: none;
+}
+
+/* Bug #6: every button has the same box (width+padding) so the active
+   highlight (background / border-radius) is exactly the size of its
+   icon, never bleeds onto neighbours. */
 .editor-text-strip-btn {
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 30px;
+  width: 30px;
   height: 30px;
-  padding: 0 8px;
+  padding: 0;
   border: none;
   background: transparent;
   color: var(--ed-text-muted);
   border-radius: var(--ed-radius-pill);
   cursor: pointer;
   font-size: 13px;
+  line-height: 1;
   font-family: inherit;
   flex-shrink: 0;
+  text-decoration: none;
   transition: background 150ms ease, color 150ms ease;
+}
+
+.editor-text-strip-btn b,
+.editor-text-strip-btn i,
+.editor-text-strip-btn u {
+  font-size: 14px;
+  text-decoration: inherit;
 }
 
 .editor-text-strip-btn:hover {
@@ -467,6 +396,9 @@
   color: var(--ed-text);
 }
 
+/* `is-active` used to inherit `min-width: 30px` only — leading to sub-pixel
+   highlight that's "shifted right" against neighbours. Fixed-width button
+   resolves that. */
 .editor-text-strip-btn.is-active {
   background: var(--ed-accent-light);
   color: var(--ed-accent);
@@ -479,6 +411,24 @@
 .editor-text-strip-btn--danger:hover {
   background: rgba(220, 38, 38, 0.08);
   color: #dc2626;
+}
+
+/* The font-size +/− readout — centered with the +/- buttons; same height
+   so the row stays level. */
+.editor-text-strip-readout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  min-width: 28px;
+  padding: 0 4px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--ed-text);
+  border-radius: var(--ed-radius-sm);
+  background: var(--ed-surface-2);
+  flex-shrink: 0;
 }
 
 .editor-text-strip-select {
@@ -501,6 +451,11 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+
+.editor-text-strip-select--narrow {
+  max-width: 64px;
 }
 
 .editor-text-strip-color {
@@ -515,31 +470,6 @@
   background: var(--ed-border-strong);
   margin: 0 2px;
   flex-shrink: 0;
-}
-
-.editor-text-strip-align {
-  display: inline-flex;
-  align-items: center;
-  gap: 1px;
-}
-
-/* ═══ Highlight pulse (sections island active) ═══════════════════════════════ */
-.editor-highlight-pulse,
-[data-highlighted="on"] {
-  outline: 2px solid var(--ed-accent) !important;
-  outline-offset: 2px;
-  animation: editor-highlight-pulse 1.4s ease-in-out infinite;
-}
-
-@keyframes editor-highlight-pulse {
-  0%, 100% {
-    outline-color: var(--ed-accent);
-    box-shadow: 0 0 0 0 var(--ed-accent-light);
-  }
-  50% {
-    outline-color: var(--ed-accent-strong);
-    box-shadow: 0 0 0 6px var(--ed-accent-light);
-  }
 }
 
 /* ═══ Shared form input (settings card) ═════════════════════════════════════ */
@@ -802,8 +732,11 @@ select.canvas-inspector-input {
     right: 8px;
     padding: 4px 4px 4px 8px;
   }
-  .editor-bottom-island {
-    bottom: 12px;
+  .editor-fab {
+    bottom: 16px;
+    padding: 0 14px;
+    height: 40px;
+    font-size: 12px;
   }
   .editor-settings-card {
     bottom: 68px;
@@ -813,4 +746,573 @@ select.canvas-inspector-input {
     padding: 0 10px;
     font-size: 12px;
   }
+}
+
+/* ═══ Quick-edit FAB (pilot-2) ════════════════════════════════════════════════ */
+.editor-fab {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  height: 44px;
+  padding: 0 16px;
+
+  background: rgba(22, 163, 74, 0.14);
+  color: var(--ed-accent-strong);
+  border: 1px solid rgba(22, 163, 74, 0.28);
+  border-radius: var(--ed-radius-pill);
+
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.01em;
+
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+
+  cursor: pointer;
+  transition: background-color 150ms ease,
+              border-color 150ms ease,
+              transform 120ms ease,
+              box-shadow 150ms ease;
+}
+
+.editor-fab:hover {
+  background: rgba(22, 163, 74, 0.22);
+  border-color: rgba(22, 163, 74, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.editor-fab:active {
+  transform: translateX(-50%) scale(0.96);
+}
+
+.editor-fab-label {
+  white-space: nowrap;
+}
+
+/* ─── Saved toast (Bug #2) ────────────────────────────────────────────────── */
+.editor-saved-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 86px;
+  transform: translateX(-50%);
+  z-index: 61;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  padding: 6px 14px;
+  border-radius: var(--ed-radius-pill);
+
+  background: rgba(22, 163, 74, 0.18);
+  color: var(--ed-accent-strong);
+  border: 1px solid rgba(22, 163, 74, 0.32);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+
+  pointer-events: none;
+  animation: editor-saved-toast-pop 200ms ease both;
+}
+
+.editor-saved-toast--error {
+  background: rgba(220, 38, 38, 0.12);
+  color: #b91c1c;
+  border-color: rgba(220, 38, 38, 0.28);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+@keyframes editor-saved-toast-pop {
+  from { opacity: 0; transform: translate(-50%, 6px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* ═══ Quick-edit bottom sheet (pilot-2) ═══════════════════════════════════════ */
+.editor-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 65;
+  background: rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(2px);
+  border: 0;
+  padding: 0;
+  cursor: default;
+  animation: editor-sheet-fade 200ms ease both;
+}
+
+.editor-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 70;
+
+  display: flex;
+  flex-direction: column;
+
+  height: 85dvh;
+  max-height: 85dvh;
+  background: var(--ed-surface);
+  color: var(--ed-text);
+
+  border-top: 1px solid var(--ed-border-strong);
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
+
+  box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.18);
+
+  overflow: hidden;
+  animation: editor-sheet-slide-up 240ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+
+  /* Live drag translation is set inline via style.transform */
+  transition: transform 120ms ease, opacity 120ms ease;
+}
+
+.editor-sheet-handle {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  touch-action: pan-y;
+  flex-shrink: 0;
+}
+
+.editor-sheet-handle:active {
+  cursor: grabbing;
+}
+
+.editor-sheet-handle-bar {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--ed-border-strong);
+}
+
+.editor-sheet-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border: none;
+  background: transparent;
+  border-radius: 50%;
+  color: var(--ed-text-muted);
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+  z-index: 2;
+}
+
+.editor-sheet-close:hover {
+  background: var(--ed-surface-2);
+  color: var(--ed-text);
+}
+
+.editor-sheet-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+/* ─── Tabs row ─────────────────────────────────────────────────────────────── */
+.editor-sheet-tabs-host {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.editor-sheet-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--ed-border);
+  background: var(--ed-surface);
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+
+.editor-sheet-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.editor-sheet-tab {
+  flex-shrink: 0;
+  padding: 12px 14px;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ed-text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 120ms ease, border-color 120ms ease;
+  white-space: nowrap;
+}
+
+.editor-sheet-tab:hover {
+  color: var(--ed-text);
+}
+
+.editor-sheet-tab.is-active {
+  color: var(--ed-text);
+  font-weight: 600;
+  border-bottom-color: var(--ed-accent);
+}
+
+.editor-sheet-panel {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 16px 32px 16px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.editor-sheet-panel-instance {
+  width: 100%;
+}
+
+/* ─── Section blocks ───────────────────────────────────────────────────────── */
+.editor-sheet-section-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.editor-sheet-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.editor-sheet-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ed-text-muted);
+  margin: 0;
+}
+
+.editor-sheet-empty {
+  font-size: 14px;
+  color: var(--ed-text-muted);
+  text-align: center;
+  padding: 32px 12px;
+}
+
+.editor-sheet-coming-soon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.editor-sheet-hint {
+  font-size: 12px;
+  color: var(--ed-text-muted);
+  line-height: 1.45;
+}
+
+.editor-sheet-error {
+  font-size: 12px;
+  color: #b91c1c;
+  line-height: 1.45;
+}
+
+.editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.editor-field-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ed-text-muted);
+}
+
+.editor-color-chip {
+  width: 44px;
+  height: 32px;
+  border: 1px solid var(--ed-border-strong);
+  border-radius: var(--ed-radius-sm);
+  padding: 0;
+  cursor: pointer;
+  background: transparent;
+}
+
+.editor-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--ed-border);
+  border-radius: var(--ed-radius-sm);
+  background: var(--ed-surface);
+  color: var(--ed-text-muted);
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.editor-icon-btn:hover {
+  background: var(--ed-surface-2);
+  color: var(--ed-text);
+}
+
+.editor-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  color: var(--ed-text-muted);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 8px 0;
+}
+
+.editor-link-btn:hover {
+  color: var(--ed-text);
+}
+
+.editor-file-input {
+  font-size: 12px;
+  color: var(--ed-text-muted);
+  width: 100%;
+  max-width: 100%;
+}
+
+/* ─── Photos ──────────────────────────────────────────────────────────────── */
+.editor-photo-row {
+  border: 1px solid var(--ed-border);
+  border-radius: var(--ed-radius);
+  padding: 14px;
+  background: var(--ed-surface);
+}
+
+.editor-photo-thumb {
+  position: relative;
+  width: 100%;
+  max-width: 220px;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: var(--ed-radius-sm);
+  border: 1px solid var(--ed-border);
+}
+
+.editor-photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ─── Music list ───────────────────────────────────────────────────────────── */
+.editor-music-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.editor-music-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--ed-border);
+  border-radius: var(--ed-radius-sm);
+  background: var(--ed-surface);
+  color: var(--ed-text-muted);
+}
+
+.editor-music-title {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ed-text);
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.editor-music-pick {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border: 1px solid var(--ed-border-strong);
+  border-radius: var(--ed-radius-sm);
+  background: var(--ed-surface);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ed-text);
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.editor-music-pick:hover {
+  background: var(--ed-surface-2);
+}
+
+.editor-music-pick.is-active {
+  background: var(--ed-accent);
+  color: #ffffff;
+  border-color: var(--ed-accent);
+}
+
+/* ─── Sections toggle list ─────────────────────────────────────────────────── */
+.editor-sections-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.editor-section-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--ed-surface);
+  border: 1px solid var(--ed-border);
+  border-radius: var(--ed-radius);
+}
+
+.editor-section-icon {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--ed-surface-2);
+  font-size: 14px;
+  color: var(--ed-text-muted);
+  flex-shrink: 0;
+}
+
+.editor-section-meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.editor-section-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ed-text);
+}
+
+.editor-section-count {
+  font-size: 11px;
+  color: var(--ed-text-muted);
+}
+
+.editor-toggle {
+  flex-shrink: 0;
+  width: 44px;
+  height: 26px;
+  border: none;
+  border-radius: 999px;
+  background: var(--ed-surface-2);
+  position: relative;
+  cursor: pointer;
+  padding: 0;
+  transition: background-color 150ms ease;
+}
+
+.editor-toggle[aria-checked="true"] {
+  background: var(--ed-accent);
+}
+
+.editor-toggle[data-indeterminate="true"] {
+  background: var(--ed-accent-light);
+}
+
+.editor-toggle-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+  transition: transform 150ms ease;
+}
+
+.editor-toggle[aria-checked="true"] .editor-toggle-knob {
+  transform: translateX(18px);
+}
+
+.editor-toggle[data-indeterminate="true"] .editor-toggle-knob {
+  transform: translateX(9px);
+}
+
+/* ─── Desktop variant: centered card ───────────────────────────────────────── */
+@media (min-width: 768px) {
+  .editor-sheet {
+    left: 50%;
+    right: auto;
+    width: 480px;
+    max-width: calc(100vw - 32px);
+    bottom: 50%;
+    transform: translate(-50%, 50%);
+    max-height: min(720px, 80dvh);
+    height: min(720px, 80dvh);
+    border-radius: 18px;
+    border: 1px solid var(--ed-border-strong);
+  }
+  .editor-sheet[style*="translateY"] {
+    transform: translate(calc(-50% + 50% - 50%), calc(50% - 0px));
+  }
+}
+
+@keyframes editor-sheet-slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+@keyframes editor-sheet-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }

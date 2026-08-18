@@ -22,6 +22,7 @@ function textStyleBase(el: TextElement | HeadingElement): CSSProperties {
     lineHeight: el.lineHeight,
     letterSpacing: `${el.letterSpacing}px`,
     fontStyle: el.italic ? 'italic' : undefined,
+    textDecoration: el.underline ? 'underline' : undefined,
     textTransform: el.uppercase ? 'uppercase' : undefined,
     textShadow: el.textShadow
       ? `${el.textShadow.x}px ${el.textShadow.y}px ${el.textShadow.blur}px ${el.textShadow.color}`

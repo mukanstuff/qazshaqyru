@@ -37,7 +37,7 @@ function hasFontSize(el: CanvasElement): el is TextElement | HeadingElement | Bu
 export function MiniToolbar({ el, zoom, onColorChange, onFontSizeChange, onDuplicate, onDelete, onUndo, onRedo, currentColor }: Props) {
   const elColor = hasColor(el) ? el.color : hasBgColor(el) ? (el as { bgColor: string }).bgColor : '#000000';
   const canChangeFontSize = hasFontSize(el);
-  const elFontSize = hasFontSize(el) ? (el as { fontSize?: number }).fontSize : 16;
+  const elFontSize = hasFontSize(el) ? (el as { fontSize?: number }).fontSize ?? 16 : 16;
 
   return (
     <div

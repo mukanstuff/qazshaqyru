@@ -14,6 +14,7 @@ import './globals.css';
 import '@/styles/kz-fonts.css';
 import '@/styles/editor-scrollbars.css';
 import '@/styles/canvas-editor.css';
+import '@/styles/invitation-hub.css';
 
 export const metadata = {
   title: {

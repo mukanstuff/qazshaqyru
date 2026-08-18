@@ -208,6 +208,7 @@ export interface TextProps {
   lineHeight: number;
   letterSpacing: number; // px
   italic?: boolean;
+  underline?: boolean;
   uppercase?: boolean;
   textShadow?: { x: number; y: number; blur: number; color: string };
 }
