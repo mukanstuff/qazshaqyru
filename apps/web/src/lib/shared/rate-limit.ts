@@ -14,10 +14,11 @@ export interface RateLimitResult {
 }
 
 export const RATE_LIMITS = {
-  OTP_REQUEST_PER_PHONE: { windowMs: 60 * 60 * 1000, maxRequests: 5, blockDurationMs: 60 * 60 * 1000 },
-  OTP_REQUEST_PER_IP: { windowMs: 60 * 1000, maxRequests: 10, blockDurationMs: 60 * 1000 },
-  OTP_VERIFY_PER_PHONE: { windowMs: 60 * 1000, maxRequests: 10, blockDurationMs: 5 * 60 * 1000 },
-  OTP_VERIFY_PER_IP: { windowMs: 60 * 1000, maxRequests: 20, blockDurationMs: 5 * 60 * 1000 },
+  // Phone + password sign-in. Per-phone is the brute-force gate (an attacker
+  // targeting one account); per-IP catches someone spraying many numbers.
+  AUTH_LOGIN_PER_PHONE: { windowMs: 15 * 60 * 1000, maxRequests: 10, blockDurationMs: 15 * 60 * 1000 },
+  AUTH_LOGIN_PER_IP: { windowMs: 15 * 60 * 1000, maxRequests: 40, blockDurationMs: 15 * 60 * 1000 },
+  AUTH_REGISTER_PER_IP: { windowMs: 60 * 60 * 1000, maxRequests: 10, blockDurationMs: 60 * 60 * 1000 },
   GOOGLE_OAUTH_PER_IP: { windowMs: 60 * 1000, maxRequests: 30, blockDurationMs: 5 * 60 * 1000 },
   API_GENERAL: { windowMs: 60 * 1000, maxRequests: 60 },
   API_INVITATION_CREATE: { windowMs: 60 * 60 * 1000, maxRequests: 20 },
@@ -25,6 +26,13 @@ export const RATE_LIMITS = {
   API_GUEST_CREATE: { windowMs: 60 * 60 * 1000, maxRequests: 200 },
   API_GUEST_EXPORT: { windowMs: 60 * 60 * 1000, maxRequests: 30 },
   API_RSVP: { windowMs: 60 * 1000, maxRequests: 5 },
+  /**
+   * Promo code checks. Tight enough that the endpoint is not a code-guessing
+   * oracle (and it already requires a login), loose enough that someone
+   * mistyping a code off an Instagram story on a phone is not locked out
+   * after three tries — which 5/min was.
+   */
+  API_PROMO_VALIDATE: { windowMs: 60 * 1000, maxRequests: 15 },
   API_WEBHOOK: { windowMs: 60 * 1000, maxRequests: 120 },
   API_TEMPLATES: { windowMs: 60 * 60 * 1000, maxRequests: 120 },
   PUBLIC_INVITATION: { windowMs: 60 * 1000, maxRequests: 120 },
@@ -51,6 +59,10 @@ export const RATE_LIMITS = {
   API_SEATING: { windowMs: 60 * 1000, maxRequests: 60 },
   /** Template waitlist signups (public). */
   API_TEMPLATE_WAITLIST: { windowMs: 60 * 60 * 1000, maxRequests: 20 },
+  /** Admin template mutations (create/edit/clone/delete) — generous but not unbounded. */
+  API_ADMIN_MUTATE: { windowMs: 60 * 1000, maxRequests: 60 },
+  /** Canvas document save — 1s client-side debounce means ~60/min during active editing. */
+  API_CANVAS_SAVE: { windowMs: 60 * 1000, maxRequests: 90 },
 } as const satisfies Record<string, RateLimitConfig>;
 
 /**

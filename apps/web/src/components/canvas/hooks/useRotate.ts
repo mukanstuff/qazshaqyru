@@ -4,7 +4,8 @@
  *
  * Supports shiftKey snapping to 15-degree increments.
  */
-import { useCallback, useRef } from 'react';
+import { useCallback } from 'react';
+import { usePointerSession } from './usePointerSession';
 
 export interface RotateState {
   id: string;
@@ -41,8 +42,7 @@ export function useRotate(opts: {
   onEnd?: (id: string, angleDeg: number) => void;
   getInitial?: (id: string) => { rotation: number };
 }) {
-  const stateRef = useRef<RotateState | null>(null);
-  const rafRef = useRef<number | null>(null);
+  const session = usePointerSession<RotateState>();
 
   const beginRotate = useCallback(
     (id: string, e: React.PointerEvent) => {
@@ -58,7 +58,7 @@ export function useRotate(opts: {
 
       const initial = opts.getInitial ? opts.getInitial(id) : { rotation: 0 };
 
-      stateRef.current = {
+      const state: RotateState = {
         id,
         centerX,
         centerY,
@@ -66,47 +66,20 @@ export function useRotate(opts: {
       };
 
       opts.onStart?.(id);
-      (e.target as Element).setPointerCapture?.(e.pointerId);
 
-      const computeAngle = (ev: PointerEvent) => {
-        const s = stateRef.current;
-        if (!s) return 0;
-        return calculateRotationAngle(s.centerX, s.centerY, ev.clientX, ev.clientY, ev.shiftKey);
-      };
+      const computeAngle = (s: RotateState, ev: PointerEvent) =>
+        calculateRotationAngle(s.centerX, s.centerY, ev.clientX, ev.clientY, ev.shiftKey);
 
-      const onMove = (ev: PointerEvent) => {
-        if (!stateRef.current) return;
-        if (rafRef.current != null) return;
-        rafRef.current = requestAnimationFrame(() => {
-          rafRef.current = null;
-          const s = stateRef.current;
-          if (!s) return;
-          const deg = computeAngle(ev);
-          opts.onRotate?.(s.id, deg, ev);
-        });
-      };
-
-      const onUp = (ev: PointerEvent) => {
-        const s = stateRef.current;
-        window.removeEventListener('pointermove', onMove);
-        window.removeEventListener('pointerup', onUp);
-        window.removeEventListener('pointercancel', onUp);
-
-        if (s) {
-          const deg = computeAngle(ev);
-          opts.onEnd?.(s.id, deg);
-        }
-
-        stateRef.current = null;
-        if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      };
-
-      window.addEventListener('pointermove', onMove);
-      window.addEventListener('pointerup', onUp);
-      window.addEventListener('pointercancel', onUp);
+      session.begin(e, state, {
+        onMove: (s, ev) => {
+          opts.onRotate?.(s.id, computeAngle(s, ev), ev);
+        },
+        onEnd: (s, ev) => {
+          opts.onEnd?.(s.id, computeAngle(s, ev));
+        },
+      });
     },
-    [opts]
+    [opts, session]
   );
 
   return { beginRotate };

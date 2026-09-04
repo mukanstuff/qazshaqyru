@@ -13,43 +13,47 @@ interface Props {
   onDocumentChange: (next: InvitationCanvasDocument) => void;
 }
 
-// TODO: replace with real royalty-free catalog (Pixabay Music / Free Music Archive).
-// 2026-08-17: hardcoded placeholder list used so the tab is functional in mock mode.
+// Real, verified tracks self-hosted at /assets/music (not hotlinked — the
+// previous catalog pointed at invented Pixabay CDN URLs that all 403'd,
+// silently breaking every preview/select in this tab. Each entry below was
+// downloaded and its source video verified by title/uploader before being
+// added — see session notes 2026-08-26. Self-hosting avoids the same class
+// of link-rot bug recurring with a different third-party host.
 const PLACEHOLDER_CATALOG: Array<{ id: string; title: string; url: string }> = [
   {
-    id: 'romantic-piano',
-    title: 'Романтичное фортепиано',
-    url: 'https://cdn.pixabay.com/audio/2022/03/15/audio_4bcab8c2a7.mp3',
+    id: 'peder-helland-always',
+    title: 'Peder B. Helland - Always',
+    url: '/assets/music/peder-helland-always.mp3',
   },
   {
-    id: 'wedding-march',
-    title: 'Свадебный марш',
-    url: 'https://cdn.pixabay.com/audio/2024/02/22/audio_b4d5fa9a08.mp3',
+    id: 'ukili-kamshat-kyz-syny',
+    title: 'Азия тобы - Үкілі Кәмшат / Қыз сыны',
+    url: '/assets/music/ukili-kamshat-kyz-syny.mp3',
   },
   {
-    id: 'soft-strings',
-    title: 'Мягкие струнные',
-    url: 'https://cdn.pixabay.com/audio/2022/10/18/audio_3a1c10a5d6.mp3',
+    id: 'zhan-syrym-ayaulym',
+    title: 'Жан сырым (Аяулым) - Qurmash Makhan',
+    url: '/assets/music/zhan-syrym-ayaulym.mp3',
   },
   {
-    id: 'love-story',
-    title: 'История любви',
-    url: 'https://cdn.pixabay.com/audio/2023/09/13/audio_2cd5e85cb6.mp3',
+    id: 'kazybek-kuraiysh-taptym-au-seni',
+    title: 'Казыбек Курайыш - Таптым-ау сені',
+    url: '/assets/music/kazybek-kuraiysh-taptym-au-seni.mp3',
   },
   {
-    id: 'wedding-bells',
-    title: 'Свадебные колокола',
-    url: 'https://cdn.pixabay.com/audio/2022/05/27/audio_18878b3d6d.mp3',
+    id: 'kyz-uzatu-zhanbolat-zhazira',
+    title: 'Қыз ұзату - Жанболат & Жазира',
+    url: '/assets/music/kyz-uzatu-zhanbolat-zhazira.mp3',
   },
   {
-    id: 'kazakh-national',
-    title: 'Қазақ нақыш',
-    url: 'https://cdn.pixabay.com/audio/2023/02/28/audio_5b1f9b3a99.mp3',
+    id: 'miras-zhugunusov-zymyran',
+    title: 'Мирас Жугунусов - Зымыран',
+    url: '/assets/music/miras-zhugunusov-zymyran.mp3',
   },
   {
-    id: 'serenade',
-    title: 'Серенада',
-    url: 'https://cdn.pixabay.com/audio/2023/04/12/audio_7c2bd11e44.mp3',
+    id: 'ukili-kamshat-dombyra',
+    title: 'Үкілі камшат - Домбыра',
+    url: '/assets/music/ukili-kamshat-dombyra.mp3',
   },
 ];
 
@@ -61,15 +65,16 @@ const PLACEHOLDER_CATALOG: Array<{ id: string; title: string; url: string }> = [
  * revision — multiple-music editing is out of scope.
  *
  * - Custom upload via the music upload endpoint.
- * - Hardcoded catalog of royalty-free placeholders with inline preview
- *   buttons. Catalog is intentionally placeholder data; see TODOs.
+ * - Curated catalog of popular Kazakh tracks, self-hosted at
+ *   /assets/music, with inline preview buttons.
  */
 export function EditorSheetTabMusic({
   document,
   invitationId,
   onDocumentChange,
 }: Props) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const isRu = locale === 'ru';
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [previewingId, setPreviewingId] = useState<string | null>(null);
@@ -138,14 +143,14 @@ export function EditorSheetTabMusic({
   return (
     <div className="editor-sheet-section-stack">
       <div className="editor-sheet-section">
-        <h3 className="editor-sheet-section-title">Свой трек</h3>
+        <h3 className="editor-sheet-section-title">{isRu ? 'Свой трек' : 'Өз трегіңіз'}</h3>
         <label className="editor-field">
           <span className="editor-field-label">{t('invitation.edit.canvas.sheet.trackNamePlaceholder')}</span>
           <input
             type="text"
             className="canvas-inspector-input is-block"
             value={musicEl.title ?? ''}
-            placeholder="Нежная мелодия"
+            placeholder={isRu ? 'Нежная мелодия' : 'Нәзік әуен'}
             onChange={(e) => patchEl({ title: e.target.value })}
           />
         </label>
@@ -172,7 +177,7 @@ export function EditorSheetTabMusic({
             className="editor-file-input"
           />
         </label>
-        {uploading && <p className="editor-sheet-hint">Загрузка…</p>}
+        {uploading && <p className="editor-sheet-hint">{isRu ? 'Загрузка…' : 'Жүктелуде…'}</p>}
         {uploadError && <p className="editor-sheet-error">{uploadError}</p>}
       </div>
 
@@ -224,7 +229,7 @@ export function EditorSheetTabMusic({
             onClick={() => patchEl({ audioSrc: '' })}
           >
             <X size={14} aria-hidden="true" />
-            Убрать музыку
+            {isRu ? 'Убрать музыку' : 'Музыканы алып тастау'}
           </button>
         )}
       </div>

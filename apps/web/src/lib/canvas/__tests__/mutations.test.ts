@@ -72,6 +72,22 @@ describe('canvas mutations', () => {
     expect(zs).toEqual([1, 2, 3]);
   });
 
+  it('moveElement does not mutate the original document\'s elements', () => {
+    let doc = createEmptyDocument();
+    doc = addElement(doc, 'text');
+    doc = addElement(doc, 'heading');
+    doc = addElement(doc, 'shape');
+    const originalZIndices = doc.elements.map((e) => e.zIndex);
+
+    const forward = moveElement(doc, doc.elements[0].id, 'forward');
+    expect(forward).not.toBe(doc);
+    expect(doc.elements.map((e) => e.zIndex)).toEqual(originalZIndices);
+
+    const backward = moveElement(doc, doc.elements[2].id, 'backward');
+    expect(backward).not.toBe(doc);
+    expect(doc.elements.map((e) => e.zIndex)).toEqual(originalZIndices);
+  });
+
   it('history stack supports undo/redo', () => {
     let doc = createEmptyDocument();
     const stack = new HistoryStack(doc);

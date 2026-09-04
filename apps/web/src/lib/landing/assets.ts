@@ -1,15 +1,21 @@
-/** Landing & marketing visuals — swap paths when real photos are ready. */
+/**
+ * Landing & marketing visuals.
+ *
+ * Five constants used to live here pointing into `/assets/templates/luxe-gold/`
+ * — a directory that is not in `public/` (and a template slug that is not in the
+ * database). Two of them were actually rendered, so they 404'd on every view:
+ * the film-grain overlay on the landing page and the blurred backdrop behind
+ * the login card. The other three, plus LANDING_DEMO_HREF
+ * (`/i/demo?layout=luxe-gold`), had no consumers left at all. All six are gone;
+ * the grain is now generated inline in LandingGrain.tsx and the login backdrop
+ * uses a real catalog preview.
+ */
 
-const TEMPLATE = '/assets/templates/luxe-gold';
 const LANDING = '/assets/landing';
+const PREVIEWS = '/assets/previews';
 
-export const LANDING_DEMO_HREF = '/i/demo?layout=luxe-gold';
-
-export const LANDING_HERO_POSTER = `${TEMPLATE}/hero/hero-poster.webp`;
-export const LANDING_HERO_SCREEN = `${TEMPLATE}/preview.jpg`;
-
-export const LANDING_TEXTURE_GRAIN = `${TEMPLATE}/overlays/overlay-grain-01.webp`;
-export const LANDING_TEXTURE_PAPER = `${TEMPLATE}/backgrounds/bg-paper-01.webp`;
+/** Real catalog artwork, used as the blurred backdrop on /login. */
+export const LANDING_LOGIN_BACKDROP = `${PREVIEWS}/aq-bata.webp`;
 
 /** User-provided celebration photography */
 export const LANDING_TOY_PHOTOS = {

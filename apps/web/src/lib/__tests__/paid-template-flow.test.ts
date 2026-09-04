@@ -11,7 +11,7 @@ describe('paid template flow', () => {
       invitation: { unlockedPlanSku: 'standard' },
     });
 
-    expect(resolvePaidTemplateOrder(true, null)).toBe(true);
+    expect(resolvePaidTemplateOrder(14900, 14900)).toBe(true);
     expect(entitlements.guestOps).toBe(true);
     // 2026-07-30 owner model: any unlocked paid plan on an invitation = fullAccess,
     // so `customSlug` is true (the legacy "standard had no customSlug" tier is gone).
@@ -31,7 +31,7 @@ describe('paid template flow', () => {
       invitation: { unlockedPlanSku: null },
     });
 
-    expect(resolvePaidTemplateOrder(false, null)).toBe(false);
+    expect(resolvePaidTemplateOrder(0, 14900)).toBe(false);
     expect(entitlements.guestOps).toBe(false);
     expect(entitlements.customSlug).toBe(false);
     expect(shouldShowPublishWatermark({
@@ -42,9 +42,13 @@ describe('paid template flow', () => {
     })).toBe(true);
   });
 
-  it('migrates legacy standard and premium invitation unlocks', () => {
-    expect(resolvePaidTemplateOrder(false, 'standard')).toBe(true);
-    expect(resolvePaidTemplateOrder(false, 'premium')).toBe(true);
+  it('requires topping up when switching to a pricier template, but stays free for equal-or-cheaper', () => {
+    // Paid 2990 for a cheap template — enough to unlock it...
+    expect(resolvePaidTemplateOrder(2990, 2990)).toBe(true);
+    // ...but not enough to unlock a pricier one without a top-up order.
+    expect(resolvePaidTemplateOrder(2990, 4990)).toBe(false);
+    // Having paid more than a cheaper template costs keeps it unlocked for free.
+    expect(resolvePaidTemplateOrder(4990, 2990)).toBe(true);
   });
 
   it('resolves agency as user-level subscription without invitation', () => {

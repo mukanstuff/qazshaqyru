@@ -10,6 +10,7 @@ import {
   RATE_LIMITS,
 } from '@/lib/shared/api';
 import { checkoutInvitation } from '@/lib/payments/checkout';
+import { ATTRIBUTION_COOKIE, parseAttributionCookie } from '@/lib/shared/attribution';
 
 const bodySchema = z.object({
   provider: z.enum(['kaspi', 'freedom', 'mock']).optional(),
@@ -52,6 +53,7 @@ export async function POST(request: NextRequest) {
       provider: parsed.data.provider,
       intent: 'plan',
       planSku: 'agency',
+      attribution: parseAttributionCookie(request.cookies.get(ATTRIBUTION_COOKIE)?.value),
     });
 
     return NextResponse.json({ success: true, ...result });

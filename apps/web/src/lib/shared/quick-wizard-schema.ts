@@ -1,5 +1,14 @@
-import { z } from 'zod';
-
+/**
+ * Shape of the editor's fast-fill form (EditorSheetTabWizard).
+ *
+ * This file used to also export a zod schema per "step" plus
+ * `validateQuickWizardStep()` and `buildInvitationTitle()` — a complete,
+ * unit-tested validation layer with zero callers. The wizard is one screen,
+ * not five steps, and it validates its three required fields inline; the zod
+ * copy was a second, competing implementation that no code path could reach,
+ * and its test suite failed permanently because it still described the
+ * five-step flow that had been replaced. Type only now.
+ */
 export const quickWizardEventTypes = [
   'wedding',
   'toy',
@@ -14,66 +23,14 @@ export const quickWizardEventTypes = [
 
 export type QuickWizardEventType = (typeof quickWizardEventTypes)[number];
 
-export const quickWizardStep1Schema = z.object({
-  eventType: z.enum(quickWizardEventTypes, {
-    errorMap: () => ({ message: 'Выберите тип мероприятия' }),
-  }),
-});
-
-export const quickWizardStep2Schema = z.object({
-  names: z
-    .string()
-    .min(2, 'Укажите имена')
-    .max(120, 'Слишком длинное название'),
-});
-
-export const quickWizardStep3Schema = z.object({
-  eventDate: z.string().min(1, 'Укажите дату'),
-  eventTime: z.string().max(20).optional().or(z.literal('')),
-});
-
-export const quickWizardStep4Schema = z.object({
-  eventPlace: z.string().min(2, 'Укажите место').max(300),
-  address: z.string().max(500).optional().or(z.literal('')),
-});
-
-export const quickWizardStep5Schema = z.object({
-  coverPhoto: z.string().max(500).optional().or(z.literal('')),
-});
-
-export const quickWizardStep6Schema = z.object({
-  colorScheme: z.string().max(50).optional().or(z.literal('')),
-});
-
-export const quickWizardFormSchema = quickWizardStep1Schema
-  .merge(quickWizardStep2Schema)
-  .merge(quickWizardStep3Schema)
-  .merge(quickWizardStep4Schema)
-  .merge(quickWizardStep5Schema)
-  .merge(quickWizardStep6Schema);
-
-export type QuickWizardFormData = z.infer<typeof quickWizardFormSchema>;
-
-export function buildInvitationTitle(names: string): string {
-  return names.trim();
-}
-
-export function validateQuickWizardStep(
-  step: number,
-  data: Partial<QuickWizardFormData>
-): { success: true } | { success: false; errors: Record<string, string> } {
-  // Step 1 is the unified form (all required fields on one screen).
-  if (step === 1) {
-    const result = quickWizardFormSchema.safeParse(data);
-    if (result.success) return { success: true };
-    const errors: Record<string, string> = {};
-    for (const issue of result.error.issues) {
-      const key = issue.path[0]?.toString() ?? 'form';
-      if (!errors[key]) errors[key] = issue.message;
-    }
-    return { success: false, errors };
-  }
-
-  // Step 2 (preview) and beyond — no client-side validation.
-  return { success: true };
+export interface QuickWizardFormData {
+  eventType: QuickWizardEventType;
+  names: string;
+  /** ISO date, `YYYY-MM-DD`. */
+  eventDate: string;
+  eventTime?: string;
+  eventPlace: string;
+  address?: string;
+  coverPhoto?: string;
+  colorScheme?: string;
 }

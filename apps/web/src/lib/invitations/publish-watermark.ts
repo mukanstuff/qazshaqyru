@@ -3,14 +3,13 @@ import type { ResolvedEntitlements } from '@/lib/entitlements';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
- * PRODUCT RULE (2026-07-30) — READ THIS BEFORE TOUCHING
+ * PRODUCT RULE (2026-08-26) — READ THIS BEFORE TOUCHING
  * ═══════════════════════════════════════════════════════════════════════════
- * Pay the template price ONCE → full clean access (no watermark, all features).
- * 
- * This file should almost never return true for paid invitations.
- * "Freemium publish" is legacy and being removed from user flows.
- * 
- * See: docs/PRODUCT_MODEL_AND_RULES.md + PRODUCT_DECISIONS_2026-07-30.md
+ * Free tier: any invitation can publish unpaid, watermarked (PLAN_CATALOG
+ * 'free' plan). Pay the template price ONCE → full clean access (no
+ * watermark, all features) for that invitation. This file must always
+ * return true for a paid (fullAccess) invitation and true-by-default
+ * (watermark shown) for an unpaid one.
  */
 export function shouldShowPublishWatermark(
   pricing: Pick<InvitationPricing, 'priceKzt' | 'hasPaidOrder' | 'entitlements' | 'fullAccess'> | {
@@ -33,6 +32,7 @@ export function shouldShowPublishWatermark(
 }
 
 export function canPublishWithoutPayment(): boolean {
-  // Changed to reflect owner model: clean public link after paying template price.
-  return false;
+  // 2026-08-26: free-tier restored — any invitation can publish unpaid with
+  // a watermark (shouldShowPublishWatermark above governs when it shows).
+  return true;
 }

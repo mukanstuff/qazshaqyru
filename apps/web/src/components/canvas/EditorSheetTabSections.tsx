@@ -1,14 +1,16 @@
 'use client';
 
 import { useCallback, useMemo } from 'react';
+import { ChevronUp, ChevronDown } from 'lucide-react';
 import { useI18n } from '@/i18n';
 import {
-  EDITOR_SECTIONS,
+  editorSectionsFor,
   type EditorSection,
   sectionsFromDoc,
 } from './ElementSettingsConfig';
 import type { CanvasElement, InvitationCanvasDocument } from '@/lib/canvas/types';
 import { updateElement } from '@/lib/canvas/mutations';
+import { resolveFullSectionOrder, relayoutBySectionOrder, moveSectionInOrder } from '@/lib/canvas/section-reorder';
 
 interface Props {
   document: InvitationCanvasDocument;
@@ -16,32 +18,57 @@ interface Props {
 }
 
 /**
- * "Sections" tab — visibility toggle per section.
+ * "Sections" tab — visibility toggle + vertical reorder per section.
  *
  * Toggling flips `hidden` for every element that matches the section's
- * `matches`. There is NO drag-and-drop reordering in this revision.
+ * `matches`. Reordering (up/down arrows, not drag-and-drop) repositions
+ * every element in the moved sections via lib/canvas/section-reorder.ts —
+ * the canvas has no separate ordering concept, elements are absolutely
+ * positioned, so this is a real y-coordinate recompute, not an array swap.
  *
- * NOTE on "hidden" rendering (TODO):
- *   CanvasRenderer currently uses `opacity: 0` + `pointer-events: none`
- *   for `el.hidden === true`. That's good enough for editor preview but
- *   is a temporary workaround — for the published invitation view we
- *   eventually want full unmount (don't render at all). For now, this
- *   toggle is editor-only and uses the existing renderer behaviour.
+ * NOTE on "hidden" rendering:
+ *   CanvasRenderer uses `opacity: 0` + `pointer-events: none` in editor mode
+ *   (so the host can still see and re-toggle a hidden element), but fully
+ *   unmounts `el.hidden === true` elements in guest mode — hidden content
+ *   never reaches the published invitation's DOM.
  */
 export function EditorSheetTabSections({ document, onDocumentChange }: Props) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
-  const summaries = useMemo(() => sectionsFromDoc(document), [document]);
+  const unordered = useMemo(() => sectionsFromDoc(document, locale), [document, locale]);
+  const fullOrder = useMemo(
+    () => resolveFullSectionOrder(document.sectionOrder, locale),
+    [document.sectionOrder, locale]
+  );
+  const summaries = useMemo(() => {
+    const byId = new Map(unordered.map((s) => [s.section.id, s]));
+    return fullOrder.map((id) => byId.get(id)).filter((s): s is (typeof unordered)[number] => !!s);
+  }, [unordered, fullOrder]);
+  // Only sections with at least one element actually render as rows below
+  // (sectionsFromDoc already drops empty ones) — up/down must move within
+  // that visible list, not the full built-in list, or pressing the arrow on
+  // the topmost/bottommost VISIBLE row could silently swap with an empty,
+  // invisible neighbor and look like the button did nothing.
+  const visibleOrder = useMemo(() => summaries.map((s) => s.section.id), [summaries]);
+
+  const moveSection = useCallback(
+    (sectionId: string, direction: -1 | 1) => {
+      const nextVisibleOrder = moveSectionInOrder(visibleOrder, sectionId, direction);
+      if (nextVisibleOrder === visibleOrder) return;
+      onDocumentChange(relayoutBySectionOrder(document, nextVisibleOrder, locale));
+    },
+    [document, visibleOrder, locale, onDocumentChange]
+  );
 
   const hiddenCounts = useMemo(() => {
     const map = new Map<string, { total: number; hidden: number }>();
-    for (const sec of EDITOR_SECTIONS) {
+    for (const sec of editorSectionsFor(locale)) {
       const els = document.elements.filter((e) => sec.matches.includes(e.type));
       const hidden = els.filter((e) => e.hidden).length;
       map.set(sec.id, { total: els.length, hidden });
     }
     return map;
-  }, [document.elements]);
+  }, [document.elements, locale]);
 
   const patchElements = useCallback(
     (section: EditorSection, hidden: boolean) => {
@@ -68,12 +95,32 @@ export function EditorSheetTabSections({ document, onDocumentChange }: Props) {
         {t('invitation.edit.canvas.sheet.sectionsHelp')}
       </p>
       <ul className="editor-sections-list">
-        {summaries.map(({ section, elements }) => {
+        {summaries.map(({ section, elements }, index) => {
           const counts = hiddenCounts.get(section.id) ?? { total: 0, hidden: 0 };
           const allHidden = counts.total > 0 && counts.hidden === counts.total;
           const someHidden = counts.hidden > 0 && counts.hidden < counts.total;
           return (
             <li key={section.id} className="editor-section-row">
+              <div className="editor-section-reorder">
+                <button
+                  type="button"
+                  className="editor-section-reorder-btn"
+                  disabled={index === 0}
+                  onClick={() => moveSection(section.id, -1)}
+                  aria-label={locale === 'ru' ? 'Переместить выше' : 'Жоғары жылжыту'}
+                >
+                  <ChevronUp size={14} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  className="editor-section-reorder-btn"
+                  disabled={index === summaries.length - 1}
+                  onClick={() => moveSection(section.id, 1)}
+                  aria-label={locale === 'ru' ? 'Переместить ниже' : 'Төмен жылжыту'}
+                >
+                  <ChevronDown size={14} aria-hidden="true" />
+                </button>
+              </div>
               <span className="editor-section-icon" aria-hidden="true">
                 {section.icon}
               </span>
@@ -85,7 +132,7 @@ export function EditorSheetTabSections({ document, onDocumentChange }: Props) {
                 checked={!allHidden}
                 indeterminate={someHidden}
                 onChange={(next) => patchElements(section, !next)}
-                ariaLabel={`${section.label}: показать/скрыть`}
+                ariaLabel={`${section.label}: ${locale === 'ru' ? 'показать/скрыть' : 'көрсету/жасыру'}`}
               />
             </li>
           );

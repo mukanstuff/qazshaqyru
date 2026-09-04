@@ -1,11 +1,15 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
+import { getI18n } from '@/i18n/server';
 
-export const metadata: Metadata = {
-  title: 'Курсы — QazShaqyru',
-  description: 'Курсы QazShaqyru (в разработке).',
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return {
+    title: t('site.meta.courses'),
+    description: t('site.meta.coursesDescription'),
+    robots: { index: false, follow: false },
+  };
+}
 
 // 2026-08-16: /course content was fabricated copy — concrete prices
 // (49 990 / 79 990 ₸), "8 video-lessons", "lifetime access",

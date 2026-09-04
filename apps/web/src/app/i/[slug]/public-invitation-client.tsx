@@ -2,69 +2,45 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, X } from 'lucide-react';
 import { LogoMark } from '@/components/shared/ornaments';
-import { Button } from '@/components/ui/button';
 import { useI18n } from '@/i18n';
-import { DEFAULT_QUICK_TEMPLATE, quickWizardHref } from '@/lib/shared/quick-wizard-url';
-import { hasSeenEnvelope } from '@/components/invitation-layouts/guest-mobile';
-import { GuestInvitationPage } from './GuestInvitationPage';
 import { CanvasGuestPage } from '@/components/canvas/CanvasGuestPage';
 
-type RenderMode = 'loading' | 'canvas' | 'legacy' | 'error';
+/**
+ * 'legacy' is gone. It routed to the section-engine renderer
+ * (components/invitation-layouts/), whose only reachable output for a guest was
+ * PlaceholderLayout — a bare shell whose own body text reads "визуальный дизайн
+ * в разработке". Every failure path in this component fell into it, so a guest
+ * of a paying customer got that page instead of an honest error. Canvas is the
+ * only renderer; anything it cannot show is an error and now says so.
+ *
+ * The `/i/demo` branch is gone too. It fetched a catalogue template through
+ * /api/templates/[slug]/preview and rendered it as a fake invitation, with
+ * OpenGraph metadata for an invented couple ("Асет & Айым", "Ресторан
+ * «Жарық»"). Nothing has linked to it since the landing page's demo links were
+ * removed, so it was an unreachable route carrying a made-up wedding, a demo
+ * banner, a dismissal flag in localStorage and its own API endpoint.
+ */
+type RenderMode = 'loading' | 'canvas' | 'error';
 
 export default function PublicInvitationClient({
   slug,
   guestToken,
-  familyToken,
-  demoLayout,
-  embedPreview = false,
 }: {
   slug: string;
   guestToken: string | null;
-  familyToken: string | null;
-  demoLayout?: string;
-  /** Hide demo chrome when embedded in template preview modal */
-  embedPreview?: boolean;
 }) {
   const { t } = useI18n();
-  const isDemo = slug === 'demo';
-  const [bannerDismissed, setBannerDismissed] = useState(false);
-  const [envelopeOpened, setEnvelopeOpened] = useState(false);
   const [mode, setMode] = useState<RenderMode>('loading');
   // 2026-07-30: store fullAccess from canvas API so we can pass it at render time
   const [fullAccessFromApi, setFullAccessFromApi] = useState(false);
+  const [showWatermarkFromApi, setShowWatermarkFromApi] = useState(false);
+  // Whether a guest without a personal ?guest= token may answer at all.
+  const [openRsvpFromApi, setOpenRsvpFromApi] = useState(true);
   const shareUrl =
     typeof window !== 'undefined' ? `${window.location.origin}/i/${slug}` : `/i/${slug}`;
 
-  const showDemoBanner =
-    isDemo && !embedPreview && !bannerDismissed && envelopeOpened;
-  const quickHref = quickWizardHref(demoLayout || DEFAULT_QUICK_TEMPLATE);
-
   useEffect(() => {
-    if (!isDemo) return;
-    try {
-      if (window.localStorage.getItem('us-demo-banner-dismissed') === '1') {
-        setBannerDismissed(true);
-      }
-      if (hasSeenEnvelope(slug)) {
-        setEnvelopeOpened(true);
-      }
-    } catch {
-      /* non-critical */
-    }
-    const onOpen = () => setEnvelopeOpened(true);
-    window.addEventListener('qazshaqyru:envelope-open', onOpen);
-    return () => window.removeEventListener('qazshaqyru:envelope-open', onOpen);
-  }, [isDemo, slug]);
-
-  useEffect(() => {
-    if (isDemo) {
-      // Demo keeps legacy for historical screenshots / marketing
-      setMode('legacy');
-      return;
-    }
-
     // === 2026-07-30 + NEXT ===
     // Canvas is the canonical renderer for all new/paid invitations.
     // We prefer canvas aggressively:
@@ -77,7 +53,7 @@ export default function PublicInvitationClient({
           credentials: 'same-origin',
         });
         if (!res.ok) {
-          if (alive) setMode('legacy');
+          if (alive) setMode('error');
           return;
         }
         const data = await res.json();
@@ -90,39 +66,38 @@ export default function PublicInvitationClient({
           // Legacy only for ancient unpaid rows without canvas ever seeded.
           if (hasCanvas || isFullAccess) {
             setFullAccessFromApi(isFullAccess);
+            setShowWatermarkFromApi(!!data.showWatermark);
+            setOpenRsvpFromApi(data.openRsvp !== false);
             setMode('canvas');
           } else {
-            setMode('legacy');
+            setMode('error');
           }
         }
       } catch {
-        if (alive) setMode('legacy');
+        if (alive) setMode('error');
       }
     })();
     return () => {
       alive = false;
     };
-  }, [slug, isDemo]);
+  }, [slug]);
 
   useEffect(() => {
-    if (isDemo) return;
     void fetch(`/api/invitations/public/${encodeURIComponent(slug)}/view`, {
       method: 'POST',
     }).catch(() => {});
-  }, [slug, isDemo]);
-
-  const dismissBanner = () => {
-    setBannerDismissed(true);
-    try {
-      window.localStorage.setItem('us-demo-banner-dismissed', '1');
-    } catch {
-      /* non-critical */
-    }
-  };
+  }, [slug]);
 
   return (
     <div className="relative min-h-screen">
-      {!isDemo && (
+      {/*
+        The QazShaqyru badge is our branding sitting in the corner of somebody
+        else's wedding invitation. That is exactly what a customer pays to
+        remove, so it is shown on free publishes only — the same rule the
+        watermark strip follows. It used to be unconditional, so paying
+        customers kept it.
+      */}
+      {!fullAccessFromApi && (
         <div className="pointer-events-none fixed left-4 top-4 z-50">
           <Link
             href="/"
@@ -134,37 +109,12 @@ export default function PublicInvitationClient({
         </div>
       )}
 
-      {showDemoBanner && (
-        <div className="sticky top-0 z-40 px-3 py-2 pt-[max(0.5rem,env(safe-area-inset-top))]" data-testid="demo-cta-banner">
-          <div className="mx-auto flex max-w-lg items-center justify-between gap-2 rounded-full border border-[color-mix(in_srgb,#C4954A_35%,transparent)] bg-[color-mix(in_srgb,#faf6ef_88%,#C4954A_12%)] px-3 py-2 shadow-us-sm backdrop-blur-sm sm:px-4">
-            <p className="min-w-0 flex-1 truncate font-body text-xs leading-snug text-[#3d3428] sm:text-sm">
-              {t('public.demoBannerShort')}
-            </p>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 min-h-8 shrink-0 rounded-full border-[#C4954A]/50 bg-transparent px-2.5 text-xs text-[#3d3428] hover:bg-[#C4954A]/10"
-              asChild
-            >
-              <Link href={quickHref}>
-                {t('public.demoBannerCta')}
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
-            </Button>
-            <button
-              type="button"
-              onClick={dismissBanner}
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[#3d3428]/70 transition-colors hover:bg-[#3d3428]/8 hover:text-[#3d3428]"
-              aria-label={t('common.close')}
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </div>
-      )}
-
       {mode === 'loading' && (
-        <div className="flex min-h-screen items-center justify-center bg-us-ivory" aria-busy aria-label="Загрузка приглашения">
+        <div
+          className="flex min-h-screen items-center justify-center bg-us-ivory"
+          aria-busy
+          aria-label={t('public.loading')}
+        >
           <div className="flex flex-col items-center gap-3">
             {/* Pulsing card skeleton — mirrors the invitation card shape */}
             <div className="relative overflow-hidden rounded-2xl border border-us-border bg-white shadow-us-md" style={{ width: 'min(420px, 90vw)', height: '320px' }}>
@@ -193,20 +143,23 @@ export default function PublicInvitationClient({
           </div>
         </div>
       )}
-      {mode === 'legacy' && (
-        <GuestInvitationPage
-          slug={slug}
-          guestToken={guestToken}
-          familyToken={familyToken}
-          demoLayout={demoLayout}
-          suppressGuestChrome={embedPreview}
-        />
+      {mode === 'error' && (
+        <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-us-ivory px-6 text-center">
+          <LogoMark size={28} />
+          <p className="font-display text-lg text-us-ink">{t('public.errors.notAvailable')}</p>
+          <p className="max-w-sm font-body text-sm text-us-ink-muted">
+            {t('public.errors.notFound')}
+          </p>
+        </div>
       )}
       {mode === 'canvas' && (
-        <CanvasGuestPage 
-          slug={slug} 
-          shareUrl={shareUrl} 
+        <CanvasGuestPage
+          slug={slug}
+          shareUrl={shareUrl}
           fullAccess={fullAccessFromApi}
+          showWatermark={showWatermarkFromApi}
+          guestToken={guestToken}
+          openRsvp={openRsvpFromApi}
         />
       )}
     </div>

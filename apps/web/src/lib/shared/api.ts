@@ -16,6 +16,8 @@ export type SessionUser = {
   language: 'kz' | 'ru';
   name: string | null;
   isAdmin: boolean;
+  /** Whether the account can sign in with phone + password. Never the hash. */
+  hasPassword: boolean;
 };
 
 export class ApiError extends Error {
@@ -61,6 +63,18 @@ export function apiErrorResponse(error: ApiError | Error, logPrefix = 'API') {
   );
 }
 
+/**
+ * Next signals "bail out of static rendering" by throwing an error carrying
+ * this digest. It is control flow, not a failure, and must never be caught.
+ */
+function isDynamicServerError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as { digest?: unknown }).digest === 'DYNAMIC_SERVER_USAGE'
+  );
+}
+
 export async function getCurrentSession(): Promise<{
   session: { id: string; userId: string; expiresAt: Date; tokenHash: string };
   user: SessionUser;
@@ -99,9 +113,17 @@ export async function getCurrentSession(): Promise<{
         language: session.user.language,
         name: session.user.name,
         isAdmin: session.user.isAdmin,
+        hasPassword: Boolean(session.user.passwordHash),
       },
     };
   } catch (error) {
+    // Next throws a DynamicServerError from cookies() to tell the renderer
+    // "this route cannot be static". Swallowing it here turned that signal
+    // into a silent `null` session — the route would go on rendering as if
+    // nobody were logged in — and printed a stack trace labelled "Session
+    // check error" on every build for every page that reads a session. It has
+    // to propagate.
+    if (isDynamicServerError(error)) throw error;
     console.error('Session check error:', error);
     return null;
   }
@@ -176,8 +198,7 @@ export async function applyRateLimit(
   return checkRateLimit(`${ip}:${identifier}`, config);
 }
 
-/** Rate limit by a global key (e.g. phone) without IP prefix — for OTP per-phone limits. */
-/** Rate limit by a global key (e.g. phone) without IP prefix — for OTP per-phone limits. */
+/** Rate limit by a global key (e.g. phone) without an IP prefix — for per-phone login limits. */
 export async function applyGlobalRateLimit(
   key: string,
   config: RateLimitConfig

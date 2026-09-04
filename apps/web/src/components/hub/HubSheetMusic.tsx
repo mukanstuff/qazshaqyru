@@ -1,9 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Loader2, Upload } from 'lucide-react';
 import { useI18n } from '@/i18n';
 import { HubSheet } from '@/components/hub/HubSheet';
+import { uploadMusicFile } from '@/lib/uploads/upload-client';
 import { resolveHostApiError } from '@/lib/guests/host-api-error';
+import { fetchInvitationCanvas, saveInvitationCanvas } from '@/lib/canvas/hub-canvas-client';
+import type { MusicPlayerElement } from '@/lib/canvas/types';
 
 interface Props {
   open: boolean;
@@ -12,18 +16,25 @@ interface Props {
   initialUrl: string;
 }
 
+const MAX_SIZE_MB = 20;
+const ACCEPT = 'audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/ogg,audio/webm,audio/mp4,audio/x-m4a';
+
 /**
- * 2026-08-18 (Phase 2, hub screen): quick-edit for background music. The
- * editor's music-panel route is identical (uses the same PATCH endpoint
- * with musicUrl validated by parseUserMediaUrl); this sheet only handles
- * the URL path. File upload is intentionally not part of Phase 2 — when
- * the dedicated /api/uploads/audio route exists we'll add it here.
+ * 2026-08-18 (Phase 2, hub screen): quick-edit for background music.
+ *
+ * Writes directly to the canvas document's `music` element(s) — the player
+ * guests actually see reads `el.audioSrc`, not `Invitation.musicUrl`.
+ * Removing sets the element `hidden: true` so the player disappears from
+ * the guest page instead of silently falling back to a curated default
+ * track (its behaviour when `audioSrc` is merely empty).
  */
 export function HubSheetMusic({ open, onClose, invitationId, initialUrl }: Props) {
   const { t } = useI18n();
   const [url, setUrl] = useState(initialUrl);
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [toast, setToast] = useState<{ kind: 'ok' | 'err'; message: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -36,15 +47,20 @@ export function HubSheetMusic({ open, onClose, invitationId, initialUrl }: Props
     setBusy(true);
     setToast(null);
     try {
-      const res = await fetch(`/api/invitations/${invitationId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ musicUrl: next }),
+      const { document, updatedAt } = await fetchInvitationCanvas(invitationId);
+      let touched = false;
+      const elements = document.elements.map((el) => {
+        if (el.type !== 'music') return el;
+        touched = true;
+        const music = el as MusicPlayerElement;
+        return next
+          ? { ...music, audioSrc: next, hidden: false }
+          : { ...music, audioSrc: undefined, hidden: true };
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(resolveHostApiError(data, t, 'invitation.hub.error'));
+      if (!touched) {
+        throw new Error(t('invitation.hub.musicSheet.noMusicElement'));
       }
+      await saveInvitationCanvas(invitationId, { ...document, elements }, updatedAt);
       setToast({
         kind: 'ok',
         message:
@@ -68,6 +84,36 @@ export function HubSheetMusic({ open, onClose, invitationId, initialUrl }: Props
     }
   };
 
+  const onUpload = async (file: File) => {
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      setToast({
+        kind: 'err',
+        message: t('invitation.hub.musicSheet.fileTooLarge', { max: MAX_SIZE_MB }),
+      });
+      return;
+    }
+    setUploading(true);
+    setToast(null);
+    try {
+      const res = await uploadMusicFile(file, invitationId);
+      if (!res.success || !res.url) {
+        throw new Error(
+          res.message || t('invitation.hub.musicSheet.uploadFailed')
+        );
+      }
+      setUrl(res.url);
+      await save(res.url);
+    } catch (e) {
+      setToast({
+        kind: 'err',
+        message: e instanceof Error ? e.message : t('invitation.hub.musicSheet.uploadFailed'),
+      });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <HubSheet
       open={open}
@@ -76,16 +122,16 @@ export function HubSheetMusic({ open, onClose, invitationId, initialUrl }: Props
       subtitle={t('invitation.hub.musicSheet.subtitle')}
       footer={
         <div className="hub-share-buttons" style={{ marginTop: 0 }}>
-          <button type="button" className="hub-btn" onClick={onClose} disabled={busy}>
+          <button type="button" className="hub-btn" onClick={onClose} disabled={busy || uploading}>
             {t('common.cancel')}
           </button>
           <button
             type="button"
             className="hub-btn hub-btn--primary"
             onClick={() => void save(url.trim() || null)}
-            disabled={busy}
+            disabled={busy || uploading}
           >
-            {busy ? t('invitation.hub.musicSheet.uploading') : t('invitation.hub.musicSheet.save')}
+            {busy ? t('common.saving') : t('invitation.hub.musicSheet.save')}
           </button>
         </div>
       }
@@ -102,7 +148,39 @@ export function HubSheetMusic({ open, onClose, invitationId, initialUrl }: Props
         </div>
       ) : null}
 
-      <div className="hub-field">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={ACCEPT}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) void onUpload(f);
+        }}
+        style={{ display: 'none' }}
+        aria-hidden="true"
+      />
+
+      <button
+        type="button"
+        className="hub-btn"
+        onClick={() => fileInputRef.current?.click()}
+        disabled={uploading || busy}
+        style={{ width: '100%' }}
+      >
+        {uploading ? (
+          <>
+            <Loader2 size={14} aria-hidden="true" />
+            {t('invitation.hub.musicSheet.uploading')}
+          </>
+        ) : (
+          <>
+            <Upload size={14} aria-hidden="true" />
+            {t('invitation.hub.musicSheet.upload')} ({MAX_SIZE_MB} MB)
+          </>
+        )}
+      </button>
+
+      <div className="hub-field" style={{ marginTop: 14 }}>
         <label className="hub-field-label">{t('invitation.hub.musicSheet.url')}</label>
         <input
           className="hub-input"
@@ -118,7 +196,7 @@ export function HubSheetMusic({ open, onClose, invitationId, initialUrl }: Props
           type="button"
           className="hub-btn hub-btn--negative"
           onClick={() => void save(null)}
-          disabled={busy}
+          disabled={busy || uploading}
         >
           {t('invitation.hub.musicSheet.remove')}
         </button>

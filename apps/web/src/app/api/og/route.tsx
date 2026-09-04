@@ -2,42 +2,69 @@ import { ImageResponse } from 'next/og';
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/shared/db';
 import { applyRateLimit, RATE_LIMITS, rateLimitResponse, getClientIp } from '@/lib/shared/api';
-import { getTemplate } from '@/lib/templates';
-import { DEFAULT_TEMPLATE_SLUG } from '@/lib/templates/catalog';
+import { EVENT_TYPE_LABELS, type EventType } from '@/lib/shared/types';
+import { formatEventDateLine } from '@/lib/shared/kazakh-datetime';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 interface OgInvitationData {
   title: string;
-  eventType: string;
+  eventType: EventType;
   eventDate: Date;
   eventTime: string | null;
   eventPlace: string | null;
-  templateKey: string;
+  locale: 'ru' | 'kz';
+  coverUrl: string | null;
   updatedAt: Date;
 }
 
-const DEMO_OG: OgInvitationData = {
-  title: 'Асет & Айым',
-  eventType: 'Свадьба',
-  eventDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-  eventTime: '15:00',
-  eventPlace: 'Ресторан «Жарық»',
-  templateKey: DEFAULT_TEMPLATE_SLUG,
-  updatedAt: new Date(),
-};
-
-function resolveAbsoluteUrl(path: string, origin: string): string {
-  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+function resolveAbsoluteUrl(target: string, origin: string): string {
+  if (target.startsWith('http://') || target.startsWith('https://')) return target;
   const base = (process.env.APP_URL || origin).replace(/\/$/, '');
-  return `${base}${path.startsWith('/') ? path : `/${path}`}`;
+  return `${base}${target.startsWith('/') ? target : `/${target}`}`;
+}
+
+/**
+ * Fonts for the share image.
+ *
+ * ImageResponse was called with no `fonts` at all, so @vercel/og fell back to
+ * its bundled noto-sans-**latin** — a font with no Cyrillic coverage. Every
+ * name, date and venue on a Kazakh or Russian invitation would have rendered as
+ * empty boxes in the WhatsApp/Telegram preview, which is the one image this
+ * product exists to produce. (The `fontFamily: '"Onest", "Segoe UI"'` in the
+ * markup below was decorative — Satori only knows the fonts passed here.)
+ *
+ * Noto Sans covers Latin, Cyrillic and the Kazakh letters ә ғ қ ң ө ұ ү һ і.
+ *
+ * Loaded through `new URL(..., import.meta.url)` rather than fs.readFile from
+ * process.cwd(): the production image is built with `output: 'standalone'` and
+ * the Dockerfile copies only public/, .next/, prisma/, scripts/ and content/ —
+ * anything read from a source path at runtime simply would not be there. This
+ * form makes webpack emit the files as build assets next to the route.
+ * Resolved once per process; ~550 KB each and they never change.
+ */
+let ogFontsPromise: Promise<
+  { name: string; data: ArrayBuffer; weight: 400 | 700; style: 'normal' }[]
+> | null = null;
+
+function loadOgFonts() {
+  ogFontsPromise ??= Promise.all([
+    fetch(new URL('./fonts/NotoSans-Regular.ttf', import.meta.url)).then((r) => r.arrayBuffer()),
+    fetch(new URL('./fonts/NotoSans-Bold.ttf', import.meta.url)).then((r) => r.arrayBuffer()),
+  ]).then(([regular, bold]) => [
+    { name: 'Noto Sans', data: regular, weight: 400 as const, style: 'normal' as const },
+    { name: 'Noto Sans', data: bold, weight: 700 as const, style: 'normal' as const },
+  ]);
+  return ogFontsPromise;
 }
 
 /**
  * Open Graph image generator — optimized for WhatsApp / Telegram link previews.
  */
 export async function GET(request: NextRequest) {
+  // Captured outside the try so the catch below can still reach it.
+  let coverUrlForFallback: string | null = null;
   try {
     const ip = getClientIp(request) || 'unknown';
     const rate = await applyRateLimit(request, `og:${ip}`, RATE_LIMITS.OG_IMAGE);
@@ -52,43 +79,36 @@ export async function GET(request: NextRequest) {
     }
 
     const origin = request.nextUrl.origin;
-    let data: OgInvitationData | null = null;
+    const invitation = await prisma.invitation.findFirst({
+      where: { slug, status: 'published' },
+      select: {
+        title: true,
+        eventType: true,
+        eventDate: true,
+        eventTime: true,
+        eventPlace: true,
+        updatedAt: true,
+        user: { select: { language: true } },
+        template: { select: { previewImageUrl: true } },
+      },
+    });
+    if (!invitation) return new Response('Not found', { status: 404 });
 
-    if (slug === 'demo') {
-      const layout = searchParams.get('layout');
-      data = {
-        ...DEMO_OG,
-        templateKey: layout && /^[a-zA-Z0-9_-]{1,80}$/.test(layout) ? layout : DEMO_OG.templateKey,
-      };
-    } else {
-      const invitation = await prisma.invitation.findFirst({
-        where: { slug, status: 'published' },
-        select: {
-          title: true,
-          eventType: true,
-          eventDate: true,
-          eventTime: true,
-          eventPlace: true,
-          templateKey: true,
-          updatedAt: true,
-        },
-      });
-      if (!invitation) return new Response('Not found', { status: 404 });
-      data = {
-        ...invitation,
-        templateKey: invitation.templateKey || DEFAULT_TEMPLATE_SLUG,
-      };
-    }
-    if (!data) return new Response('Not found', { status: 404 });
+    const data: OgInvitationData = {
+      title: invitation.title,
+      eventType: invitation.eventType as EventType,
+      eventDate: invitation.eventDate,
+      eventTime: invitation.eventTime,
+      eventPlace: invitation.eventPlace,
+      locale: invitation.user?.language === 'kz' ? 'kz' : 'ru',
+      coverUrl: invitation.template?.previewImageUrl ?? null,
+      updatedAt: invitation.updatedAt,
+    };
 
-    const cfg = getTemplate(data.templateKey);
-    if (!cfg) return new Response('Template config not found', { status: 400 });
-    const coverUrl = resolveAbsoluteUrl(cfg.coverUrl, origin);
-    const dateStr = new Intl.DateTimeFormat('ru-RU', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    }).format(new Date(data.eventDate));
+    const coverUrl = resolveAbsoluteUrl(data.coverUrl || '/og-default.png', origin);
+    coverUrlForFallback = coverUrl;
+    const dateStr = formatEventDateLine(new Date(data.eventDate), data.locale);
+    const eventTypeLabel = EVENT_TYPE_LABELS[data.eventType]?.[data.locale] ?? EVENT_TYPE_LABELS.wedding[data.locale];
 
     const etag = `"${data.updatedAt.getTime()}"`;
     const ifNoneMatch = request.headers.get('if-none-match');
@@ -96,72 +116,151 @@ export async function GET(request: NextRequest) {
       return new Response(null, { status: 304 });
     }
 
-    const accent = cfg.accent || '#C5A368';
-    const isDark = cfg.layout === 'dark-lux';
-    const textColor = isDark ? '#F5F2ED' : '#3D3530';
-    const subColor = isDark ? 'rgba(245,242,237,0.75)' : 'rgba(61,53,48,0.7)';
-
     const response = new ImageResponse(
       (
         <div
-          
+          style={{
+            display: 'flex',
+            position: 'relative',
+            width: 1200,
+            height: 630,
+            fontFamily: 'Noto Sans',
+          }}
         >
           <img
             src={coverUrl}
             alt=""
             width={1200}
             height={630}
-            
+            style={{ position: 'absolute', top: 0, left: 0, width: 1200, height: 630, objectFit: 'cover' }}
           />
           <div
-            
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: 1200,
+              height: 630,
+              display: 'flex',
+              background: 'linear-gradient(180deg, rgba(15,26,20,0.15) 0%, rgba(15,26,20,0.35) 45%, rgba(15,26,20,0.92) 100%)',
+            }}
           />
           <div
-            
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              width: 1200,
+              display: 'flex',
+              flexDirection: 'column',
+              padding: '0 64px 56px',
+            }}
           >
             <div
-              
+              style={{
+                display: 'flex',
+                alignSelf: 'flex-start',
+                background: 'rgba(255,255,255,0.14)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                borderRadius: 999,
+                padding: '8px 22px',
+                marginBottom: 22,
+                color: '#F5F8F5',
+                fontSize: 22,
+                fontWeight: 600,
+                letterSpacing: 1,
+                textTransform: 'uppercase',
+              }}
             >
-              {data.eventType}
+              {eventTypeLabel}
             </div>
             <div
-              
+              style={{
+                display: 'flex',
+                color: '#FFFFFF',
+                fontSize: 68,
+                fontWeight: 700,
+                lineHeight: 1.08,
+                marginBottom: 20,
+                maxWidth: 1000,
+              }}
             >
               {data.title}
             </div>
             <div
-              
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                color: 'rgba(255,255,255,0.92)',
+                fontSize: 32,
+                fontWeight: 500,
+                gap: 16,
+              }}
             >
-              <span>{dateStr}</span>
+              <span style={{ display: 'flex' }}>{dateStr}</span>
               {data.eventTime ? (
                 <>
-                  <span >·</span>
-                  <span>{data.eventTime}</span>
+                  <span style={{ display: 'flex', color: '#55C97F' }}>·</span>
+                  <span style={{ display: 'flex' }}>{data.eventTime}</span>
                 </>
               ) : null}
             </div>
             {data.eventPlace ? (
               <div
-                
+                style={{
+                  display: 'flex',
+                  marginTop: 10,
+                  color: 'rgba(255,255,255,0.72)',
+                  fontSize: 26,
+                }}
               >
                 {data.eventPlace}
               </div>
             ) : null}
             <div
-              
+              style={{
+                display: 'flex',
+                marginTop: 32,
+                color: '#55C97F',
+                fontSize: 24,
+                fontWeight: 700,
+                letterSpacing: 1,
+              }}
             >
               QazShaqyru
             </div>
           </div>
         </div>
       ),
-      { width: 1200, height: 630 }
+      { width: 1200, height: 630, fonts: await loadOgFonts() }
     );
 
-    response.headers.set('Cache-Control', 'public, max-age=300, s-maxage=86400, stale-while-revalidate=604800');
-    response.headers.set('ETag', etag);
-    return response;
-  } catch {
-    return new Response('Failed to generate image', { status: 500 });
+    // Materialise the PNG here rather than handing the stream back to Next.
+    // ImageResponse does its real work lazily while the body is piped, so a
+    // rendering failure (font loading, most often) surfaced as Next's
+    // "failed to pipe response" *after* this handler had already returned —
+    // outside the try/catch, producing a bare 500 and no link preview at all.
+    const png = await response.arrayBuffer();
+
+    return new Response(png, {
+      headers: {
+        'Content-Type': 'image/png',
+        'Cache-Control':
+          'public, max-age=300, s-maxage=86400, stale-while-revalidate=604800',
+        ETag: etag,
+      },
+    });
+  } catch (error) {
+    /*
+     * Rendering can fail for reasons that have nothing to do with the
+     * invitation — most of all font loading inside @vercel/og. Returning a bare
+     * 500 means WhatsApp and Telegram show a link with NO preview image at all,
+     * which is the worst possible outcome for the one artefact this product
+     * exists to hand out. Fall back to the template's own preview artwork:
+     * no names on it, but a real, on-brand picture.
+     */
+    console.error('[og] falling back to template preview:', error);
+    const fallback = coverUrlForFallback ?? resolveAbsoluteUrl('/og-default.png', request.nextUrl.origin);
+    return Response.redirect(fallback, 302);
   }
 }

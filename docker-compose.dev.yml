@@ -1,7 +1,15 @@
 # Local development overlay — exposes Postgres to the host for `pnpm dev`.
 # Usage (from repo root):
 #   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres
+#
+# Host port is 55432, not 5432. On this Windows machine Hyper-V reserves the TCP
+# range 5358–5457 (check with `netsh interface ipv4 show excludedportrange
+# protocol=tcp`), which contains 5432 — Docker fails the bind with "An attempt
+# was made to access a socket in a way forbidden by its access permissions", the
+# container starts anyway with no published port, and every page 500s on
+# "Can't reach database server at localhost:5432". 55432 is outside every
+# reserved range. Keep apps/web/.env.local's DATABASE_URL port in sync with this.
 services:
   postgres:
     ports:
-      - '5432:5432'
+      - '55432:5432'

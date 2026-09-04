@@ -1,6 +1,9 @@
 import prisma from '@/lib/shared/db';
 import { generateGuestToken, normalizePhone, validatePhone } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
+import { buildWhatsAppLink } from '@/lib/shared/whatsapp';
+
+export { buildWhatsAppLink };
 
 type PrismaTx = any;
 
@@ -382,19 +385,6 @@ export async function deleteGuestForUser(guestId: string, userId: string) {
 
   await prisma.guest.delete({ where: { id: guestId } });
   return { invitationId: guest.invitationId };
-}
-
-export function buildWhatsAppLink(phone: string, message: string): string | null {
-  const digits = formatPhoneForWhatsApp(phone);
-  if (!digits) return null;
-  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
-}
-
-function formatPhoneForWhatsApp(phone: string): string | null {
-  const digits = phone.replace(/[^\d]/g, '');
-  if (digits.length === 11 && digits.startsWith('7')) return digits;
-  if (digits.length === 10) return `7${digits}`;
-  return null;
 }
 
 export async function getGuestStatsForInvitation(invitationId: string) {

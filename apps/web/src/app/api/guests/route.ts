@@ -21,6 +21,22 @@ import {
   updateGuestForUser,
 } from '@/lib/guests/service';
 import { serializeGuestsForApi } from '@/lib/guests/guest-serialize';
+import { getInvitationPricing } from '@/lib/invitations/invitation-pricing';
+
+/** Guest CRUD (add/edit/delete) is a paid feature — same gate as export/remind/switch-template. */
+async function assertGuestOpsAccess(invitationId: string, userId: string) {
+  const pricing = await getInvitationPricing(invitationId, userId);
+  if (!pricing) {
+    throw new ApiError('not_found', 'Приглашение не найдено', 404);
+  }
+  if (!pricing.fullAccess) {
+    throw new ApiError(
+      'plan_required',
+      'Управление гостями доступно после оплаты цены шаблона',
+      402
+    );
+  }
+}
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -81,6 +97,15 @@ export async function PATCH(request: NextRequest) {
       throw new ApiError('validation_error', 'Ошибка валидации', 400, validation.error.flatten());
     }
 
+    const guestRow = await prisma.guest.findFirst({
+      where: { id: validation.data.guestId, invitation: { userId: ctx.user.id } },
+      select: { invitationId: true },
+    });
+    if (!guestRow) {
+      throw new ApiError('not_found', 'Гость не найден', 404);
+    }
+    await assertGuestOpsAccess(guestRow.invitationId, ctx.user.id);
+
     const { updated } = await updateGuestForUser({
       ...validation.data,
       userId: ctx.user.id,
@@ -120,13 +145,7 @@ export async function POST(request: NextRequest) {
       }
       const { invitationId, guests } = validation.data;
 
-      const invitation = await prisma.invitation.findFirst({
-        where: { id: invitationId, userId: ctx.user.id },
-        select: { id: true, status: true },
-      });
-      if (!invitation) {
-        throw new ApiError('not_found', 'Приглашение не найдено', 404);
-      }
+      await assertGuestOpsAccess(invitationId, ctx.user.id);
 
       const result = await addGuests(invitationId, guests);
 
@@ -145,13 +164,8 @@ export async function POST(request: NextRequest) {
     }
 
     const { invitationId, ...guestData } = validation.data;
-    const invitation = await prisma.invitation.findFirst({
-      where: { id: invitationId, userId: ctx.user.id },
-      select: { id: true, status: true },
-    });
-    if (!invitation) {
-      throw new ApiError('not_found', 'Приглашение не найдено', 404);
-    }
+
+    await assertGuestOpsAccess(invitationId, ctx.user.id);
 
     const result = await addGuests(invitationId, [guestData]);
     const only = result.guests[0];
@@ -241,6 +255,15 @@ export async function DELETE(request: NextRequest) {
     if (!guestId) {
       throw new ApiError('guestId_required', 'guestId обязателен', 400);
     }
+
+    const guestRow = await prisma.guest.findFirst({
+      where: { id: guestId, invitation: { userId: ctx.user.id } },
+      select: { invitationId: true },
+    });
+    if (!guestRow) {
+      throw new ApiError('not_found', 'Гость не найден', 404);
+    }
+    await assertGuestOpsAccess(guestRow.invitationId, ctx.user.id);
 
     await deleteGuestForUser(guestId, ctx.user.id);
     return NextResponse.json({ success: true });

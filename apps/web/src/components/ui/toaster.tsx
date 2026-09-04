@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
 import {
   Toast,
   ToastClose,
@@ -36,9 +36,14 @@ export function Toaster({ children }: { children?: ReactNode }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  // A fresh `{ toast, dismiss }` object on every render would re-render every
+  // consumer in the tree each time a toast is pushed or dismissed.
+  const value = useMemo(() => ({ toast, dismiss }), [toast, dismiss]);
+
   return (
-    <ToastContext.Provider value={{ toast, dismiss }}>
+    <ToastContext.Provider value={value}>
       <ToastProvider duration={4000}>
+        {children}
         {toasts.map(({ id, title, description, variant = 'default' }) => (
           <Toast
             key={id}
@@ -48,8 +53,8 @@ export function Toaster({ children }: { children?: ReactNode }) {
             }}
           >
             <div className="grid gap-1">
-              {title && <ToastTitle>{title}</ToastTitle>}
-              <ToastDescription>{description}</ToastDescription>
+              {title ? <ToastTitle>{title}</ToastTitle> : null}
+              {description ? <ToastDescription>{description}</ToastDescription> : null}
             </div>
             <ToastClose />
           </Toast>
@@ -60,13 +65,17 @@ export function Toaster({ children }: { children?: ReactNode }) {
   );
 }
 
+/**
+ * Stable no-op fallback for trees rendered without <Toaster> (unit tests,
+ * isolated stories). Must be a module-level singleton: returning a fresh
+ * object literal here gives `toast` a new identity on every render, which
+ * turns any `useEffect(..., [toast])` into an infinite loop.
+ */
+const NOOP_TOAST: ToastContextType = {
+  toast: () => {},
+  dismiss: () => {},
+};
+
 export function useToast() {
-  const ctx = useContext(ToastContext);
-  if (!ctx) {
-    return {
-      toast: () => {},
-      dismiss: () => {},
-    };
-  }
-  return ctx;
+  return useContext(ToastContext) ?? NOOP_TOAST;
 }

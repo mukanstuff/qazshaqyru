@@ -1,8 +1,3 @@
-/**
- * Internal decor-profile key set — Phase 1 ships a single HTML-engine template (`luxe-gold`).
- */
-export const FLAGSHIP_TEMPLATE_SLUGS = ['luxe-gold'] as const;
-
 /* ─── Fonts available in the app ─── */
 export const FONT_FAMILIES = {
   /** @deprecated key kept for template configs — maps to Cormorant Garamond */

@@ -1,5 +1,6 @@
 import { BRAND_ACCENT, BRAND_PRIMARY, CANVAS_VERSION, DEFAULT_MOBILE_WIDTH } from './types';
 import type { InvitationCanvasDocument } from './types';
+import { formatEventDateLine } from '@/lib/shared/kazakh-datetime';
 
 export function buildDefaultInvitationCanvas(opts: {
   locale?: 'ru' | 'kz';
@@ -10,11 +11,7 @@ export function buildDefaultInvitationCanvas(opts: {
   const eventDate = opts.eventDate ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
   const eventDateIso = eventDate.toISOString();
 
-  const dateLabel = eventDate.toLocaleDateString(locale === 'kz' ? 'kk-KZ' : 'ru-RU', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
+  const dateLabel = formatEventDateLine(eventDate, locale);
 
   return {
     version: CANVAS_VERSION,

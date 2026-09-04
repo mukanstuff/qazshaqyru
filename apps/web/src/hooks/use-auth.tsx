@@ -4,10 +4,13 @@ import { createContext, useContext, useEffect, useState, ReactNode, useCallback 
 
 interface User {
   id: string;
-  phone: string;
+  /** Null for accounts that signed up via Google and never added a phone. */
+  phone: string | null;
   language: 'kz' | 'ru';
   name: string | null;
   isAdmin: boolean;
+  /** Can this account sign in with phone + password? */
+  hasPassword: boolean;
 }
 
 interface Session {

@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { Building2, Copy, Check, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toaster';
+import { useI18n } from '@/i18n';
 
 interface Props {
   invitationId: string;
@@ -13,7 +14,7 @@ interface Props {
 }
 
 /**
- * Dashboard-first restaurant share — copy/create portal link without GuestOpsHub.
+ * Dashboard-first restaurant share — copy/create portal link without opening the hub.
  */
 export function RestaurantShareButton({
   invitationId,
@@ -21,6 +22,9 @@ export function RestaurantShareButton({
   restaurantLinkAllowed,
 }: Props) {
   const { toast } = useToast();
+  // Every user-facing string here was a hardcoded Russian literal, so the
+  // Kazakh interface rendered this button in Russian.
+  const { t } = useI18n();
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
@@ -35,50 +39,37 @@ export function RestaurantShareButton({
         body: JSON.stringify({}),
       });
       const data = (await res.json().catch(() => ({}))) as { url?: string; message?: string };
-      if (!res.ok || !data.url) throw new Error(data.message || 'Не удалось создать ссылку');
+      if (!res.ok || !data.url) throw new Error(data.message || t('errors.generic'));
       setUrl(data.url);
       await navigator.clipboard.writeText(data.url);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-      toast({ title: 'Ссылка для тойханы скопирована' });
+      toast({ title: t('dashboard.restaurantLinkCopied') });
     } catch (e) {
       toast({
-        title: e instanceof Error ? e.message : 'Ошибка',
+        title: e instanceof Error ? e.message : t('common.error'),
         variant: 'destructive',
       });
     } finally {
       setBusy(false);
     }
-  }, [invitationId, restaurantLinkAllowed, status, toast]);
+  }, [invitationId, restaurantLinkAllowed, status, t, toast]);
 
   if (status !== 'published') return null;
 
-  if (!restaurantLinkAllowed) {
-    return (
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-sm"
-        disabled
-        title="Ссылка для менеджера тойханы — после оплаты шаблона"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <Building2 size={16} className="text-us-ink-muted" />
-      </Button>
-    );
-  }
+  const label = t('dashboard.restaurantLink');
+  const lockedLabel = t('dashboard.restaurantLinkLocked');
 
   return (
     <Button
       type="button"
-      variant="ghost"
-      size="icon-sm"
-      disabled={busy}
-      title={url ? 'Скопировать ссылку тойханы' : 'Ссылка для менеджера тойханы'}
-      onClick={(e) => {
-        e.stopPropagation();
-        void createAndCopy();
-      }}
+      variant="outline"
+      size="sm"
+      className="min-h-11"
+      disabled={busy || !restaurantLinkAllowed}
+      title={restaurantLinkAllowed ? undefined : lockedLabel}
+      aria-label={restaurantLinkAllowed ? label : lockedLabel}
+      onClick={() => void createAndCopy()}
       data-testid={`restaurant-share-${invitationId}`}
     >
       {busy ? (
@@ -90,6 +81,7 @@ export function RestaurantShareButton({
       ) : (
         <Building2 size={16} />
       )}
+      <span className="hidden sm:inline">{label}</span>
     </Button>
   );
 }

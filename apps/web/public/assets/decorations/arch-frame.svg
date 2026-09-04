@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 470" width="300" height="470" fill="none" stroke="#000" stroke-width="1.1" stroke-linecap="round">
+  <!-- Outer arch: straight jambs rising into a round head, open at the foot. -->
+  <path d="M22 466 L22 172 C22 92 78 28 150 28 C222 28 278 92 278 172 L278 466" />
+  <!-- Inner arch, offset inward, gives the frame its ribbed weight. -->
+  <path d="M36 466 L36 176 C36 102 87 44 150 44 C213 44 264 102 264 176 L264 466" opacity="0.75" />
+  <!-- Hairline third rule, only along the jambs. -->
+  <path d="M46 466 L46 200" opacity="0.45" />
+  <path d="M254 466 L254 200" opacity="0.45" />
+
+  <!-- Apex finial. -->
+  <path d="M150 28 L150 10" />
+  <path d="M150 10 C144 16 140 20 134 22 M150 10 C156 16 160 20 166 22" />
+  <circle cx="150" cy="7" r="2.6" fill="#000" stroke="none" />
+
+  <!-- Small ornaments where the arch springs from the jambs. -->
+  <path d="M22 172 C14 168 10 162 10 154 M22 172 C30 168 34 162 34 154" opacity="0.8" />
+  <path d="M278 172 C286 168 290 162 290 154 M278 172 C270 168 266 162 266 154" opacity="0.8" />
+  <circle cx="22" cy="172" r="2.2" fill="#000" stroke="none" />
+  <circle cx="278" cy="172" r="2.2" fill="#000" stroke="none" />
+
+  <!-- Small lozenge caught between the jamb rules, partway down. A chevron
+       was tried here first and read as a stray arrow at render size. -->
+  <path d="M29 300 L33 306 L29 312 L25 306 Z" fill="#000" stroke="none" opacity="0.5" />
+  <path d="M271 300 L275 306 L271 312 L267 306 Z" fill="#000" stroke="none" opacity="0.5" />
+</svg>

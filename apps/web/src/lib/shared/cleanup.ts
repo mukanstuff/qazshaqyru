@@ -21,7 +21,6 @@ function getInvitationRetentionDays(): number {
 
 export interface CleanupResult {
   expiredSessions: number;
-  expiredOtps: number;
   expiredRateLimits: number;
   uploadsRemoved: number;
   protectedUploads: number;
@@ -52,15 +51,37 @@ function collectUrlsFromJson(value: unknown, out: Set<string>): void {
 
 export async function loadProtectedUploadPaths(now = new Date()): Promise<Set<string>> {
   const protectedPaths = new Set<string>();
+
+  // NOTE: this used to scan only `musicUrl` + `templateData` — the legacy
+  // pre-canvas fields. Every invitation has been canvas-backed since
+  // `ensureCanvasDocument` started seeding it unconditionally (2026-07-30),
+  // so every photo/music file a user uploads through the canvas editor
+  // (EditorSheetTabPhotos / EditorSheetTabMusic) lives inside the `canvas`
+  // JSON column instead, which was never scanned here. `cleanupOldUploads`
+  // below deletes any file under public/uploads older than 90 days that
+  // isn't in this set — so on a codebase not touched since that migration,
+  // running this (it's a real npm script: `pnpm cleanup`) would have
+  // permanently deleted photos and music from every invitation older than
+  // 90 days, including published ones guests were actively viewing.
   const invitations = await prisma.invitation.findMany({
     where: { status: { in: ['draft', 'published'] } },
-    select: { musicUrl: true, templateData: true },
+    select: { musicUrl: true, templateData: true, canvas: true },
   });
 
   for (const inv of invitations) {
     const p = extractUploadPath(inv.musicUrl);
     if (p) protectedPaths.add(p);
     collectUrlsFromJson(inv.templateData, protectedPaths);
+    collectUrlsFromJson(inv.canvas, protectedPaths);
+  }
+
+  // Templates can also embed user-uploaded assets in their canvas (e.g. an
+  // admin-built template cloned from one with a real photo still in it).
+  const templates = await prisma.template.findMany({
+    select: { canvas: true },
+  });
+  for (const tpl of templates) {
+    collectUrlsFromJson(tpl.canvas, protectedPaths);
   }
 
   // Registry-based protected paths are a synchronous in-memory set; kept for
@@ -112,7 +133,9 @@ export async function runDatabaseCleanup(): Promise<CleanupResult> {
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const protectedPaths = await loadProtectedUploadPaths();
 
-  const [sessions, otps, rateLimits, uploadsRemoved, registryPruned, archivedInvitations] = await Promise.all([
+  // `otps` used to sit between `sessions` and `rateLimits`. The OTPToken table
+  // is gone along with one-time-code login.
+  const [sessions, rateLimits, uploadsRemoved, registryPruned, archivedInvitations] = await Promise.all([
     prisma.$transaction([
       prisma.session.updateMany({
         where: { expiresAt: { lt: now }, revokedAt: null },
@@ -124,7 +147,6 @@ export async function runDatabaseCleanup(): Promise<CleanupResult> {
         },
       }),
     ]),
-    prisma.oTPToken.deleteMany({ where: { expiresAt: { lt: now } } }),
     prisma.rateLimitEntry.deleteMany({
       where: {
         resetAt: { lt: now },
@@ -149,7 +171,6 @@ export async function runDatabaseCleanup(): Promise<CleanupResult> {
 
   return {
     expiredSessions: sessions[0].count + sessions[1].count,
-    expiredOtps: otps.count,
     expiredRateLimits: rateLimits.count,
     uploadsRemoved,
     protectedUploads: protectedPaths.size,

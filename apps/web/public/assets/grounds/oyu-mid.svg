@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 400" preserveAspectRatio="xMidYMid slice" width="390" height="400">
+  <!--
+    The quiet stretch between sections: paper and nothing else.
+
+    Deliberately one flat tone, identical to the document background. An earlier
+    version carried a soft vertical gradient, which looked better in isolation
+    and produced a visible horizontal seam everywhere two of these sat against
+    each other — the exact defect that made the older templates read as pasted
+    rectangles.
+  -->
+  <defs>
+    <filter id="grain2" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" seed="13" result="n"/>
+      <feColorMatrix in="n" type="saturate" values="0"/>
+    </filter>
+  </defs>
+  <rect width="390" height="400" fill="#14171b"/>
+  <rect width="390" height="400" filter="url(#grain2)" opacity="0.12" style="mix-blend-mode:overlay"/>
+</svg>

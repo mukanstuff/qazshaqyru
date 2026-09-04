@@ -68,9 +68,9 @@ export function buildSoftwareApplicationSchema() {
     operatingSystem: 'Web',
     offers: {
       '@type': 'Offer',
-      price: '0',
+      price: '2990',
       priceCurrency: 'KZT',
-      description: 'Публикация с логотипом сервиса бесплатно; после оплаты цены шаблона — полный доступ без водяного знака + все функции гостей',
+      description: 'Создание и редактирование приглашения бесплатно; публикация — разовая оплата цены выбранного шаблона (все функции для гостей)',
     },
     url: getSiteOrigin(),
     provider: { '@id': orgId() },

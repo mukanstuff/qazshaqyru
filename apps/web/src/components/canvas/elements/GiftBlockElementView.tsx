@@ -104,7 +104,7 @@ export function GiftBlockElementView({ el, mode = 'guest' }: Props) {
             style={{
               background: 'transparent',
               border: 'none',
-              color: '#6b1d3a',
+              color: el.accentColor || '#e12c2c',
               cursor: 'pointer',
               fontSize: 12,
               fontWeight: 700,

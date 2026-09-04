@@ -112,3 +112,234 @@
     transform: none !important;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Designed motion.
+ *
+ * The seven effects above are all the same gesture at different angles, and
+ * every element of every shipped template used one of them — `fadeUp` — which
+ * is why "everything is animated" still read as homemade. These four are the
+ * ones that carry a composition: a wipe, a name that assembles itself, a still
+ * photograph that will not sit still, and line art that draws itself.
+ * ------------------------------------------------------------------------- */
+
+/* A wipe, not a slide: the element is uncovered by a moving edge while it
+   drifts a few pixels. Reads as printing rather than as sliding. */
+.canvas-anim-reveal-up {
+  animation-name: canvas-reveal-up;
+  animation-duration: var(--anim-duration, 1.1s);
+  animation-delay: var(--anim-delay, 0s);
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/*
+ * The 94% is load-bearing — do NOT restore it to 100%.
+ *
+ * `clip-path` is part of what an IntersectionObserver measures: an element
+ * clipped to `inset(100%)` reports an intersection ratio of exactly 0 even
+ * when it is dead centre in the viewport. Since this animation starts paused
+ * and is only started by the observer adding `.is-visible`, a full clip
+ * deadlocks it — ratio 0, so no `.is-visible`, so the animation never runs, so
+ * the clip is never lifted. The element stays invisible forever.
+ *
+ * That is not hypothetical: every section eyebrow in the catalogue was
+ * permanently blank, and it survived review because the *hero* eyebrow happens
+ * to win a race against the first observer tick and does appear. Leaving a 6%
+ * sliver keeps a measurable rect (ratio ≈ 0.05) so the observer fires, and at
+ * this size the sliver is not perceptible.
+ */
+@keyframes canvas-reveal-up {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) translateY(22px);
+    clip-path: inset(94% 0 0 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) translateY(0);
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/* Letter-by-letter. The wrapper fades in as a whole; the per-letter stagger is
+   applied by the couple-names view, which splits the text and sets
+   --letter-index on each span. Anything without that split just fades. */
+.canvas-anim-letters {
+  animation-name: canvas-fade;
+  animation-duration: var(--anim-duration, 0.5s);
+  animation-delay: var(--anim-delay, 0s);
+  animation-timing-function: ease-out;
+}
+
+.canvas-anim-letters .canvas-letter {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(0.32em) rotate(2deg);
+  animation-name: canvas-letter-in;
+  animation-duration: 0.62s;
+  animation-fill-mode: forwards;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-play-state: paused;
+  /* 45ms apart: fast enough not to feel like a loading screen, slow enough to
+     be read as deliberate. */
+  animation-delay: calc(var(--anim-delay, 0s) + var(--letter-index, 0) * 45ms);
+}
+
+.canvas-anim-letters.is-visible .canvas-letter,
+.canvas-anim-letters.is-preview .canvas-letter {
+  animation-play-state: running;
+}
+
+@keyframes canvas-letter-in {
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(0deg);
+  }
+}
+
+/* A long, almost imperceptible push on a photograph. Runs once and holds, so
+   it is a slow arrival rather than a loop that keeps pulling the eye. */
+.canvas-anim-ken-burns {
+  animation-name: canvas-ken-burns;
+  animation-duration: var(--anim-duration, 9s);
+  animation-delay: var(--anim-delay, 0s);
+  animation-timing-function: ease-out;
+}
+
+@keyframes canvas-ken-burns {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(1.12);
+  }
+  8% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+/* Line art that draws itself. The element must be an inline SVG whose strokes
+   carry pathLength="1" — see OrnamentElementView. */
+.canvas-anim-draw {
+  animation-name: canvas-fade;
+  animation-duration: 0.01s;
+  animation-delay: var(--anim-delay, 0s);
+}
+
+.canvas-anim-draw [data-draw] {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation-name: canvas-draw-stroke;
+  animation-duration: var(--anim-duration, 1.6s);
+  animation-delay: calc(var(--anim-delay, 0s) + var(--draw-index, 0) * 160ms);
+  animation-fill-mode: forwards;
+  animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1);
+  animation-play-state: paused;
+}
+
+.canvas-anim-draw.is-visible [data-draw],
+.canvas-anim-draw.is-preview [data-draw] {
+  animation-play-state: running;
+}
+
+@keyframes canvas-draw-stroke {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Parallax offset lives in `translate`, which composites independently of the
+   `transform` the renderer already uses for rotation and the GPU-layer hint. */
+.canvas-parallax {
+  translate: 0 var(--parallax-y, 0px);
+  will-change: translate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas-parallax {
+    translate: none;
+  }
+  .canvas-anim-ken-burns {
+    animation-name: canvas-fade;
+    animation-duration: 0.4s;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Idle motion — the loop that runs after the entrance has finished.
+ *
+ * This lives on its own nested layer (`.canvas-idle`, emitted by the renderer
+ * inside the element wrapper) for a mechanical reason: the wrapper already
+ * spends the CSS `animation` shorthand on the entrance, and a second
+ * `animation` declaration on the same element replaces the first rather than
+ * adding to it. Nesting is also what both reference services do.
+ *
+ * The layer must NOT set `will-change: transform` unconditionally — a dozen
+ * permanently-promoted layers on a long page costs more than the motion is
+ * worth on the mid-range Android these invitations are actually opened on.
+ * ------------------------------------------------------------------------- */
+
+.canvas-idle {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: center center;
+  backface-visibility: hidden;
+}
+
+.canvas-idle-spin {
+  animation: canvas-idle-spin var(--idle-duration, 40s) linear infinite;
+}
+
+.canvas-idle-float {
+  animation: canvas-idle-float var(--idle-duration, 7s) ease-in-out infinite;
+}
+
+.canvas-idle-sway {
+  animation: canvas-idle-sway var(--idle-duration, 9s) ease-in-out infinite;
+  /* Swaying about the centre looks like a wobbling sticker; about the bottom
+     edge it looks like something hanging, which is the intent. */
+  transform-origin: center bottom;
+}
+
+.canvas-idle-pulse {
+  animation: canvas-idle-pulse var(--idle-duration, 5s) ease-in-out infinite;
+}
+
+@keyframes canvas-idle-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* 6px, not the 20-30px a generic "float" preset uses: this runs behind and
+   beside text, and anything larger makes the page feel unmoored. */
+@keyframes canvas-idle-float {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -6px, 0); }
+}
+
+@keyframes canvas-idle-sway {
+  0%, 100% { transform: rotate(-1.4deg); }
+  50% { transform: rotate(1.4deg); }
+}
+
+@keyframes canvas-idle-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.92; }
+  50% { transform: scale(1.035); opacity: 1; }
+}
+
+/* Looping motion is the first thing that should go: it never conveys
+   information, and for a vestibular-sensitive reader a permanently turning
+   ornament is the worst offender on the page. */
+@media (prefers-reduced-motion: reduce) {
+  .canvas-idle-spin,
+  .canvas-idle-float,
+  .canvas-idle-sway,
+  .canvas-idle-pulse {
+    animation: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+}

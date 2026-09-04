@@ -5,19 +5,23 @@ import { ArrowLeft } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PublicShell } from '@/components/shared/PublicShell';
 import { GoogleLoginButton } from '@/components/auth/GoogleLoginButton';
+import { PhoneLoginForm } from '@/components/auth/PhoneLoginForm';
+import { getWhatsappHref } from '@/lib/site/legal-config';
 import { useI18n } from '@/i18n';
-import { LANDING_HERO_SCREEN } from '@/lib/landing/assets';
+import { LANDING_LOGIN_BACKDROP } from '@/lib/landing/assets';
 import Image from 'next/image';
 import { cn } from '@/lib/shared/utils';
 
 interface Props {
   redirectTo: string;
   googleErrorCode?: string | null;
+  /** Server-resolved: is Google OAuth actually configured? */
+  googleEnabled: boolean;
 }
 
 const panelClassName = cn('us-glass-strong overflow-hidden border shadow-us-lg');
 
-export default function LoginForm({ redirectTo, googleErrorCode }: Props) {
+export default function LoginForm({ redirectTo, googleErrorCode, googleEnabled }: Props) {
   const { t } = useI18n();
 
   return (
@@ -25,7 +29,7 @@ export default function LoginForm({ redirectTo, googleErrorCode }: Props) {
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 -z-10">
           <Image
-            src={LANDING_HERO_SCREEN}
+            src={LANDING_LOGIN_BACKDROP}
             alt=""
             fill
             priority={false}
@@ -58,12 +62,42 @@ export default function LoginForm({ redirectTo, googleErrorCode }: Props) {
               <CardContent className="space-y-5 pt-6">
                 {googleErrorCode && <ErrorBox message={mapGoogleError(t, googleErrorCode)} />}
 
-                <GoogleLoginButton returnTo={redirectTo}>
-                  {t('auth.googleLogin')}
-                </GoogleLoginButton>
+                {googleEnabled ? (
+                  <>
+                    <GoogleLoginButton returnTo={redirectTo}>
+                      {t('auth.googleLogin')}
+                    </GoogleLoginButton>
+                    <p className="text-center font-body text-xs text-us-ink-muted">
+                      {t('auth.googleLoginFootnote')}
+                    </p>
+                  </>
+                ) : null}
 
+                {googleEnabled ? (
+                  <div className="flex items-center gap-3" aria-hidden>
+                    <span className="h-px flex-1 bg-us-border" />
+                    <span className="font-body text-xs uppercase tracking-wider text-us-ink-muted">
+                      {t('auth.or')}
+                    </span>
+                    <span className="h-px flex-1 bg-us-border" />
+                  </div>
+                ) : null}
+
+                <PhoneLoginForm redirectTo={redirectTo} />
+
+                {/* There is no self-service reset: sign-in has no verification
+                    channel by design, so "forgot password" has to be a human.
+                    Better an honest route to support than a link that 404s or
+                    a screen that silently does nothing. */}
                 <p className="text-center font-body text-xs text-us-ink-muted">
-                  {t('auth.googleLoginFootnote')}
+                  <a
+                    href={getWhatsappHref(t('auth.forgotPasswordMessage'))}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline-offset-2 hover:text-us-accent hover:underline"
+                  >
+                    {t('auth.forgotPassword')}
+                  </a>
                 </p>
 
                 <p className="text-center font-body text-xs text-us-ink-muted">

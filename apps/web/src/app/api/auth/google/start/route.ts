@@ -12,14 +12,20 @@ import { ApiError, apiErrorResponse } from '@/lib/shared/api';
  */
 export async function GET(request: NextRequest) {
   try {
-    if (!isGoogleOAuthEnabled()) {
-      throw new ApiError('oauth_disabled', 'Вход через Google недоступен', 503);
-    }
-    const cfg = getGoogleOAuthConfig();
-    if (!cfg) throw new ApiError('oauth_disabled', 'Вход через Google недоступен', 503);
-
     const returnToRaw = request.nextUrl.searchParams.get('return_to') ?? '/dashboard';
     const returnTo = sanitizeReturnTo(returnToRaw);
+
+    // The browser navigates here directly (window.location.href), so an
+    // ApiError response paints raw JSON in the address bar and strands the
+    // user. /login already knows how to render `?google_error=oauth_disabled`
+    // — send them back there instead.
+    const cfg = isGoogleOAuthEnabled() ? getGoogleOAuthConfig() : null;
+    if (!cfg) {
+      const back = new URL('/login', request.nextUrl.origin);
+      back.searchParams.set('google_error', 'oauth_disabled');
+      back.searchParams.set('redirect', returnTo);
+      return NextResponse.redirect(back, { status: 302 });
+    }
 
     const state = generateOAuthState();
     await setOAuthStateCookie(state, returnTo);

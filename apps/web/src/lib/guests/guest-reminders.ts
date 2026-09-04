@@ -1,5 +1,5 @@
 import type { GuestResponseStatus } from '@prisma/client';
-import { buildWhatsAppLink } from '@/lib/guests/service';
+import { buildWhatsAppLink } from '@/lib/shared/whatsapp';
 
 export interface ReminderGuestInput {
   id: string;

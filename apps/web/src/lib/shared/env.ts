@@ -9,13 +9,6 @@ const envSchema = z.object({
   SESSION_SECRET: z.string().optional(),
   APP_URL: z.string().url().optional(),
   TRUST_PROXY: z.enum(['true', 'false']).optional(),
-  OTP_EXPIRY_MINUTES: z.string().optional(),
-  OTP_MAX_ATTEMPTS: z.string().optional(),
-  WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
-  WHATSAPP_ACCESS_TOKEN: z.string().optional(),
-  WHATSAPP_AUTH_TEMPLATE_NAME: z.string().optional(),
-  WHATSAPP_AUTH_TEMPLATE_LANGUAGE: z.string().optional(),
-  AUTH_WHATSAPP_ENABLED: z.enum(['true', 'false']).optional(),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_REDIRECT_URI: z.string().url().optional(),
@@ -206,28 +199,19 @@ export function auditProductionEnv(env: NodeJS.ProcessEnv = process.env): EnvChe
     pushCheck(items, 'ADMIN_API_KEY', 'ok', 'ADMIN_API_KEY length OK');
   }
 
-  if (env.AUTH_WHATSAPP_ENABLED === 'true') {
-    const missing = ['WHATSAPP_PHONE_NUMBER_ID', 'WHATSAPP_ACCESS_TOKEN', 'WHATSAPP_AUTH_TEMPLATE_NAME'].filter(
-      (k) => !envValue(env, k)
-    );
-    if (missing.length > 0) {
-      pushCheck(items, 'AUTH_WHATSAPP_ENABLED', 'error', `WhatsApp OTP enabled but missing: ${missing.join(', ')}`);
-    } else {
-      pushCheck(items, 'AUTH_WHATSAPP_ENABLED', 'ok', 'WhatsApp OTP configured');
-    }
-  } else {
-    pushCheck(items, 'AUTH_WHATSAPP_ENABLED', 'warn', 'AUTH_WHATSAPP_ENABLED != true — phone login disabled; users must use Google');
-  }
-
   const googleId = envValue(env, 'GOOGLE_CLIENT_ID');
   const googleSecret = envValue(env, 'GOOGLE_CLIENT_SECRET');
   const googleRedirect = envValue(env, 'GOOGLE_REDIRECT_URI');
   if (!googleId || !googleSecret || !googleRedirect) {
+    // A warning, not an error. Sign-in is phone + password; Google is the
+    // optional second door, and the login page already hides its button when
+    // isGoogleOAuthEnabled() is false. Treating it as blocking meant a
+    // deployment with a perfectly working login refused to boot at all.
     pushCheck(
       items,
       'GOOGLE_OAUTH',
-      'error',
-      'GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REDIRECT_URI are required — see docs/google-oauth-setup.md'
+      'warn',
+      'GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REDIRECT_URI not set — the "Sign in with Google" button stays hidden; see docs/google-oauth-setup.md'
     );
   } else {
     pushCheck(items, 'GOOGLE_OAUTH', 'ok', `Google OAuth redirect: ${googleRedirect}`);
@@ -403,10 +387,6 @@ export function validateEnv(): void {
       console.warn(`[env] WARNING: ${item.key}: ${item.message}`);
     }
 
-    const otpMax = parseInt(process.env.OTP_MAX_ATTEMPTS || '3', 10);
-    if (process.env.OTP_MAX_ATTEMPTS && (!Number.isFinite(otpMax) || otpMax < 1 || otpMax > 10)) {
-      console.warn('[env] WARNING: OTP_MAX_ATTEMPTS must be 1–10; using default 3.');
-    }
   }
 
   validated = true;
@@ -417,9 +397,3 @@ export function resetEnvValidationForTests(): void {
   validated = false;
 }
 
-/** OTP verify attempts per code (1–10, default 3). */
-export function getOtpMaxAttempts(): number {
-  const raw = parseInt(process.env.OTP_MAX_ATTEMPTS || '3', 10);
-  if (!Number.isFinite(raw) || raw < 1 || raw > 10) return 3;
-  return Math.floor(raw);
-}

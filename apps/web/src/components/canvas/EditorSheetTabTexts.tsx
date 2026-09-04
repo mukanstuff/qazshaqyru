@@ -1,7 +1,9 @@
 'use client';
 
 import { useCallback } from 'react';
+import type { EventType } from '@prisma/client';
 import { useI18n } from '@/i18n';
+import { EditorSheetTextPresets } from './EditorSheetTextPresets';
 import type {
   ButtonElement,
   CanvasElement,
@@ -14,6 +16,8 @@ import { settingsTitleFor } from './ElementSettingsConfig';
 interface Props {
   document: InvitationCanvasDocument;
   onDocumentChange: (next: InvitationCanvasDocument) => void;
+  /** Drives which ready-made greetings are offered. Absent in the template builder. */
+  eventType?: EventType;
 }
 
 /**
@@ -25,8 +29,8 @@ interface Props {
  * and headings are edited via in-place tap-to-edit on the canvas
  * (single tap). Two entry points would confuse users.
  */
-export function EditorSheetTabTexts({ document, onDocumentChange }: Props) {
-  const { t } = useI18n();
+export function EditorSheetTabTexts({ document, onDocumentChange, eventType }: Props) {
+  const { t, locale } = useI18n();
 
   const coupleEls = document.elements.filter(
     (e): e is CoupleNamesElement => e.type === 'couple-names'
@@ -42,19 +46,29 @@ export function EditorSheetTabTexts({ document, onDocumentChange }: Props) {
     [document, onDocumentChange]
   );
 
+  const presetsBlock = eventType ? (
+    <EditorSheetTextPresets
+      document={document}
+      onDocumentChange={onDocumentChange}
+      eventType={eventType}
+      names={[coupleEls[0]?.first, coupleEls[0]?.second].filter(Boolean).join(' & ')}
+    />
+  ) : null;
+
   if (coupleEls.length === 0 && buttonEls.length === 0) {
-    return (
+    return presetsBlock ?? (
       <p className="editor-sheet-empty">{t('invitation.edit.canvas.sheet.empty')}</p>
     );
   }
 
   return (
     <div className="editor-sheet-section-stack">
+      {presetsBlock}
       {coupleEls.map((el) => (
         <div key={el.id} className="editor-sheet-section">
-          <h3 className="editor-sheet-section-title">{settingsTitleFor('couple-names')}</h3>
+          <h3 className="editor-sheet-section-title">{settingsTitleFor('couple-names', locale)}</h3>
           <label className="editor-field">
-            <span className="editor-field-label">Имя 1</span>
+            <span className="editor-field-label">{locale === 'ru' ? 'Имя 1' : 'Есім 1'}</span>
             <input
               type="text"
               className="canvas-inspector-input is-block"
@@ -63,7 +77,7 @@ export function EditorSheetTabTexts({ document, onDocumentChange }: Props) {
             />
           </label>
           <label className="editor-field">
-            <span className="editor-field-label">Имя 2</span>
+            <span className="editor-field-label">{locale === 'ru' ? 'Имя 2' : 'Есім 2'}</span>
             <input
               type="text"
               className="canvas-inspector-input is-block"
@@ -72,7 +86,7 @@ export function EditorSheetTabTexts({ document, onDocumentChange }: Props) {
             />
           </label>
           <label className="editor-field">
-            <span className="editor-field-label">Разделитель</span>
+            <span className="editor-field-label">{locale === 'ru' ? 'Разделитель' : 'Аралық белгі'}</span>
             <select
               className="canvas-inspector-input is-block"
               value={el.connector ?? '&'}
@@ -92,9 +106,9 @@ export function EditorSheetTabTexts({ document, onDocumentChange }: Props) {
 
       {buttonEls.map((el) => (
         <div key={el.id} className="editor-sheet-section">
-          <h3 className="editor-sheet-section-title">{settingsTitleFor('button')}</h3>
+          <h3 className="editor-sheet-section-title">{settingsTitleFor('button', locale)}</h3>
           <label className="editor-field">
-            <span className="editor-field-label">Текст</span>
+            <span className="editor-field-label">{locale === 'ru' ? 'Текст' : 'Мәтін'}</span>
             <input
               type="text"
               className="canvas-inspector-input is-block"
@@ -103,7 +117,7 @@ export function EditorSheetTabTexts({ document, onDocumentChange }: Props) {
             />
           </label>
           <label className="editor-field">
-            <span className="editor-field-label">Цвет фона</span>
+            <span className="editor-field-label">{locale === 'ru' ? 'Цвет фона' : 'Фон түсі'}</span>
             <input
               type="color"
               className="editor-color-chip"
@@ -112,7 +126,7 @@ export function EditorSheetTabTexts({ document, onDocumentChange }: Props) {
             />
           </label>
           <label className="editor-field">
-            <span className="editor-field-label">Цвет текста</span>
+            <span className="editor-field-label">{locale === 'ru' ? 'Цвет текста' : 'Мәтін түсі'}</span>
             <input
               type="color"
               className="editor-color-chip"

@@ -46,6 +46,8 @@ export interface InvitationData {
   openRsvp?: boolean;
   /** Show freemium watermark until publication fee paid */
   showWatermark?: boolean;
+  /** True when the current viewer is the invitation's owner. */
+  isOwner?: boolean;
 }
 
 export interface RSVPData {

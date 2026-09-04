@@ -5,7 +5,8 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { InvitationCanvasDocument, TextElement } from '@/lib/canvas/types';
 import { EditableTextView } from '../elements/EditableTextView';
-import { fontStack } from '../elements/fontStack';
+import { fontStack, KAZAKH_INCAPABLE_FAMILIES } from '../elements/fontStack';
+import { FONT_OPTIONS } from '../inspector/shared';
 
 Object.assign(globalThis, {
   React,
@@ -94,6 +95,10 @@ describe('EditableTextView', () => {
     expect(document.activeElement).toBe(p);
   });
 
+  // The canvas editor mounts this with editingTrigger="double" so a single
+  // click selects and drags instead of dropping a caret. The test never passed
+  // the prop, so it exercised the 'single' default, where onDoubleClick is not
+  // even attached — and had been failing since that default was introduced.
   it('calls onStartEdit when double-clicked', () => {
     const onStartEdit = vi.fn();
     const { container, root } = render(
@@ -101,6 +106,7 @@ describe('EditableTextView', () => {
         el: baseText,
         editing: false,
         selected: true,
+        editingTrigger: 'double' as const,
         onStartEdit,
         onStopEdit: vi.fn(),
         onChange: vi.fn(),
@@ -129,7 +135,7 @@ describe('EditableTextView', () => {
       }),
     );
     roots.push(root);
-    const toolbar = container.querySelector('[role="toolbar"][aria-label="Форматирование текста"]');
+    const toolbar = document.body.querySelector('[role="toolbar"][aria-label="Форматирование текста"]');
     expect(toolbar).not.toBeNull();
     // Bold + Italic + КАПС + size −/+ + align L/C/R + colour trigger = 9 buttons + 3 dividers
     expect(toolbar?.querySelectorAll('button').length).toBeGreaterThanOrEqual(7);
@@ -149,8 +155,11 @@ describe('EditableTextView', () => {
       }),
     );
     roots.push(root);
-    const bold = container.querySelector('[title="Жирный"]');
-    const italic = container.querySelector('[title="Курсив"]');
+    // The toolbar is portaled into <body> so its `position: fixed` measures
+    // against the viewport rather than the transformed canvas element, so it
+    // is no longer a descendant of the render container.
+    const bold = document.body.querySelector('[title="Жирный"]');
+    const italic = document.body.querySelector('[title="Курсив"]');
     if (!bold || !italic) throw new Error('toolbar buttons missing');
     act(() => {
       (bold as HTMLButtonElement).dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
@@ -166,15 +175,14 @@ describe('EditableTextView', () => {
 describe('fontStack', () => {
   it('returns a stack for every FontFamily token without throwing', () => {
     const families: import('@/lib/canvas/types').FontFamily[] = [
-      'Inter', 'Josefin Sans', 'Manrope', 'Montserrat', 'Nunito', 'Oswald',
-      'Poppins', 'Quicksand', 'Raleway', 'Tenor Sans', 'Unbounded', 'Work Sans',
-      'Bebas Neue', 'Comfortaa', 'system', 'Alice', 'Bodoni Moda', 'Cardo',
-      'Cinzel', 'Cormorant', 'Cormorant Garamond', 'DM Serif Display',
-      'EB Garamond', 'Forum', 'Italiana', 'Libre Baskerville', 'Lora', 'Marcellus',
+      'Inter', 'Manrope', 'Montserrat', 'Nunito', 'Oswald',
+      'Raleway', 'Tenor Sans', 'Unbounded',
+      'Comfortaa', 'system', 'Alice',
+      'Cormorant', 'Cormorant Garamond',
+      'EB Garamond', 'Forum', 'Lora',
       'Merriweather', 'Old Standard TT', 'PT Serif', 'Philosopher',
       'Playfair Display', 'Prata', 'Spectral', 'Vollkorn', 'Yeseva One',
-      'Dancing Script', 'Great Vibes', 'Marck', 'Pacifico', 'Parisienne',
-      'Sacramento', 'Tangerine',
+      'Great Vibes', 'Marck', 'Pacifico',
     ];
     for (const f of families) {
       const stack = fontStack(f);
@@ -183,17 +191,38 @@ describe('fontStack', () => {
     }
   });
 
-  it('uses the self-hosted KZ prefix for the 5 locally available families', () => {
+  it('uses the self-hosted KZ prefix for the locally available families', () => {
     expect(fontStack('Montserrat')).toContain('KZ Montserrat');
     expect(fontStack('Cormorant')).toContain('KZ Cormorant');
     expect(fontStack('Cormorant Garamond')).toContain('KZ Cormorant');
-    expect(fontStack('Marck')).toContain('KZ Marck');
-    expect(fontStack('Unbounded')).toContain('KZ Unbounded');
   });
 
   it('quotes Google-family names so the stack is safe with multi-word names', () => {
-    expect(fontStack('Playfair Display')).toContain("'Playfair Display'");
-    expect(fontStack('Dancing Script')).toContain("'Dancing Script'");
-    expect(fontStack('Tenor Sans')).toContain("'Tenor Sans'");
+    expect(fontStack('Old Standard TT')).toContain("'Old Standard TT'");
+    expect(fontStack('EB Garamond')).toContain("'EB Garamond'");
+    expect(fontStack('Yeseva One')).toContain("'Yeseva One'");
+  });
+
+  // Regression guard for the 2026-08-27 Kazakh glyph bug: these six families
+  // render Ә Ғ Қ Ң Ө Ұ Ү Һ in a system fallback, producing words that are
+  // half script and half sans. They must never resolve to themselves.
+  it('substitutes every family that cannot render Kazakh', () => {
+    for (const family of KAZAKH_INCAPABLE_FAMILIES) {
+      const stack = fontStack(family);
+      expect(stack).not.toContain(`'${family}'`);
+      expect(stack.length).toBeGreaterThan(0);
+    }
+    expect(fontStack('Tenor Sans')).toContain('Forum');
+    expect(fontStack('Playfair Display')).toContain('Prata');
+    expect(fontStack('Marck')).toContain('KZ Script');
+    expect(fontStack('Great Vibes')).toContain('KZ Script');
+    expect(fontStack('Unbounded')).toContain('Geologica');
+    expect(fontStack('Manrope')).toContain('Golos Text');
+  });
+
+  it('keeps Kazakh-incapable families out of both font pickers', () => {
+    for (const family of KAZAKH_INCAPABLE_FAMILIES) {
+      expect(FONT_OPTIONS).not.toContain(family);
+    }
   });
 });

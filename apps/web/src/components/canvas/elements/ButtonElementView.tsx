@@ -6,10 +6,15 @@ export function ButtonElementView({
   el,
   locale = 'ru',
   shareUrl,
+  stopPropagation = false,
 }: {
   el: ButtonElement;
   locale?: 'ru' | 'kz';
   shareUrl?: string;
+  /** In editor mode the canvas owns the tap → select behaviour.
+   *  Stop propagation so button's native action (RSVP / link) doesn't
+   *  fire before the element gets selected. */
+  stopPropagation?: boolean;
 }) {
   const style: CSSProperties = {
     width: '100%',
@@ -35,14 +40,30 @@ export function ButtonElementView({
 
   const href = computeHref(el, locale, shareUrl);
 
+  const handleClick = (e: React.MouseEvent) => {
+    if (stopPropagation) {
+      e.stopPropagation();
+    }
+  };
+
   if (href) {
     return (
-      <a href={href} style={style} target={href.startsWith('http') ? '_blank' : undefined} rel="noreferrer">
+      <a
+        href={stopPropagation ? '#' : href}
+        style={style}
+        onClick={handleClick}
+        target={href.startsWith('http') ? '_blank' : undefined}
+        rel="noreferrer"
+      >
         {el.label}
       </a>
     );
   }
-  return <button type="button" style={style}>{el.label}</button>;
+  return (
+    <button type="button" style={style} onClick={handleClick}>
+      {el.label}
+    </button>
+  );
 }
 
 function computeHref(el: ButtonElement, locale: 'ru' | 'kz', shareUrl?: string): string | null {

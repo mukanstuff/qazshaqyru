@@ -11,7 +11,6 @@ import {
   parseJsonBody,
 } from '@/lib/shared/api';
 import prisma from '@/lib/shared/db';
-import { DEFAULT_TEMPLATE_SLUG } from '@/lib/templates/catalog';
 import { invitationCreateBodySchema } from '@/lib/invitations/schemas';
 import { createInvitationForUser } from '@/lib/invitations/InvitationService';
 
@@ -26,10 +25,13 @@ export async function POST(request: NextRequest) {
     if (!rate.allowed) return rateLimitResponse(rate);
 
     const data = await parseJsonBody(request, invitationCreateBodySchema);
-    const invitation = await createInvitationForUser(ctx.user.id, {
-      ...data,
-      templateKey: data.templateKey || DEFAULT_TEMPLATE_SLUG,
-    });
+    // An empty templateKey used to fall back to DEFAULT_TEMPLATE_SLUG
+    // (`luxe-gold`), which is not a template that exists — the invitation was
+    // created pointing at nothing. Reject instead.
+    if (!data.templateKey.trim()) {
+      throw new ApiError('templateKey_required', 'templateKey обязателен', 400);
+    }
+    const invitation = await createInvitationForUser(ctx.user.id, data);
 
     return NextResponse.json({ success: true, invitation });
   } catch (error) {

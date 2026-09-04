@@ -110,8 +110,18 @@ export function EditableTextView(props: Props) {
     onStartEdit();
   };
 
-  const handleBlur = () => {
+  const handleBlur = (e: React.FocusEvent) => {
     if (!editing) return;
+    // The colour swatches and the native `<input type="color">` cannot avoid
+    // taking focus the way the Bold/Italic/align buttons do (their pointerdown
+    // preventDefault stops focus moving at all) — a native colour input in
+    // particular MUST take focus to open its OS picker. Blurring TO the
+    // toolbar is therefore not "the user left editing"; it is the toolbar
+    // being used. Committing here previously set editing=false, which
+    // unmounted the (portaled) toolbar and killed the click that was about to
+    // apply the colour — the popover appeared to vanish with no effect.
+    const next = e.relatedTarget as Node | null;
+    if (next && (next as HTMLElement).closest?.('.canvas-text-toolbar')) return;
     commit();
   };
 
@@ -155,6 +165,16 @@ export function EditableTextView(props: Props) {
           // Always stop click bubble when in edit-mode (would otherwise start a drag).
           if (editing) {
             e.stopPropagation();
+            // `editing` is React state, DOM focus is not — they can drift
+            // apart. Anything that steals the pointer mid-edit (a drag, a
+            // toolbar press) blurs the contenteditable while the flag stays
+            // true, and this handler's early return then swallowed every
+            // further click: the caret was gone and nothing could bring it
+            // back short of deselecting the element and picking it again.
+            // Re-focus instead of returning into a dead state.
+            if (ref.current && document.activeElement !== ref.current) {
+              ref.current.focus({ preventScroll: true });
+            }
             return;
           }
           // In single-trigger mode, a single tap on the text is what enters edit.

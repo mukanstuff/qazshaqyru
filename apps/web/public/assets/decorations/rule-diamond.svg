@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 24" width="240" height="24" fill="none" stroke="#000" stroke-width="1" stroke-linecap="round">
+  <!-- Hairline rules tapering toward a centre diamond — the standard
+       invitation separator, and far less blunt than a 1px full-width line. -->
+  <path d="M4 12 L96 12" />
+  <path d="M144 12 L236 12" />
+  <path d="M120 4 L128 12 L120 20 L112 12 Z" fill="#000" stroke="none" />
+  <circle cx="104" cy="12" r="1.6" fill="#000" stroke="none" />
+  <circle cx="136" cy="12" r="1.6" fill="#000" stroke="none" />
+</svg>

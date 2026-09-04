@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
 
 import { useI18n } from '@/i18n';
+import { LOCALE_COOKIE } from '@/i18n/shared';
 import { parseSeoPathLocale } from '@/lib/seo/hreflang';
 import {
   isMarketingHref,
@@ -22,7 +23,7 @@ const STORAGE_KEY = 'qazshaqyru-soft-locale-dismissed';
 export function SoftLocaleBanner() {
   const pathname = usePathname() || '/';
   const router = useRouter();
-  const { setLocale } = useI18n();
+  const { setLocale, locale } = useI18n();
   const [visible, setVisible] = useState(false);
   const [hint, setHint] = useState<'kk' | 'ru' | null>(null);
 
@@ -35,10 +36,23 @@ export function SoftLocaleBanner() {
     } catch {
       return;
     }
-    const preferred = preferSeoLocaleFromAcceptLanguage(navigator.languages?.join(',') || navigator.language);
+
+    // Someone who has already picked a language — in the header switcher, or by
+    // signing in with an account that has one — has answered this question.
+    // The banner only tracked its own dismissal flag, so it kept asking
+    // "Выберите язык" of people who had chosen, on every unprefixed page.
+    if (document.cookie.includes(`${LOCALE_COOKIE}=`)) return;
+
+    const preferred = preferSeoLocaleFromAcceptLanguage(
+      navigator.languages?.join(',') || navigator.language
+    );
+    // Nothing to suggest when we are already showing what they prefer.
+    const currentSeo = locale === 'kz' ? 'kk' : 'ru';
+    if (preferred === currentSeo) return;
+
     setHint(preferred);
     setVisible(true);
-  }, [pathname]);
+  }, [pathname, locale]);
 
   if (!visible) return null;
 
@@ -69,7 +83,10 @@ export function SoftLocaleBanner() {
     <div
       role="region"
       aria-label="Language"
-      className="fixed inset-x-0 bottom-0 z-[110] flex justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))] max-md:top-[4.75rem] max-md:bottom-auto md:pb-6"
+      /* Bottom-anchored at every width. On mobile it used to be pinned under
+         the header (`max-md:top-[4.75rem]`), where it covered the first screen
+         of content and could not be scrolled out of the way. */
+      className="fixed inset-x-0 bottom-0 z-[110] flex justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:pb-6"
     >
       <div className="flex w-full max-w-lg items-start gap-3 rounded-2xl border border-us-accent/20 bg-white px-4 py-3 shadow-lg max-md:shadow-md">
         <div className="min-w-0 flex-1">

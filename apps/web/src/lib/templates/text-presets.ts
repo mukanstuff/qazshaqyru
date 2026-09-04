@@ -223,7 +223,15 @@ export function getTextPreset(eventType: EventType, index: number): TextPreset |
   return presets[index];
 }
 
-/** Resolve event type from template slug prefix */
+/**
+ * Best-effort event type from a template slug prefix.
+ *
+ * NOT a source of truth: `Template.category` is. None of the templates that
+ * actually ship (`aq-bata`, `dala`, `elegant-gold-wedding-01`) encode their
+ * event type in the slug, so this returns 'other' for all of them. Prefer the
+ * category column wherever a Template row is in hand; use this only when all
+ * you have is a bare slug string.
+ */
 export function eventTypeFromSlug(slug: string): EventType {
   if (slug.startsWith('kyz') || slug.startsWith('kyz-')) return 'kyz_uzatu';
   if (slug.startsWith('sundet')) return 'sundet_toy';

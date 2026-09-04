@@ -4,6 +4,7 @@ import prisma from '@/lib/shared/db';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { OrderStatusBadge } from '@/components/admin/OrderStatusBadge';
+import { OrderConfirmPaymentButton } from '@/components/admin/OrderConfirmPaymentButton';
 import {
   AdminTableShell,
   adminTableHeadClass,
@@ -12,6 +13,7 @@ import {
   adminTableRowClass,
 } from '@/components/admin/AdminTableShell';
 import { cn } from '@/lib/shared/utils';
+import { formatKzt } from '@/lib/shared/format-price';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,6 +53,9 @@ type AdminOrderRow = {
   amountKzt: number;
   status: string;
   createdAt: Date;
+  utmSource?: string | null;
+  utmMedium?: string | null;
+  utmCampaign?: string | null;
 };
 
   const [orders, total] = await Promise.all([
@@ -122,8 +127,10 @@ type AdminOrderRow = {
             <th className={adminTableThClass}>Шаблон</th>
             <th className={adminTableThClass}>Клиент</th>
             <th className={adminTableThClass}>Сумма</th>
+            <th className={adminTableThClass}>Источник</th>
             <th className={adminTableThClass}>Статус</th>
             <th className={adminTableThClass}>Дата</th>
+            <th className={adminTableThClass}>Действия</th>
           </tr>
         </thead>
         <tbody>
@@ -140,7 +147,16 @@ type AdminOrderRow = {
                 <div className="text-us-ink-muted">{o.customerPhone}</div>
               </td>
               <td className={adminTableTdClass}>
-                {o.amountKzt.toLocaleString('ru-RU')} ₸
+                {formatKzt(o.amountKzt)} ₸
+              </td>
+              <td className={cn(adminTableTdClass, 'text-us-ink-muted')}>
+                {o.utmSource ? (
+                  <span title={[o.utmMedium, o.utmCampaign].filter(Boolean).join(' / ')}>
+                    {o.utmSource}
+                  </span>
+                ) : (
+                  '—'
+                )}
               </td>
               <td className={adminTableTdClass}>
                 <OrderStatusBadge status={o.status} />
@@ -148,11 +164,14 @@ type AdminOrderRow = {
               <td className={cn(adminTableTdClass, 'text-us-ink-muted')}>
                 {new Date(o.createdAt).toLocaleDateString('ru-RU')}
               </td>
+              <td className={adminTableTdClass}>
+                {o.status === 'pending' ? <OrderConfirmPaymentButton orderId={o.id} /> : null}
+              </td>
             </tr>
           ))}
           {orders.length === 0 && (
             <tr>
-              <td colSpan={6} className={cn(adminTableTdClass, 'py-8 text-center text-us-ink-muted')}>
+              <td colSpan={8} className={cn(adminTableTdClass, 'py-8 text-center text-us-ink-muted')}>
                 Заказов не найдено
               </td>
             </tr>

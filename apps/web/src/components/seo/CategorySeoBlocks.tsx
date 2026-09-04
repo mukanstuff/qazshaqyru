@@ -1,6 +1,7 @@
 'use client';
 
 import { LocaleLink } from '@/components/seo/LocaleLink';
+import { LinkifyPaths } from '@/components/seo/LinkifyPaths';
 import { useI18n } from '@/i18n';
 
 import type { CategorySeoCopy } from '@/lib/seo/category-copy';
@@ -15,7 +16,7 @@ export function CategorySeoBlocks({ copy }: { copy: CategorySeoCopy }) {
         <div className="space-y-4">
           {copy.intro.map((p) => (
             <p key={p.slice(0, 40)} className="font-body text-base leading-relaxed text-us-ink-muted">
-              {p}
+              <LinkifyPaths text={p} />
             </p>
           ))}
           <p className="font-body text-sm text-us-ink-muted">
@@ -23,9 +24,9 @@ export function CategorySeoBlocks({ copy }: { copy: CategorySeoCopy }) {
               <>
                 Бағалар:{' '}
                 <LocaleLink href="/pricing" className="text-us-accent hover:underline">
-                  от цены шаблона (полный доступ после оплаты)
+                  үлгі бағасынан (төлегеннен кейін толық қолжетімділік)
                 </LocaleLink>
-                . Сервис белгісімен жасау — тегін.
+                . Жасау мен түзету — тегін.
               </>
             ) : (
               <>
@@ -33,7 +34,7 @@ export function CategorySeoBlocks({ copy }: { copy: CategorySeoCopy }) {
                 <LocaleLink href="/pricing" className="text-us-accent hover:underline">
                   от цены шаблона (полный доступ после оплаты)
                 </LocaleLink>
-                . Сборка с логотипом сервиса — бесплатно.
+                . Создание и редактирование — бесплатно.
               </>
             )}
           </p>
@@ -51,7 +52,7 @@ export function CategorySeoBlocks({ copy }: { copy: CategorySeoCopy }) {
                     {faq.question}
                   </summary>
                   <p className="mt-2 font-body text-sm leading-relaxed text-us-ink-muted">
-                    {faq.answer}
+                    <LinkifyPaths text={faq.answer} />
                   </p>
                 </details>
               ))}

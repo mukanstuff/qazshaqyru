@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { checkoutAgencyClient } from '@/lib/payments/checkout-client';
 import { PLAN_CATALOG } from '@/lib/entitlements/plan-catalog';
+import { formatKzt } from '@/lib/shared/format-price';
 
 interface Props {
   hasActiveAgency: boolean;
@@ -14,7 +15,7 @@ interface Props {
 export function AgencyPlanCard({ hasActiveAgency, agencyExpiresAt }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const price = PLAN_CATALOG.agency.priceKzt.toLocaleString('ru-RU');
+  const price = formatKzt(PLAN_CATALOG.agency.priceKzt);
 
   if (hasActiveAgency) {
     return (

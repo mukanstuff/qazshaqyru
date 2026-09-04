@@ -71,17 +71,15 @@ export function RemindGuestsButton({ invitationId }: Props) {
   return (
     <Button
       type="button"
-      variant="ghost"
-      size="icon-sm"
-      onClick={(e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        void handleRemind();
-      }}
+      variant="outline"
+      size="sm"
+      className="min-h-11"
+      onClick={() => void handleRemind()}
       disabled={loading}
-      title={t('dashboard.remind.button')}
+      aria-label={t('dashboard.remind.button')}
     >
       {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell size={16} />}
+      <span className="hidden sm:inline">{t('dashboard.remind.button')}</span>
     </Button>
   );
 }

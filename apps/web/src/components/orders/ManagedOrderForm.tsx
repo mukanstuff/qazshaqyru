@@ -10,6 +10,7 @@ import { useI18n } from '@/i18n';
 import { isCaptchaRequiredOnClient } from '@/lib/shared/captcha-client';
 import { getPublicWhatsappNumber, getWhatsappHref } from '@/lib/site/legal-config';
 import { cn } from '@/lib/shared/utils';
+import { formatKzt } from '@/lib/shared/format-price';
 
 interface ManagedOrderFormProps {
   templateId: string;
@@ -182,7 +183,7 @@ export function ManagedOrderForm({ templateId, templateName, managedPrice }: Man
         {t('managedOrder.terms')}
         {managedPrice > 0 && (
           <span className="mt-1 block font-medium text-us-accent">
-            {managedPrice.toLocaleString('ru-RU')} ₸
+            {formatKzt(managedPrice)} ₸
           </span>
         )}
       </p>

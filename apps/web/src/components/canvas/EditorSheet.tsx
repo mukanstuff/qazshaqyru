@@ -1,14 +1,8 @@
 'use client';
 
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react';
-import { X } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useI18n } from '@/i18n';
+import { Sheet, SheetContent, SheetCloseButton, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/shared/utils';
 
 interface Props {
@@ -16,138 +10,45 @@ interface Props {
   onClose: () => void;
   children: ReactNode;
   className?: string;
+  /** Accessible title — visually hidden by default since callers render their own heading (or none, e.g. tabs). */
+  title?: string;
 }
 
 /**
- * 2026-08-17: Bottom sheet for quick-edit.
+ * Bottom sheet used by quick-edit, the wizard, and the mobile element
+ * palette. Thin wrapper around the shared `Sheet` primitive (Radix Dialog +
+ * Motion drag-to-dismiss) — this used to be a fully hand-rolled dialog with
+ * its own pointer-drag close gesture, duplicating what the primitive now
+ * does for every sheet in the app.
  *
- * Geometry:
- *  - Mobile: fixed, bottom-anchored, 85dvh height, edge-to-edge.
- *  - Desktop (≥ 768px): centered card 480px wide, 80dvh tall, all corners rounded.
- *
- * Close:
- *  - Tap backdrop → close.
- *  - Tap ✕ → close.
- *  - Drag handle swipe-down > 100px → close.
- *  - ESC key → close (handled here so tab content components don't need to).
- *
- * Not a modal in the focus-trap sense — background canvas stays usable
- * for the few seconds a sheet is open if the user wants to compare with
- * the current document state. (Strict aria-modal can come later if needed.)
+ * Non-modal for the same reason the inspector is: everything inside it edits
+ * the canvas it is sitting on, and you have to be able to see the canvas.
  */
-export function EditorSheet({ open, onClose, children, className }: Props) {
+export function EditorSheet({ open, onClose, children, className, title }: Props) {
   const { t } = useI18n();
-  const [dragY, setDragY] = useState(0);
-  const dragStartRef = useRef<{ y: number; t: number } | null>(null);
-
-  // ESC handler.
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
-
-  // Lock body scroll while open (mobile).
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [open]);
-
-  // Reset drag offset whenever the sheet is re-opened.
-  useEffect(() => {
-    if (open) setDragY(0);
-  }, [open]);
-
-  // Drag handle vertical swipe.
-  const handleHandlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
-    dragStartRef.current = { y: e.clientY, t: Date.now() };
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  }, []);
-
-  const handleHandlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    const start = dragStartRef.current;
-    if (!start) return;
-    const dy = e.clientY - start.y;
-    // Only respond to downward drag (positive Y).
-    setDragY(Math.max(0, dy));
-  }, []);
-
-  const handleHandlePointerEnd = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      const start = dragStartRef.current;
-      dragStartRef.current = null;
-      try {
-        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-      } catch {
-        /* ignore */
-      }
-      if (!start) return;
-      const dy = e.clientY - start.y;
-      const elapsed = Date.now() - start.t;
-      // Close if dragged >100px or fast flick (>300px in <300ms).
-      if (dy > 100 || (dy > 60 && elapsed < 300)) {
-        onClose();
-      }
-      setDragY(0);
-    },
-    [onClose]
-  );
-
-  if (!open) return null;
 
   return (
-    <>
-      <button
-        type="button"
-        aria-label={t('invitation.edit.canvas.sheet.close')}
-        className="editor-sheet-backdrop"
-        onClick={onClose}
-      />
-      <div
-        role="dialog"
-        aria-modal="false"
-        aria-label={t('invitation.edit.canvas.fab.title')}
-        className={cn('editor-sheet', className)}
-        style={{
-          // Live drag translate during swipe-down.
-          transform: `translateY(${dragY}px)`,
-          // Fade opacity slightly so the user gets visual closure feedback
-          // even before the threshold is crossed.
-          opacity: dragY ? Math.max(0.7, 1 - dragY / 600) : undefined,
-        }}
-        data-testid="editor-sheet"
+    <Sheet modal={false} open={open} onOpenChange={(next) => !next && onClose()}>
+      <SheetContent
+        side="bottom"
+        overlay={false}
+        data-canvas-sheet="quick-edit"
+        className={cn(
+          // Same reasoning as PropertiesPanel: this sheet edits the canvas
+          // behind it — texts, photos, music, colours — so it must not dim,
+          // blur, block or fully cover it.
+          'flex max-h-[58dvh] flex-col',
+          'sm:inset-x-auto sm:bottom-6 sm:left-6 sm:max-h-[80dvh] sm:w-full sm:max-w-sm sm:translate-x-0 sm:rounded-2xl sm:border',
+          className,
+        )}
+        onInteractOutside={(e) => e.preventDefault()}
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <div
-          className="editor-sheet-handle"
-          aria-label={t('invitation.edit.canvas.sheet.dragHandle')}
-          onPointerDown={handleHandlePointerDown}
-          onPointerMove={handleHandlePointerMove}
-          onPointerUp={handleHandlePointerEnd}
-          onPointerCancel={handleHandlePointerEnd}
-        >
-          <div className="editor-sheet-handle-bar" />
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label={t('invitation.edit.canvas.sheet.close')}
-          className="editor-sheet-close"
-        >
-          <X size={20} aria-hidden="true" />
-        </button>
-        <div className="editor-sheet-body">{children}</div>
-      </div>
-    </>
+        <SheetTitle className="sr-only">{title ?? t('invitation.edit.canvas.fab.title')}</SheetTitle>
+        <SheetCloseButton className="absolute right-2 top-2 z-10" />
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4">{children}</div>
+      </SheetContent>
+    </Sheet>
   );
 }

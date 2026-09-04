@@ -12,7 +12,6 @@ import {
   type ResolvedEntitlements,
 } from '@/lib/entitlements/resolve-entitlements';
 import { resolveTemplateBySlug } from '@/lib/templates/template-resolve';
-import { isValidPaidOrder } from '@/lib/payments/pricing-integrity';
 
 /** @deprecated Internal clamp only.
  * 2026-07-30 OWNER MODEL (PRODUCT_MODEL_AND_RULES.md + PRODUCT_DECISIONS_2026-07-30.md):
@@ -35,6 +34,8 @@ export interface InvitationPricing {
   paidTemplateOrder: boolean;
   unlockedPlanSku: PlanSku | null;
   entitlements: ResolvedEntitlements;
+  /** Sum of every paid order's amountKzt on this invitation, across all templates ever purchased. */
+  totalPaidKzt: number;
 
   /** 
    * 2026-07-30 product model: true when the user has paid the template price
@@ -75,11 +76,19 @@ function mapDbPlanSku(value: string | null | undefined): PlanSku | null {
   return null;
 }
 
-export function resolvePaidTemplateOrder(
-  hasPaidOrder: boolean,
-  unlockedPlanSku: string | null | undefined
-): boolean {
-  return hasPaidOrder || unlockedPlanSku === 'standard' || unlockedPlanSku === 'premium';
+/**
+ * Full access for the *current* template requires having paid at least its
+ * price — summed across every paid order on this invitation, so switching
+ * between templates of equal-or-lower price stays free (you already paid
+ * enough) while switching to a pricier one requires topping up the
+ * difference. This intentionally does NOT consult the invitation's sticky
+ * `unlockedPlanSku` column: that field is written once at first payment and
+ * never reset on a template switch, so treating it as a standing bypass let
+ * anyone pay for the cheapest template once and then switch to any other
+ * template — including pricier ones — for free, forever.
+ */
+export function resolvePaidTemplateOrder(totalPaidKzt: number, priceKzt: number): boolean {
+  return totalPaidKzt > 0 && totalPaidKzt >= priceKzt;
 }
 
 /**
@@ -136,20 +145,30 @@ export async function getInvitationPricing(
   // Paying the template's real priceKzt ONCE = FULL ACCESS for this single invitation.
   // No more "free publish → pay for Standard → pay for Premium".
   // fullAccess = true → no watermark + all guest ops + custom slug + full editor.
-  const paidTemplateOrder = resolvePaidTemplateOrder(
-    invitation.orders.some((order: PricingOrderRow) => isValidPaidOrder(order, templateId, priceKzt)),
-    invitation.unlockedPlanSku
+  //
+  // Summed across every paid order (not just one matching the current
+  // template) so a template switch to something equal-or-cheaper than what's
+  // already been paid stays free, while switching to something pricier
+  // requires a top-up order for the difference (see switch-template.ts).
+  const totalPaidKzt = invitation.orders.reduce(
+    (sum: number, order: PricingOrderRow) => (order.status === 'paid' ? sum + order.amountKzt : sum),
+    0
   );
+  const paidTemplateOrder = resolvePaidTemplateOrder(totalPaidKzt, priceKzt);
 
   const unlockedPlanSku = mapDbPlanSku(invitation.unlockedPlanSku);
 
+  // Entitlements intentionally do NOT consult the invitation's sticky
+  // `unlockedPlanSku` here — that field is a legacy write-only audit marker
+  // now. The only standing (non-per-invitation) bypass is an active agency
+  // subscription, which `resolveEntitlements` already validates against
+  // `user.planExpiresAt`.
   let entitlements = resolveEntitlements({
     now: new Date(),
     user: {
       planSku: mapDbPlanSku(invitation.user.planSku),
       planExpiresAt: invitation.user.planExpiresAt,
     },
-    invitation: { unlockedPlanSku },
   });
 
   const hasPaidOrder = paidTemplateOrder;
@@ -182,6 +201,7 @@ export async function getInvitationPricing(
     editingFree: true,
     unlockedPlanSku,
     entitlements,
+    totalPaidKzt,
     fullAccess,
   };
 }

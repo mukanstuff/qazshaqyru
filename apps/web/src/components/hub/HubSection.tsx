@@ -8,6 +8,18 @@ interface Props {
   title: string;
   description?: string;
   meta?: string;
+  /**
+   * How many things are inside — guests, texts, wishes.
+   *
+   * The competitor's hub puts a number on every card ("14 texts", "2 dates")
+   * and it is the single cheapest thing that screen does: the owner learns
+   * what is in a section without opening it, and a `0` is a to-do list. Ours
+   * showed nothing, so every section looked equally full and equally empty.
+   *
+   * `undefined` renders no badge at all — a section with nothing countable
+   * (design, template) must not show a meaningless zero.
+   */
+  count?: number;
   icon: ReactNode;
   onClick?: () => void;
   locked?: boolean;
@@ -16,14 +28,18 @@ interface Props {
 }
 
 /**
- * 2026-08-18 (Phase 2, hub screen): single row in the hub section list.
- * Mobile-first card-style list item, opens a sheet on tap (or shows a
- * locked card with the upgrade CTA if the user hasn't paid).
+ * Single row in the hub section list. Mobile-first card-style list item,
+ * opens a sheet on tap (or renders locked when the user hasn't paid).
+ *
+ * The icon chip is deliberately monochrome: colour here is reserved for
+ * state (hover, locked, destructive) rather than being assigned per section,
+ * which previously turned the list into a ten-colour rainbow.
  */
 export function HubSection({
   title,
   description,
   meta,
+  count,
   icon,
   onClick,
   locked = false,
@@ -41,9 +57,18 @@ export function HubSection({
         negative && 'hub-section--negative'
       )}
     >
-      <span className="hub-section-icon">{locked ? <Lock size={18} aria-hidden="true" /> : icon}</span>
+      <span className="hub-section-icon">
+        {locked ? <Lock size={18} aria-hidden="true" /> : icon}
+      </span>
       <span className="hub-section-body">
-        <span className="hub-section-title">{title}</span>
+        <span className="hub-section-title">
+          {title}
+          {typeof count === 'number' ? (
+            <span className={cn('hub-section-count', count === 0 && 'hub-section-count--empty')}>
+              {count}
+            </span>
+          ) : null}
+        </span>
         {description ? <span className="hub-section-desc">{description}</span> : null}
         {meta ? <span className="hub-section-meta">{meta}</span> : null}
       </span>

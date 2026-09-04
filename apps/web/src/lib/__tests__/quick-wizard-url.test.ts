@@ -1,45 +1,22 @@
 import { describe, it, expect } from 'vitest';
-import {
-  DEFAULT_QUICK_TEMPLATE,
-  liveEditorHref,
-  newInvitationRedirectHref,
-  quickWizardHref,
-} from '@/lib/shared/quick-wizard-url';
+import { editorHref } from '@/lib/shared/quick-wizard-url';
 
-describe('quick-wizard-url', () => {
-  it('uses default catalog template slug', () => {
-    expect(DEFAULT_QUICK_TEMPLATE).toBe('luxe-gold');
+/**
+ * This file used to assert the opposite of what the product needs: that the
+ * builders default to `luxe-gold` when called with no slug. `luxe-gold` has no
+ * row in the Template table, so those assertions pinned a bug in place — "call
+ * me with nothing and I'll hand you a link to a page that 404s". The slug is
+ * now required.
+ *
+ * `quickWizardHref` is gone with the `/preview/<slug>` route: the catalog goes
+ * straight into the editor.
+ */
+describe('editorHref', () => {
+  it('builds an editor href from a template slug', () => {
+    expect(editorHref('elegant-gold-wedding-01')).toBe('/editor/elegant-gold-wedding-01');
   });
 
-  it('builds encoded preview href from template slug', () => {
-    expect(quickWizardHref('luxe-gold')).toBe('/preview/luxe-gold');
-  });
-
-  it('defaults to catalog template when slug omitted', () => {
-    expect(quickWizardHref()).toContain('luxe-gold');
-    expect(quickWizardHref()).toContain('/preview');
-  });
-
-  it('encodes special characters in template slug', () => {
-    expect(quickWizardHref('toy & family')).toBe(
-      `/preview/${encodeURIComponent('toy & family')}`,
-    );
-  });
-
-  it('includes invitationId — redirects to canvas', () => {
-    expect(liveEditorHref('luxe-gold', 'inv-1')).toBe('/invitations/inv-1/canvas');
-  });
-});
-
-describe('newInvitationRedirectHref', () => {
-  it('redirects to templates when template missing', () => {
-    expect(newInvitationRedirectHref()).toBe('/templates');
-    expect(newInvitationRedirectHref(null)).toBe('/templates');
-    expect(newInvitationRedirectHref('')).toBe('/templates');
-  });
-
-  it('redirects to preview with same template', () => {
-    expect(newInvitationRedirectHref('luxe-gold')).toBe('/preview/luxe-gold');
-    expect(newInvitationRedirectHref('family-warm')).toBe(quickWizardHref('family-warm'));
+  it('encodes special characters in the slug', () => {
+    expect(editorHref('toy & family')).toBe(`/editor/${encodeURIComponent('toy & family')}`);
   });
 });

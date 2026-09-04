@@ -41,7 +41,6 @@ export const SITEMAP_STATIC_PATHS = [
   '/mereytoi',
   '/almaty',
   '/astana',
-  '/compare/done-for-you',
   '/blog',
   '/faq',
   '/about',

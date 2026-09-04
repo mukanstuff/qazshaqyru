@@ -104,16 +104,12 @@ function main(): void {
   const summary = getProductionStartupSummary(env);
   console.log('');
   console.log('[check-env] Runtime summary:');
-  console.log(`  WhatsApp OTP: ${summary.whatsappOtpReady ? 'ready' : 'NOT READY'} — ${summary.whatsappOtpMessage}`);
   console.log(`  Uploads: ${summary.uploadMode} — ${summary.uploadMessage}`);
 
   if (env.NODE_ENV === 'production') {
     console.log('');
     console.log('[check-env] You must provide before public launch:');
     const gaps: string[] = [];
-    if (!summary.whatsappOtpReady && env.AUTH_WHATSAPP_ENABLED === 'true') {
-      gaps.push('WhatsApp Cloud API credentials (WHATSAPP_PHONE_NUMBER_ID / WHATSAPP_ACCESS_TOKEN / template)');
-    }
     if (!env.GOOGLE_CLIENT_ID?.trim() || !env.GOOGLE_CLIENT_SECRET?.trim()) {
       gaps.push('Google OAuth credentials (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET) — see docs/google-oauth-setup.md');
     }

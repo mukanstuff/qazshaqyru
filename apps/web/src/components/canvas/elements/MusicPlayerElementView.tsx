@@ -2,9 +2,17 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { MusicPlayerElement } from '@/lib/canvas/types';
+import { Pause, Play, Volume2, VolumeX } from 'lucide-react';
 import { CURATED_MUSIC_URLS } from '@/lib/uploads/media-url';
 
-export function MusicPlayerElementView({ el }: { el: MusicPlayerElement }) {
+export function MusicPlayerElementView({
+  el,
+  locale = 'ru',
+}: {
+  el: MusicPlayerElement;
+  locale?: 'ru' | 'kz';
+}) {
+  const isKz = locale === 'kz';
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
@@ -14,7 +22,7 @@ export function MusicPlayerElementView({ el }: { el: MusicPlayerElement }) {
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-    audio.loop = true;
+    // `loop` is declared on the <audio> element itself now.
     audio.muted = muted;
     if (el.autoPlayMuted) {
       const handleFirstGesture = () => {
@@ -50,26 +58,45 @@ export function MusicPlayerElementView({ el }: { el: MusicPlayerElement }) {
     setMuted(nextMuted);
   };
 
-  const bgColor = el.accentColor || '#6b1d3a';
-  const textColor = '#ffffff';
+  /*
+   * The accent colour is the template's gold, and filling a permanent pinned
+   * pill with it put a saturated brand-coloured button over every screen of the
+   * invitation — the one element on the page that looked like an app. It reads
+   * as chrome now: the accent is the outline and the label, the fill is a dark
+   * translucent plate that takes the colour of whatever is behind it.
+   */
+  const accent = el.accentColor || '#6b1d3a';
+  const textColor = accent;
 
   return (
     <div
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: 8,
-        padding: '6px 12px',
-        borderRadius: 24,
-        backgroundColor: bgColor,
+        gap: 10,
+        // A bit bigger throughout: this is permanent page chrome pinned over
+        // the artwork on every scroll position, not a one-off inline control,
+        // so it needs a touch target and a presence to match — the original
+        // 13px/6·12px pill read as an afterthought next to the invitation.
+        padding: '8px 14px',
+        borderRadius: 999,
+        backgroundColor: 'rgba(12,14,17,0.55)',
+        border: `1px solid ${accent}66`,
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
         color: textColor,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-        fontSize: 13,
-        fontWeight: 600,
+        boxShadow: '0 4px 14px rgba(0,0,0,0.28)',
+        fontSize: 12,
+        fontWeight: 500,
+        letterSpacing: '0.06em',
         cursor: 'pointer',
       }}
     >
-      <audio ref={audioRef} src={src} preload="none" />
+      {/* `loop` is declared here rather than set imperatively in the effect
+          (`audio.loop = true`): the DOM property reflects back to the attribute,
+          so the server HTML had no `loop` and the hydrated DOM did, leaving the
+          two permanently out of step for anything comparing them. */}
+      <audio ref={audioRef} src={src} preload="none" loop />
       <button
         type="button"
         onClick={togglePlay}
@@ -82,11 +109,11 @@ export function MusicPlayerElementView({ el }: { el: MusicPlayerElement }) {
           display: 'flex',
           alignItems: 'center',
         }}
-        title={playing ? 'Пауза' : 'Воспроизведение'}
+        title={playing ? (isKz ? 'Кідірту' : 'Пауза') : (isKz ? 'Ойнату' : 'Воспроизведение')}
       >
-        {playing ? '⏸' : '▶'}
+        {playing ? <Pause size={17} aria-hidden /> : <Play size={17} aria-hidden />}
       </button>
-      <span>{el.title || 'Музыка'}</span>
+      <span>{el.title || (isKz ? 'Әуен' : 'Музыка')}</span>
       <button
         type="button"
         onClick={toggleMute}
@@ -98,9 +125,9 @@ export function MusicPlayerElementView({ el }: { el: MusicPlayerElement }) {
           fontSize: 14,
           opacity: 0.8,
         }}
-        title={muted ? 'Включить звук' : 'Без звука'}
+        title={muted ? (isKz ? 'Дыбысты қосу' : 'Включить звук') : (isKz ? 'Дыбыссыз' : 'Без звука')}
       >
-        {muted ? '🔇' : '🔊'}
+        {muted ? <VolumeX size={17} aria-hidden /> : <Volume2 size={17} aria-hidden />}
       </button>
     </div>
   );

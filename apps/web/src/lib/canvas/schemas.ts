@@ -4,7 +4,22 @@
  */
 import { z } from 'zod';
 
-const percent = z.number().min(0).max(100);
+/**
+ * Horizontal geometry is expressed in percent of the document width, but it
+ * deliberately allows values outside 0-100 so an element can bleed past the
+ * page edges.
+ *
+ * This is not a nicety — full-bleed decoration is the core visual device in
+ * this whole product category. Both toi.com.kz and shaqyru24.kz place shapes
+ * and ornaments roughly 560px wide on a ~375px canvas (≈150% width, starting
+ * at ≈-25%), so the flourish runs off both sides and the page edge crops it.
+ * Clamping x and w to 0-100, as this schema originally did, made that device
+ * impossible to express and quietly flattened every template to letterboxed
+ * blocks. `CanvasRenderer` already sets `overflow: hidden`, so the crop is
+ * handled and no horizontal scrollbar can appear.
+ */
+const xPercent = z.number().min(-300).max(400);
+const wPercent = z.number().gt(0).max(700);
 const pxNumber = z.number().min(0).max(10000);
 const rot = z.number().min(-360).max(360);
 
@@ -14,11 +29,24 @@ const safeColor = z.string().regex(colorPattern, 'invalid_color');
 // ------- Sub-object schemas -------------------------------------------------
 
 export const animationSchema = z.object({
-  type: z.enum(['none', 'fade', 'fadeUp', 'fadeDown', 'zoomIn', 'slideLeft', 'slideRight', 'flip']),
+  type: z.enum([
+    'none', 'fade', 'fadeUp', 'fadeDown', 'zoomIn', 'slideLeft', 'slideRight', 'flip',
+    'revealUp', 'letters', 'kenBurns', 'draw',
+  ]),
   duration: z.number().min(0).max(10),
   delay: z.number().min(0).max(10),
   easing: z.enum(['ease', 'ease-in', 'ease-out', 'ease-in-out']),
   once: z.boolean().default(true),
+});
+
+/**
+ * Looping motion. The floor of 3s is not arbitrary: anything faster reads as a
+ * loading spinner rather than as decoration, and a turning ornament behind
+ * text at 1s is genuinely unpleasant to read against.
+ */
+export const idleSchema = z.object({
+  type: z.enum(['spin', 'float', 'sway', 'pulse']),
+  duration: z.number().min(3).max(120),
 });
 
 export const responsiveSchema = z.object({
@@ -64,15 +92,26 @@ export const placeholderKeySchema = z.enum([
   'greetingText',
 ]);
 
-const fontFamilySchema = z.enum(['Montserrat', 'Cormorant', 'Marck', 'Unbounded', 'system']);
+// Kept in sync by hand with the FontFamily union in lib/canvas/types.ts —
+// this was stuck at the original 5 fonts while the picker offered 24,
+// silently 400ing any PATCH that saved one of the other 19 (Great Vibes,
+// Playfair Display, Inter, PT Serif, ...). Found 2026-08-26 while building
+// a template that used a non-original-5 font.
+const fontFamilySchema = z.enum([
+  'Montserrat', 'Cormorant', 'Marck', 'Unbounded', 'system',
+  'Playfair Display', 'Great Vibes', 'Lora', 'EB Garamond', 'Cormorant Garamond',
+  'Prata', 'Forum', 'Tenor Sans', 'Manrope', 'Inter', 'Raleway', 'Nunito',
+  'Comfortaa', 'Philosopher', 'Old Standard TT', 'PT Serif', 'Merriweather',
+  'Yeseva One', 'Spectral', 'Alice', 'Vollkorn', 'Oswald', 'Pacifico', 'Bad Script',
+]);
 
 // ------- Base element -------------------------------------------------------
 
 const baseElementSchema = z.object({
   id: z.string().min(1).max(64),
-  x: percent,
+  x: xPercent,
   y: z.number().min(-1000).max(20000),
-  w: percent,
+  w: wPercent,
   h: z.union([pxNumber, z.literal('auto')]),
   rotation: rot.default(0),
   zIndex: z.number().int().min(-1000).max(10000),
@@ -82,7 +121,16 @@ const baseElementSchema = z.object({
   editableProperties: z.array(editablePropertySchema).optional(),
   placeholderKey: placeholderKeySchema.optional(),
   templateBindTo: z.string().optional(),
+  pinned: z
+    .object({
+      corner: z.enum(['top-left', 'top-right', 'bottom-left', 'bottom-right']),
+      offsetX: z.number().min(-200).max(2000).default(16),
+      offsetY: z.number().min(-200).max(2000).default(16),
+    })
+    .optional(),
+  parallax: z.number().min(0).max(0.6).optional(),
   animation: animationSchema.optional(),
+  idle: idleSchema.optional(),
   mobile: z.record(z.string(), z.unknown()).optional(),
   responsive: responsiveSchema.optional(),
 });
@@ -170,10 +218,35 @@ const imageElementSchema = baseElementSchema.extend({
   alt: z.string().max(200).optional(),
   objectFit: z.enum(['cover', 'contain', 'fill']).default('cover'),
   borderRadius: z.number().min(0).max(500).default(0),
+  maskShape: z.enum(['rect', 'arch', 'circle', 'oval', 'oyu']).optional(),
+  maskFade: z
+    .object({
+      top: z.number().min(0).max(100).optional(),
+      right: z.number().min(0).max(100).optional(),
+      bottom: z.number().min(0).max(100).optional(),
+      left: z.number().min(0).max(100).optional(),
+    })
+    .optional(),
+  grade: z
+    .object({
+      saturate: z.number().min(0).max(300).optional(),
+      brightness: z.number().min(0).max(300).optional(),
+      contrast: z.number().min(0).max(300).optional(),
+      sepia: z.number().min(0).max(100).optional(),
+    })
+    .optional(),
   borderWidth: z.number().min(0).max(20).optional(),
   borderColor: safeColor.optional(),
   shadow: shadowSchema.optional(),
   overlayColor: safeColor.optional(),
+  overlayGradient: z
+    .object({
+      from: safeColor,
+      to: safeColor,
+      angle: z.number().min(0).max(360).default(180),
+    })
+    .optional(),
+  tint: safeColor.optional(),
   linkHref: safeUrl.optional(),
 });
 
@@ -227,13 +300,15 @@ const coupleNamesElementSchema = baseElementSchema.extend({
   fontSize: z.number().min(10).max(120).default(48),
   color: safeColor.default('#6b1d3a'),
   connectorColor: safeColor.optional(),
+  italic: z.boolean().optional(),
+  stacked: z.boolean().optional(),
 });
 
 const countdownElementSchema = baseElementSchema.extend({
   type: z.literal('countdown'),
   targetIso: z.string().optional(),
   timezone: z.string().default('Asia/Almaty'),
-  fontFamily: fontFamilySchema.default('Unbounded'),
+  fontFamily: fontFamilySchema.default('Cormorant'),
   fontSize: z.number().min(8).max(80).default(24),
   color: safeColor.default('#6b1d3a'),
   accentColor: safeColor.optional(),
@@ -246,6 +321,20 @@ const countdownElementSchema = baseElementSchema.extend({
       seconds: z.string().default('сек'),
     })
     .optional(),
+});
+
+const calendarElementSchema = baseElementSchema.extend({
+  type: z.literal('calendar'),
+  targetIso: z.string().optional(),
+  timezone: z.string().default('Asia/Almaty'),
+  fontFamily: fontFamilySchema.default('Cormorant'),
+  fontSize: z.number().min(8).max(48).default(14),
+  color: safeColor.default('#2c2117'),
+  accentColor: safeColor.optional(),
+  markStyle: z.enum(['ring', 'fill', 'heart']).default('ring'),
+  showMonthTitle: z.boolean().default(true),
+  showWeekdays: z.boolean().default(true),
+  showAdjacentDays: z.boolean().default(false),
 });
 
 const rsvpFormElementSchema = baseElementSchema.extend({
@@ -299,6 +388,7 @@ const mapElementSchema = baseElementSchema.extend({
   zoom: z.number().min(1).max(20).default(14),
   showStaticOnly: z.boolean().default(false),
   buttonLabel: z.string().optional(),
+  accentColor: safeColor.default('#6b1d3a'),
 });
 
 const musicElementSchema = baseElementSchema.extend({
@@ -376,6 +466,7 @@ export const canvasElementSchema: z.ZodDiscriminatedUnion<
     typeof dividerElementSchema,
     typeof coupleNamesElementSchema,
     typeof countdownElementSchema,
+    typeof calendarElementSchema,
     typeof rsvpFormElementSchema,
     typeof wishesElementSchema,
     typeof programElementSchema,
@@ -396,6 +487,7 @@ export const canvasElementSchema: z.ZodDiscriminatedUnion<
   dividerElementSchema,
   coupleNamesElementSchema,
   countdownElementSchema,
+  calendarElementSchema,
   rsvpFormElementSchema,
   wishesElementSchema,
   programElementSchema,
@@ -430,10 +522,20 @@ const coreDocumentObject = z.object({
   height: z.number().min(100).max(20000).optional(),
   background: backgroundSchema,
   elements: z.array(canvasElementSchema).default([]),
+  envelopeEnabled: z.boolean().optional(),
+  autoScroll: z
+    .object({
+      enabled: z.boolean(),
+      speed: z.enum(['slow', 'normal', 'fast']).optional(),
+    })
+    .optional(),
+  sectionOrder: z.array(z.string()).optional(),
+  locale: z.enum(['kz', 'ru']).optional(),
   editorMetadata: z
     .object({
       baseTemplateId: z.string().optional(),
       lastModifiedAt: z.string().datetime().optional(),
+      wizardCompletedAt: z.string().datetime().optional(),
     })
     .optional(),
 });
@@ -460,10 +562,20 @@ export const canvasDocumentPatchSchema = z
     background: backgroundSchema.optional(),
     elements: z.array(canvasElementSchema).optional(),
     mobile: z.unknown().optional(),
+    envelopeEnabled: z.boolean().optional(),
+    autoScroll: z
+      .object({
+        enabled: z.boolean(),
+        speed: z.enum(['slow', 'normal', 'fast']).optional(),
+      })
+      .optional(),
+    sectionOrder: z.array(z.string()).optional(),
+    locale: z.enum(['kz', 'ru']).optional(),
     editorMetadata: z
       .object({
         baseTemplateId: z.string().optional(),
         lastModifiedAt: z.string().datetime().optional(),
+        wizardCompletedAt: z.string().datetime().optional(),
       })
       .optional(),
   })

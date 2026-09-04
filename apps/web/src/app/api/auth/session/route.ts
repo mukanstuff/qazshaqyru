@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
         language: ctx.user.language,
         name: ctx.user.name,
         isAdmin: ctx.user.isAdmin,
+        hasPassword: ctx.user.hasPassword,
       },
       session: {
         expiresAt: ctx.session.expiresAt.toISOString(),

@@ -1,15 +1,22 @@
 import { LocaleLink } from '@/components/seo/LocaleLink';
 import { ArrowRight } from 'lucide-react';
 
+import { headers } from 'next/headers';
 import { PublicShell } from '@/components/shared/PublicShell';
 import { getI18n } from '@/i18n/server';
 import { listBlogPosts } from '@/lib/blog/posts';
 import { getCurrentSession } from '@/lib/shared/api';
+import { buildLanguageAlternates, seoLocaleFromHeaders } from '@/lib/seo/hreflang';
 
-export const metadata = {
-  title: 'Блог — QazShaqyru',
-  description: 'Советы по организации торжеств и идеи для цифровых приглашений.',
-};
+export async function generateMetadata() {
+  const [{ t }, headerStore] = await Promise.all([getI18n(), headers()]);
+  const urlLocale = seoLocaleFromHeaders((n) => headerStore.get(n));
+  return {
+    title: t('site.meta.blog'),
+    description: t('site.meta.blogDescription'),
+    alternates: buildLanguageAlternates('/blog', urlLocale),
+  };
+}
 
 export default async function BlogPage() {
   const [{ locale, t }, session] = await Promise.all([getI18n(), getCurrentSession()]);

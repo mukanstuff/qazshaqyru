@@ -25,6 +25,7 @@ export type CanvasElement =
   | DividerElement
   | CoupleNamesElement
   | CountdownElement
+  | CalendarElement
   | RsvpFormElement
   | WishesElement
   | ProgramElement
@@ -56,7 +57,21 @@ export type AnimationType =
   | 'zoomIn'
   | 'slideLeft'
   | 'slideRight'
-  | 'flip';
+  | 'flip'
+  /**
+   * The four below exist because "everything animates" and "the motion is
+   * designed" are different things. Every element in every shipped template
+   * used the same `fadeUp`, which is why the result read as homemade however
+   * many elements carried it.
+   */
+  /** Wipes into view behind a moving edge instead of translating. */
+  | 'revealUp'
+  /** Letters arrive one by one — for the couple's names, and nothing else. */
+  | 'letters'
+  /** Slow scale on a photograph, so a still frame is not still. */
+  | 'kenBurns'
+  /** Line art draws itself along its own stroke. SVG only. */
+  | 'draw';
 
 export type EasingType = 'ease' | 'ease-in' | 'ease-out' | 'ease-in-out';
 
@@ -66,6 +81,22 @@ export interface AnimationConfig {
   delay: number; // seconds
   easing: EasingType;
   once: boolean;
+}
+
+/**
+ * Looping motion vocabulary.
+ *
+ * Deliberately four, and deliberately quiet. The reference set also carries
+ * `shake`, `wobble` and `bounceIn`, which on a wedding invitation read as a
+ * banner ad; the four kept here are the ones that can run forever behind text
+ * without becoming the thing you look at.
+ */
+export type IdleMotionType = 'spin' | 'float' | 'sway' | 'pulse';
+
+export interface IdleMotionConfig {
+  type: IdleMotionType;
+  /** One full cycle, in seconds. Slow is the point: 20-60s for `spin`. */
+  duration: number;
 }
 
 export interface ResponsiveConfig {
@@ -95,8 +126,58 @@ export interface BaseElement {
   placeholderKey?: PlaceholderKey;
   templateBindTo?: string;
 
+  /**
+   * Pin the element to the viewport instead of scrolling with the page —
+   * how competitors float the music toggle and the "write a wish" button
+   * (their `audio-fixed` / `fixed-wishes` component types).
+   *
+   * Modelled as a flag rather than an element type so any element can be
+   * pinned: `y` keeps its authored value for the editor canvas, while the
+   * guest page positions the element from the named viewport corner.
+   */
+  pinned?: {
+    corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+    offsetX: number; // px from that corner
+    offsetY: number;
+  };
+
+  /**
+   * Scroll parallax: how much slower than the page this element moves, as a
+   * fraction of scroll distance. 0.2 lifts a background off the text in front
+   * of it; above ~0.4 the illusion breaks and it reads as a bug. Absent or 0
+   * means the element scrolls with the page.
+   */
+  parallax?: number;
+
   // === Animation & responsive ===
   animation?: AnimationConfig;
+
+  /**
+   * Continuous, looping motion — an ornament that turns forever, a seal that
+   * breathes, a sprig that sways.
+   *
+   * Separate from `animation` because the two are different things that were
+   * being confused: `animation` is an *entrance*, plays once when the element
+   * scrolls into view, and then the element is finished. Reading the two
+   * reference services' stylesheets, both ship an entrance set AND a looping
+   * set (`spin`, `pulse`, `float`, `swayLR`, `heartbeat`), and the looping one
+   * is most of why their pages read as alive rather than as a static poster
+   * that faded in. This engine had only entrances, so every template went
+   * completely still the moment it finished loading.
+   *
+   * It also cannot share a node with `animation`: both compile to the CSS
+   * `animation` shorthand, and the second declaration replaces the first. The
+   * renderer therefore puts idle motion on its own nested layer inside the
+   * element wrapper — which is exactly how the reference implementation does
+   * it (their `animation-layer` div sits inside the component's content box).
+   */
+  idle?: IdleMotionConfig;
+  /**
+   * Mobile override — the ONLY responsive mechanism for element position/size.
+   * (A second, competing full-document `InvitationCanvasDocument.mobile` field
+   * used to exist alongside this one; it was unused in practice and removed —
+   * don't reintroduce a document-level override, extend this instead.)
+   */
   mobile?: Partial<BaseElement>;
   responsive?: ResponsiveConfig;
 }
@@ -140,16 +221,61 @@ export interface InvitationCanvasDocument {
   height?: number; // undefined = auto (scroll-page), fixed = one-pager
   background: CanvasBackground;
   elements: CanvasElement[];
-  mobile?: InvitationCanvasDocument; // per-breakpoint override
+
+  /** When true, the guest sees a "tap to open" envelope screen before the
+   *  invitation itself renders. Purely presentational — has no effect in
+   *  editor mode (the host always sees the invitation directly). */
+  envelopeEnabled?: boolean;
+
+  /** Guest page auto-scrolls slowly on its own instead of requiring the
+   *  guest to scroll manually. Cancelled permanently the moment the guest
+   *  scrolls/touches themselves, and skipped entirely under
+   *  prefers-reduced-motion. No effect in editor mode. */
+  autoScroll?: { enabled: boolean; speed?: 'slow' | 'normal' | 'fast' };
+
+  /** Explicit vertical order of the "Sections" tab's built-in section ids
+   *  (see ElementSettingsConfig.ts EDITOR_SECTION_DEFS). When set, the
+   *  Sections tab lists sections in this order AND the elements belonging
+   *  to each section have been vertically repositioned (via
+   *  lib/canvas/section-reorder.ts) to render in this order on the canvas.
+   *  Absent = default built-in order, nothing repositioned. */
+  sectionOrder?: string[];
+
+  /**
+   * Language of the invitation's own content, which drives every label the
+   * renderer supplies rather than the host types: RSVP buttons, countdown
+   * units, calendar month and weekday names.
+   *
+   * It lives on the document, not on the Invitation row, because it is a
+   * property of the composed design — templates are authored in a language,
+   * and the labels have to agree with the words already on the canvas. Before
+   * this existed the renderer defaulted to `ru` unconditionally, so a fully
+   * Kazakh invitation still showed "ПН ВТ СР" in its calendar and Russian
+   * RSVP buttons. Absent = `ru`, preserving the old behaviour for documents
+   * written before this field.
+   */
+  locale?: 'kz' | 'ru';
 
   editorMetadata?: {
     baseTemplateId?: string;
     lastModifiedAt: string; // ISO
+    /** Set once the quick-fill wizard has been applied or explicitly
+     *  skipped for this invitation, so it doesn't auto-open again. */
+    wizardCompletedAt?: string; // ISO
   };
 }
 
 // ----- Shared sub-types for element props -----------------------------------
 
+// Every option here MUST have a verified Cyrillic-script glyph subset — this
+// product is a Kazakhstan-market invitation service, so real text is almost
+// always Kazakh/Russian Cyrillic. A Latin-only decorative font (e.g. the
+// Google Fonts "Great Vibes" webfont before this check, or Dancing Script,
+// Cinzel, Poppins, DM Serif Display, ...) silently falls back to the
+// generic system font for Cyrillic text with no error — the picker looked
+// fine, the guest page just quietly rendered the wrong font. Verified via
+// the Google Fonts css2 API (checked for a `/* cyrillic */` unicode-range
+// block, not guessed) on 2026-08-26; re-verify before adding any new entry.
 export type FontFamily =
   // 5 original
   | 'Montserrat'
@@ -157,30 +283,19 @@ export type FontFamily =
   | 'Marck'
   | 'Unbounded'
   | 'system'
-  // 35 popular Google Fonts for weddings/events
+  // Verified Cyrillic-capable Google Fonts
   | 'Playfair Display'
   | 'Great Vibes'
-  | 'Dancing Script'
   | 'Lora'
-  | 'Cinzel'
   | 'EB Garamond'
-  | 'Libre Baskerville'
   | 'Cormorant Garamond'
-  | 'Bodoni Moda'
-  | 'Marcellus'
-  | 'Italiana'
-  | 'Cardo'
   | 'Prata'
   | 'Forum'
   | 'Tenor Sans'
   | 'Manrope'
   | 'Inter'
-  | 'Poppins'
   | 'Raleway'
-  | 'Work Sans'
   | 'Nunito'
-  | 'Quicksand'
-  | 'Josefin Sans'
   | 'Comfortaa'
   | 'Philosopher'
   | 'Old Standard TT'
@@ -188,15 +303,22 @@ export type FontFamily =
   | 'Merriweather'
   | 'Yeseva One'
   | 'Spectral'
-  | 'DM Serif Display'
   | 'Alice'
   | 'Vollkorn'
-  | 'Bebas Neue'
   | 'Oswald'
   | 'Pacifico'
-  | 'Sacramento'
-  | 'Parisienne'
-  | 'Tangerine';
+  /**
+   * The only calligraphic face available that can actually write Kazakh.
+   *
+   * Verified by measuring glyph advance widths against the loaded webfont
+   * (the method this repo already uses — see KAZAKH_SUBSTITUTE): Great Vibes
+   * carries not one of Ә Ғ Қ Ң Ө Ұ Ү Һ І, so it is substituted away; Pacifico
+   * and Caveat do carry all nine but are a casual brush and a marker hand
+   * respectively, neither of which reads as a wedding invitation. Both
+   * reference services set couple names in flowing calligraphy, and this is
+   * the closest the free, Kazakh-capable set gets to it.
+   */
+  | 'Bad Script';
 
 export interface TextProps {
   text: string;
@@ -230,10 +352,63 @@ export interface ImageElement extends BaseElement {
   alt?: string;
   objectFit: 'cover' | 'contain' | 'fill';
   borderRadius: number;
+  /**
+   * Silhouette the photo is cut into.
+   *
+   * `arch` — round head, straight sides, flat foot — is the shape that turns
+   * a rectangular photograph into part of the card rather than a picture
+   * pasted onto it, and it is the single most recognisable device in this
+   * template category. A plain `borderRadius` cannot express it: an arch
+   * needs a large radius on the top corners and none on the bottom.
+   */
+  maskShape?: 'rect' | 'arch' | 'circle' | 'oval' | 'oyu';
+  /**
+   * Feather the picture's own edges into the page, in percent of its width or
+   * height per side.
+   *
+   * Without this an illustration is a rectangle, and a rectangle whose cream
+   * differs by two percent from the page's cream is a visible seam across the
+   * invitation — which is exactly what shipped. Implemented as a mask, so the
+   * fade is transparency rather than a colour painted on top, and it works
+   * over any background.
+   */
+  maskFade?: { top?: number; right?: number; bottom?: number; left?: number };
+  /**
+   * Photographic grading, so a stock photo can be pulled into the template's
+   * palette instead of fighting it. Percentages relative to the original.
+   */
+  grade?: { saturate?: number; brightness?: number; contrast?: number; sepia?: number };
   borderWidth?: number;
   borderColor?: string;
   shadow?: { x: number; y: number; blur: number; color: string };
   overlayColor?: string;
+  /**
+   * A gradient scrim painted over the photograph.
+   *
+   * Not decoration — legibility. White type over a photograph is the standard
+   * hero composition in this category, and it fails completely the moment the
+   * picture is bright: a wedding photograph is mostly white dress under warm
+   * light, so the names vanish into it. A text shadow does not fix this; it
+   * only outlines letters that still have no contrast behind them. Both
+   * reference services darken the photograph under the type instead, and this
+   * is that. Use `transparent` at the clear end so the top of the picture is
+   * untouched.
+   */
+  overlayGradient?: { from: string; to: string; angle?: number };
+  /**
+   * Recolour the image's opaque pixels to a flat colour, keeping its alpha.
+   *
+   * For ornament artwork specifically. Generated ornaments arrive as black
+   * line art keyed to transparency, and a black PNG is only ever correct on
+   * one background — the moment the theme changes it is wrong, which is how
+   * hardcoded ornament colour got baked into templates here before. With a
+   * tint the same file is the theme's gold on ivory, white over a photograph
+   * and crimson on a seal, so one asset serves every palette.
+   *
+   * Implemented as `mask-image` plus a background colour rather than a
+   * `filter`, because filters cannot reach an arbitrary hue from black.
+   */
+  tint?: string;
   linkHref?: string;
 }
 
@@ -288,6 +463,44 @@ export interface CoupleNamesElement extends BaseElement {
   fontSize: number;
   color: string;
   connectorColor?: string;
+  /**
+   * Italic, and `stacked` to force one name per line.
+   *
+   * Both exist because the couple's names are the focal point of every
+   * invitation and previously had neither: without italic a template wanting
+   * an elegant italic serif had to abandon `couple-names` for plain text
+   * elements and lose the wizard binding, and without stacking the pair
+   * silently ran onto one line and overflowed a framed layout.
+   */
+  italic?: boolean;
+  stacked?: boolean;
+}
+
+/**
+ * A month grid with the event day marked — the "календарь" block that appears
+ * in essentially every Kazakh invitation template (both toi.com.kz and
+ * shaqyru24.kz ship one). Distinct from `ProgramElement`, which is the
+ * hour-by-hour running order of the evening, not a month view.
+ *
+ * The grid is derived from `targetIso`, never stored, so it cannot drift out
+ * of sync with the event date the rest of the invitation shows. Weeks start
+ * on Monday, which is the convention in KZ/RU.
+ */
+export interface CalendarElement extends BaseElement {
+  type: 'calendar';
+  targetIso?: string; // falls back to the invitation's event date
+  timezone?: string;
+  fontFamily: FontFamily;
+  fontSize: number;
+  color: string;
+  /** Ring/fill colour drawn around the event day. */
+  accentColor?: string;
+  /** How the event day is emphasised. */
+  markStyle?: 'ring' | 'fill' | 'heart';
+  showMonthTitle?: boolean;
+  showWeekdays?: boolean;
+  /** Dim days outside the event month instead of leaving blanks. */
+  showAdjacentDays?: boolean;
 }
 
 export interface CountdownElement extends BaseElement {
@@ -312,6 +525,10 @@ export interface RsvpFormElement extends BaseElement {
   askPlusOne: boolean;
   askDietary: boolean;
   askChildren: boolean;
+  /** Alternate RSVP channel: shows a "Reply via WhatsApp" button opening a
+   *  chat with this number, alongside the in-app form. Digits only (host
+   *  enters it E.164-ish; the guest view strips non-digits for wa.me). */
+  whatsappPhone?: string;
 }
 
 export interface WishesElement extends BaseElement {
@@ -353,6 +570,7 @@ export interface MapElement extends BaseElement {
   zoom?: number;
   showStaticOnly?: boolean;
   buttonLabel?: string;
+  accentColor?: string;
 }
 
 export interface MusicPlayerElement extends BaseElement {

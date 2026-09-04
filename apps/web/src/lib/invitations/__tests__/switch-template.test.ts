@@ -115,3 +115,95 @@ describe('switch-template — extractCoupleNames (id re-mint)', () => {
     expect(ids.size).toBe(2);
   });
 });
+
+describe('switch-template — bindInviteeDataIntoCanvas', () => {
+  // Re-creates the exact pattern from the live `qa-canvas-test` template on
+  // 2026-08-18: a `text` element with placeholderKey='eventDate' that bakes
+  // a sample Russian date string the designer used as a placeholder while
+  // building the template. Before Phase 2's switch-template fix, the user's
+  // real date was lost after the switch because the merge step never
+  // re-ran applyWizardToCanvasDocument on the new doc.
+  const TPL_SAMPLE_EVENT_DATE = '14 сентября 2026 г.';
+  const TPL_SAMPLE_VENUE = 'Ресторан «Жарык»';
+
+  function makeTemplateDoc() {
+    return makeDoc([
+      {
+        id: 'cn',
+        type: 'couple-names',
+        zIndex: 1,
+        first: 'Иван',
+        second: 'Мария',
+      },
+      {
+        id: 'date',
+        type: 'text',
+        zIndex: 2,
+        text: TPL_SAMPLE_EVENT_DATE,
+        placeholderKey: 'eventDate',
+      },
+      {
+        id: 'venue',
+        type: 'text',
+        zIndex: 3,
+        text: TPL_SAMPLE_VENUE,
+        placeholderKey: 'venueName',
+      },
+    ]);
+  }
+
+  it('replaces designer-baked date/venue text with the user\'s real values', () => {
+    const tmpl = makeTemplateDoc();
+    const userSource = {
+      eventDate: '2027-04-15T12:00:00.000Z',
+      eventPlace: 'Ресторан У Арыстана',
+    };
+
+    const { doc, unfilledPlaceholderKeys } = switchTemplate.bindInviteeDataIntoCanvas(
+      tmpl,
+      userSource,
+    );
+
+    const dateEl = doc.elements.find((el) => el.placeholderKey === 'eventDate') as { text?: string };
+    const venueEl = doc.elements.find((el) => el.placeholderKey === 'venueName') as { text?: string };
+
+    expect(dateEl.text).toBe('15 апреля 2027 г.');
+    expect(dateEl.text).not.toBe(TPL_SAMPLE_EVENT_DATE);
+    expect(venueEl.text).toBe('Ресторан У Арыстана');
+    expect(venueEl.text).not.toBe(TPL_SAMPLE_VENUE);
+
+    // Both placeholders had matching source data → no warning keys surfaced.
+    expect(unfilledPlaceholderKeys).toEqual([]);
+  });
+
+  it('leaves the baked text alone when the user has no source value', () => {
+    const tmpl = makeTemplateDoc();
+    const userSource = {
+      eventDate: '2027-04-15T12:00:00.000Z',
+      // eventPlace is empty: the user never filled in a venue.
+    };
+
+    const { doc, unfilledPlaceholderKeys } = switchTemplate.bindInviteeDataIntoCanvas(
+      tmpl,
+      userSource,
+    );
+
+    const venueEl = doc.elements.find((el) => el.placeholderKey === 'venueName') as { text?: string };
+    // Designer sample stays — applyWizard does not overwrite when source lacks
+    // the field, matching ensure-canvas behaviour at creation.
+    expect(venueEl.text).toBe(TPL_SAMPLE_VENUE);
+
+    // venueName is reported as unfilled so a future operator sees in logs
+    // that the user had no value for that field — not a template bug.
+    expect(unfilledPlaceholderKeys).toEqual(['venueName']);
+  });
+
+  it('does not lose elements when the source is partial', () => {
+    const tmpl = makeTemplateDoc();
+    const userSource = { eventDate: '2027-04-15T12:00:00.000Z' };
+
+    const { doc } = switchTemplate.bindInviteeDataIntoCanvas(tmpl, userSource);
+
+    expect(doc.elements).toHaveLength(tmpl.elements.length);
+  });
+});

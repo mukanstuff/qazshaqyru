@@ -11,10 +11,13 @@
  */
 import { isValidPublicObjectPath, parseS3Config } from './s3';
 
-/** Curated Pixabay-hosted royalty-free music URLs available to all users. */
-export const CURATED_MUSIC_URLS = new Set<string>([
-  'https://cdn.pixabay.com/download/audio/2022/03/15/audio_1718e32a6d.mp3',
-]);
+/**
+ * Default fallback track (self-hosted, see EditorSheetTabMusic.tsx for the
+ * full curated catalog) used when a `music` element has no `audioSrc` set.
+ * Was previously a Pixabay CDN URL that returned 403 — silent broken
+ * playback on any invitation that never touched the music tab.
+ */
+export const CURATED_MUSIC_URLS = new Set<string>(['/assets/music/peder-helland-always.mp3']);
 
 const ALLOWED_TEMPLATE_HOSTS = [
   'images.unsplash.com',

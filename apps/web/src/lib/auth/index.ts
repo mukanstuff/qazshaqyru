@@ -4,7 +4,6 @@ import { randomBytes, createHmac, timingSafeEqual } from 'crypto';
 const SESSION_TOKEN_LENGTH = 32;
 /** Must stay in sync with privacy copy (content/legal/bodies.tsx). */
 export const SESSION_EXPIRY_DAYS = 30;
-const OTP_LENGTH = 6;
 const SESSION_SECRET_MIN_LENGTH = 32;
 
 export function getServerSecret(): string {
@@ -77,20 +76,6 @@ export function getSessionExpiry(): Date {
   return expiry;
 }
 
-export function generateOTP(): string {
-  const max = 10 ** OTP_LENGTH;
-  const min = 10 ** (OTP_LENGTH - 1);
-  const bytes = randomBytes(4);
-  const value = bytes.readUInt32BE(0);
-  return ((value % (max - min)) + min).toString();
-}
-
-export function getOTPExpiry(minutes: number = 5): Date {
-  const expiry = new Date();
-  expiry.setMinutes(expiry.getMinutes() + minutes);
-  return expiry;
-}
-
 export function maskPhone(phone: string): string {
   if (phone.length < 7) return phone;
   const visibleDigits = 2;
@@ -160,17 +145,32 @@ export function getClientIpFromHeaders(headers: Headers): string {
   return 'unknown';
 }
 
+export { MIN_PASSWORD_LENGTH } from './constants';
+
 /**
- * Hash an OTP code using bcrypt.
- * We store the hash, never the plaintext code.
+ * Hash an account password with bcrypt. The plaintext is never stored.
+ * Cost 12 matches what the old OTP hashing used.
  */
-export async function hashOTP(code: string): Promise<string> {
-  return bcrypt.hash(code, 12);
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 12);
+}
+
+export async function verifyPassword(password: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(password, hash);
 }
 
 /**
- * Verify an OTP code against a stored hash.
+ * Constant-ish-time dummy compare.
+ *
+ * Sign-in must take about the same time whether or not the phone exists,
+ * otherwise response latency tells an attacker which numbers are registered.
+ * Call this on the "no such user" path so both branches pay for one bcrypt.
  */
-export async function verifyOTP(code: string, hash: string): Promise<boolean> {
-  return bcrypt.compare(code, hash);
+let dummyHashPromise: Promise<string> | null = null;
+export async function burnPasswordComparison(password: string): Promise<void> {
+  // Must be a REAL bcrypt hash: bcrypt.compare against a malformed string
+  // returns false immediately without doing the work, which would defeat the
+  // whole point. Computed once per process, then reused.
+  dummyHashPromise ??= bcrypt.hash('unused-placeholder-for-timing', 12);
+  await bcrypt.compare(password, await dummyHashPromise).catch(() => false);
 }

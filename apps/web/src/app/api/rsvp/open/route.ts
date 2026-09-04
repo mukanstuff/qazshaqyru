@@ -102,7 +102,19 @@ export async function POST(request: NextRequest) {
       throw new ApiError('event_passed', 'Мероприятие уже прошло', 410);
     }
 
-    if (!validateRsvpStatus(status, false)) {
+    /*
+     * Open RSVP is how a guest registers themselves from the public page (no
+     * personal link). `hasPlusOne` normally comes from the owner's guest list,
+     * so this route hardcoded `false` here — which rejected
+     * `attending_plus_one` outright. The guest form worked around that by
+     * silently downgrading "Приду с гостем" to plain "Приду" before sending, so
+     * a guest who said they were bringing someone was recorded as one person
+     * and the тойхана headcount — the thing this product is sold on — came out
+     * short. Someone answering "+1" here IS declaring a plus-one; take them at
+     * their word and record it. The owner can still edit the guest afterwards.
+     */
+    const wantsPlusOne = status === 'attending_plus_one';
+    if (!validateRsvpStatus(status, wantsPlusOne)) {
       throw new ApiError('invalid_status', 'Недопустимый статус ответа', 400);
     }
 
@@ -110,6 +122,14 @@ export async function POST(request: NextRequest) {
 
     type PrismaTx = any;
     const result = await prisma.$transaction(async (tx: PrismaTx) => {
+      // Serialize concurrent open-RSVP submissions for this invitation so the
+      // guest-count check below can't race: without this, two requests can
+      // both read a count just under OPEN_RSVP_MAX_NEW_GUESTS_PER_INVITATION
+      // and both insert, pushing the invitation past the cap. The lock is
+      // transaction-scoped (auto-released on commit/rollback) and keyed per
+      // invitation, so it doesn't serialize unrelated invitations.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${invitation.id}))`;
+
       let guest = await tx.guest.findFirst({
         where: { invitationId: invitation.id, phone: phoneNormalized },
       });
@@ -135,7 +155,15 @@ export async function POST(request: NextRequest) {
             name,
             phone: phoneNormalized,
             tokenHash,
+            hasPlusOne: wantsPlusOne,
           },
+        });
+      } else if (guest.hasPlusOne !== wantsPlusOne) {
+        // Someone re-answering can add or drop their companion; the seat count
+        // has to follow, otherwise a corrected answer never reaches the venue.
+        guest = await tx.guest.update({
+          where: { id: guest.id },
+          data: { hasPlusOne: wantsPlusOne },
         });
       }
 

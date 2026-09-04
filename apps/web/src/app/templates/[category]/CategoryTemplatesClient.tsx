@@ -7,12 +7,12 @@ import { PublicShell } from '@/components/shared/PublicShell';
 import {
   BlankCanvasCta,
   TemplateCatalogCard,
-  TemplatePreviewModal,
   TemplatesFilterBar,
   TemplatesResultsSummary,
   TemplatesSeoBlock,
 } from '@/components/templates';
 import { Button } from '@/components/ui/button';
+import { CategoryWaitlist } from '@/components/templates/CategoryWaitlist';
 import { useI18n } from '@/i18n';
 import {
   categoryDbKeyFromRoute,
@@ -36,7 +36,6 @@ export function CategoryTemplatesClient({
 }: Props) {
   const { t, locale } = useI18n();
   const [searchQuery, setSearchQuery] = useState('');
-  const [previewSlug, setPreviewSlug] = useState<string | null>(null);
   const dbCategory = categoryDbKeyFromRoute(routeSlug);
   const categoryLabel = t(`events.${dbCategory}` as 'events.wedding');
 
@@ -51,11 +50,6 @@ export function CategoryTemplatesClient({
         }),
       ),
     [categoryLabel, locale, searchQuery, templates],
-  );
-
-  const previewTemplate = useMemo(
-    () => templates.find((template) => template.slug === previewSlug) ?? null,
-    [previewSlug, templates],
   );
 
   const hasActiveFilter = searchQuery.trim().length > 0;
@@ -87,7 +81,7 @@ export function CategoryTemplatesClient({
           />
 
           {filteredTemplates.length > 0 ? (
-            <div className="grid grid-cols-2 gap-4 sm:gap-5 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            <div className="grid grid-cols-2 gap-4 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
               {filteredTemplates.map((template) => {
                 const displayName =
                   (locale === 'kz' ? template.nameKz : template.nameRu) ?? template.nameRu;
@@ -97,7 +91,6 @@ export function CategoryTemplatesClient({
                     template={template}
                     displayName={displayName}
                     categoryLabel={categoryLabel}
-                    onPreview={() => setPreviewSlug(template.slug)}
                   />
                 );
               })}
@@ -112,9 +105,12 @@ export function CategoryTemplatesClient({
                   : t('templatesPage.noResults')}
               </p>
               {templates.length === 0 ? (
-                <p className="font-body text-sm text-us-ink-muted">
-                  {t('templatesPage.roadmapNote')}
-                </p>
+                <>
+                  <p className="font-body text-sm text-us-ink-muted">
+                    {t('templatesPage.roadmapNote')}
+                  </p>
+                  <CategoryWaitlist categorySlug={routeSlug} locale={locale === 'kz' ? 'kz' : 'ru'} />
+                </>
               ) : null}
               <div className="flex flex-wrap justify-center gap-3">
                 <Button asChild>
@@ -145,17 +141,6 @@ export function CategoryTemplatesClient({
       </section>
 
       <TemplatesSeoBlock />
-
-      {previewTemplate ? (
-        <TemplatePreviewModal
-          template={previewTemplate}
-          displayName={
-            (locale === 'kz' ? previewTemplate.nameKz : previewTemplate.nameRu) ??
-            previewTemplate.nameRu
-          }
-          onClose={() => setPreviewSlug(null)}
-        />
-      ) : null}
     </PublicShell>
   );
 }

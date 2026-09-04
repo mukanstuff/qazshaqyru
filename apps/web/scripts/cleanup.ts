@@ -12,7 +12,7 @@ runDatabaseCleanup()
   .then((result) => {
     console.log(
       `[cleanup] ${result.ranAt} | sessions: ${result.expiredSessions} | ` +
-        `otp: ${result.expiredOtps} | rate_limits: ${result.expiredRateLimits} | ` +
+        `rate_limits: ${result.expiredRateLimits} | ` +
         `uploads: ${result.uploadsRemoved} removed (${result.protectedUploads} protected, registry pruned: ${result.registryPruned})`
     );
   })

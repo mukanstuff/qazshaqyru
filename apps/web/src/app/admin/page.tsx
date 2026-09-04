@@ -11,6 +11,7 @@ import {
   adminTableTdClass,
   adminTableRowClass,
 } from '@/components/admin/AdminTableShell';
+import { formatKzt } from '@/lib/shared/format-price';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,7 +41,7 @@ export default async function AdminHome() {
       <h1 className="font-display text-3xl font-semibold text-us-ink">Обзор</h1>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={DollarSign} label="Выручка" value={`${(totalRevenue._sum.amountKzt || 0).toLocaleString('ru-RU')} ₸`} accent="gold" />
+        <StatCard icon={DollarSign} label="Выручка" value={`${formatKzt(totalRevenue._sum.amountKzt || 0)} ₸`} accent="gold" />
         <StatCard icon={Package} label="Оплачено" value={paidOrders} accent="gold" />
         <StatCard icon={Sparkles} label="Ожидают" value={pendingOrders} accent="amber" />
         <StatCard icon={Users} label="Приглашений" value={totalInvitations} />
@@ -69,7 +70,7 @@ export default async function AdminHome() {
                 <td className={`${adminTableTdClass} font-mono text-xs`}>{o.id.slice(0, 8)}</td>
                 <td className={adminTableTdClass}>{o.template.nameRu}</td>
                 <td className={adminTableTdClass}>{o.customerPhone}</td>
-                <td className={adminTableTdClass}>{o.amountKzt.toLocaleString('ru-RU')} ₸</td>
+                <td className={adminTableTdClass}>{formatKzt(o.amountKzt)} ₸</td>
                 <td className={adminTableTdClass}>
                   <OrderStatusBadge status={o.status} />
                 </td>

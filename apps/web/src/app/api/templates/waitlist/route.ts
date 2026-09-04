@@ -10,6 +10,7 @@ import {
 } from '@/lib/shared/api';
 import { normalizePhone, validatePhone } from '@/lib/auth';
 import { COMING_SOON_TEMPLATES } from '@/lib/templates/coming-soon';
+import { CATEGORY_ROUTES } from '@/lib/templates/template-categories';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -20,6 +21,23 @@ const bodySchema = z.object({
 });
 
 const ALLOWED_SLUGS = new Set(COMING_SOON_TEMPLATES.map((t) => t.slug));
+
+/**
+ * Category-level signups, stored under a `category:<route>` slug.
+ *
+ * An empty category page used to be a dead end: search sends someone looking
+ * for a беташар invitation, the shelf is empty, they leave and we learn
+ * nothing. Letting them leave a number turns the one thing an empty page is
+ * good for — a demand signal — into data on which category to build next.
+ * Same table, same rate limit, same phone validation; only the key differs.
+ */
+const CATEGORY_PREFIX = 'category:';
+
+function isAllowedSlug(slug: string): boolean {
+  if (ALLOWED_SLUGS.has(slug)) return true;
+  if (!slug.startsWith(CATEGORY_PREFIX)) return false;
+  return (CATEGORY_ROUTES as readonly string[]).includes(slug.slice(CATEGORY_PREFIX.length));
+}
 
 /** Public waitlist for handmade coming-soon templates. */
 export async function POST(request: NextRequest) {
@@ -40,7 +58,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { slug } = parsed.data;
-    if (!ALLOWED_SLUGS.has(slug)) {
+    if (!isAllowedSlug(slug)) {
       throw new ApiError('not_found', 'Шаблон не найден в waitlist', 404);
     }
 

@@ -1,6 +1,16 @@
 'use client';
 
 import { useEffect } from 'react';
+import {
+  ArrowDownToLine,
+  ArrowUpToLine,
+  Copy,
+  Eye,
+  EyeOff,
+  Lock,
+  Trash2,
+  Unlock,
+} from 'lucide-react';
 import { useI18n } from '@/i18n';
 import type { CanvasElement } from '@/lib/canvas/types';
 
@@ -47,7 +57,7 @@ export function ElementContextMenu({
   return (
     <div
       style={{ position: 'fixed', left: x, top: y, zIndex: 10000 }}
-      className="w-48 rounded-lg border border-zinc-700 bg-zinc-900 py-1 shadow-2xl text-xs text-zinc-200"
+      className="w-52 rounded-lg border border-us-border bg-us-surface py-1 shadow-us-xl font-body text-sm text-us-ink"
       onMouseDown={(e) => e.stopPropagation()}
     >
       <button
@@ -55,35 +65,36 @@ export function ElementContextMenu({
           onDuplicate();
           onClose();
         }}
-        className="w-full px-4 py-2 text-left hover:bg-zinc-800"
+        className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left hover:bg-us-border/30"
       >
-        {t('invitation.edit.canvas.duplicate')}
+        <Copy size={14} aria-hidden="true" /> {t('invitation.edit.canvas.duplicate')}
       </button>
       <button
         onClick={() => {
           onBringToFront();
           onClose();
         }}
-        className="w-full px-4 py-2 text-left hover:bg-zinc-800"
+        className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left hover:bg-us-border/30"
       >
-        {t('invitation.edit.canvas.front')}
+        <ArrowUpToLine size={14} aria-hidden="true" /> {t('invitation.edit.canvas.front')}
       </button>
       <button
         onClick={() => {
           onSendToBack();
           onClose();
         }}
-        className="w-full px-4 py-2 text-left hover:bg-zinc-800"
+        className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left hover:bg-us-border/30"
       >
-        {t('invitation.edit.canvas.back')}
+        <ArrowDownToLine size={14} aria-hidden="true" /> {t('invitation.edit.canvas.back')}
       </button>
       <button
         onClick={() => {
           onToggleLock();
           onClose();
         }}
-        className="w-full px-4 py-2 text-left hover:bg-zinc-800"
+        className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left hover:bg-us-border/30"
       >
+        {element.locked ? <Unlock size={14} aria-hidden="true" /> : <Lock size={14} aria-hidden="true" />}
         {element.locked ? t('invitation.edit.canvas.unlock') : t('invitation.edit.canvas.lock')}
       </button>
       <button
@@ -91,19 +102,20 @@ export function ElementContextMenu({
           onToggleHide();
           onClose();
         }}
-        className="w-full px-4 py-2 text-left hover:bg-zinc-800"
+        className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left hover:bg-us-border/30"
       >
+        {element.hidden ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}
         {element.hidden ? t('invitation.edit.canvas.show') : t('invitation.edit.canvas.hide')}
       </button>
-      <div className="my-1 border-t border-zinc-800" />
+      <div className="my-1 border-t border-us-border" />
       <button
         onClick={() => {
           onDelete();
           onClose();
         }}
-        className="w-full px-4 py-2 text-left text-red-400 hover:bg-zinc-800"
+        className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-red-600 hover:bg-red-50"
       >
-        {t('invitation.edit.canvas.delete')}
+        <Trash2 size={14} aria-hidden="true" /> {t('invitation.edit.canvas.delete')}
       </button>
     </div>
   );

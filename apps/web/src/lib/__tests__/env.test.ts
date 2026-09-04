@@ -26,8 +26,6 @@ describe('validateEnv production rules', () => {
     APP_URL: 'https://qazshaqyru.kz',
     TRUST_PROXY: 'true',
     ADMIN_API_KEY: 'a'.repeat(32),
-    SMS_PROVIDER: 'kz',
-    KZ_SMS_API_KEY: 'sms-key',
     PAYMENT_PROVIDER: 'kaspi',
     KASPI_API_KEY: 'kaspi-key',
     KASPI_WEBHOOK_SECRET: 'webhook-secret-16chars',
@@ -54,20 +52,15 @@ describe('validateEnv production rules', () => {
     expect(() => validateEnv()).not.toThrow();
   });
 
-  it('rejects mock SMS in production', () => {
-    process.env = { ...baseProdEnv, SMS_PROVIDER: 'mock' };
-    expect(() => validateEnv()).toThrow(/SMS_PROVIDER=mock/);
-  });
-
   it('rejects kaspi without webhook secret in production', () => {
     process.env = { ...baseProdEnv, KASPI_WEBHOOK_SECRET: 'short' };
     expect(() => validateEnv()).toThrow(/KASPI_WEBHOOK_SECRET/);
   });
 
-  it('requires KZ SMS API key when SMS_PROVIDER=kz', () => {
-    process.env = { ...baseProdEnv, KZ_SMS_API_KEY: '' };
-    expect(() => validateEnv()).toThrow(/KZ_SMS_API_KEY/);
-  });
+  // The SMS rules that used to live here are gone with SMS itself: OTP login
+  // was replaced by phone + password, no code sends a message any more, and
+  // env.ts stopped checking SMS_PROVIDER / KZ_SMS_API_KEY. The tests kept
+  // asserting throws that nothing could raise.
 
   it('rejects CHANGE_ME placeholder in SESSION_SECRET', () => {
     process.env = { ...baseProdEnv, SESSION_SECRET: 'CHANGE_ME_32_plus_chars_openssl_rand_hex_32' };

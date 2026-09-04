@@ -10,6 +10,7 @@ export type HubSheetKey =
   | 'music'
   | 'template'
   | 'reminders'
+  | 'guests'
   | 'archive';
 
 export interface HubState {

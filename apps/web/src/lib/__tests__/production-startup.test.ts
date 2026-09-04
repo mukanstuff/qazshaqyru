@@ -5,10 +5,6 @@ describe('getProductionStartupSummary', () => {
   const baseProdEnv: NodeJS.ProcessEnv = {
     NODE_ENV: 'production',
     APP_URL: 'https://qazshaqyru.kz',
-    AUTH_WHATSAPP_ENABLED: 'true',
-    WHATSAPP_PHONE_NUMBER_ID: '123456789',
-    WHATSAPP_ACCESS_TOKEN: 'wa-token',
-    WHATSAPP_AUTH_TEMPLATE_NAME: 'AUTH_CODE',
     PAYMENT_PROVIDER: 'kaspi',
     KASPI_API_KEY: 'kaspi-key',
     KASPI_WEBHOOK_SECRET: 'webhook-secret-16chars',
@@ -26,7 +22,6 @@ describe('getProductionStartupSummary', () => {
       TURNSTILE_SECRET_KEY: 'turnstile-secret',
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: 'turnstile-site',
     });
-    expect(summary.whatsappOtpReady).toBe(true);
     expect(summary.kaspiWebhookReady).toBe(true);
     expect(summary.kaspiWebhookUrl).toBe('https://qazshaqyru.kz/api/orders/webhook/kaspi');
     expect(summary.uploadMode).toBe('s3');
@@ -34,7 +29,7 @@ describe('getProductionStartupSummary', () => {
     expect(summary.captchaProvider).toBe('turnstile');
   });
 
-  it('flags missing WhatsApp OTP, local uploads, and stub captcha in production', () => {
+  it('flags local uploads and stub captcha in production', () => {
     const summary = getProductionStartupSummary({
       NODE_ENV: 'production',
       APP_URL: 'https://qazshaqyru.kz',
@@ -42,7 +37,6 @@ describe('getProductionStartupSummary', () => {
       KASPI_API_KEY: 'key',
       CAPTCHA_PROVIDER: 'stub',
     });
-    expect(summary.whatsappOtpReady).toBe(false);
     expect(summary.uploadMode).toBe('local');
     expect(summary.kaspiWebhookReady).toBe(false);
     expect(summary.captchaReady).toBe(false);

@@ -1,7 +1,9 @@
 'use client';
 
 import { useMemo } from 'react';
+import { useI18n } from '@/i18n';
 import { PublicSeatingView } from '@/components/seating/PublicSeatingView';
+import { formatEventDateLineInTimeZone } from '@/lib/shared/kazakh-datetime';
 
 interface InvitationMeta {
   id: string;
@@ -39,19 +41,18 @@ interface Props {
 
 export default function PublicSeatingClient({ data }: Props) {
   const { invitation, tables, highlightGuestId } = data;
-  const dateLocale = 'ru';
+  const { t, locale } = useI18n();
 
   const eventLine = useMemo(() => {
     if (!invitation.eventDate) return '';
     const d = new Date(invitation.eventDate);
-    const formatted = new Intl.DateTimeFormat('ru-RU', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      timeZone: invitation.eventTimezone ?? 'Asia/Almaty',
-    }).format(d);
+    const formatted = formatEventDateLineInTimeZone(
+      d,
+      locale,
+      invitation.eventTimezone ?? 'Asia/Almaty'
+    );
     return invitation.eventTime ? `${formatted} · ${invitation.eventTime}` : formatted;
-  }, [invitation.eventDate, invitation.eventTime, invitation.eventTimezone]);
+  }, [invitation.eventDate, invitation.eventTime, invitation.eventTimezone, locale]);
 
   const shareUrl = useMemo(() => {
     if (typeof window === 'undefined') return '';
@@ -64,7 +65,7 @@ export default function PublicSeatingClient({ data }: Props) {
       <header className="border-b border-us-ink/8 bg-white">
         <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
           <p className="text-xs font-semibold uppercase tracking-widest text-us-accent">
-            Рассадка
+            {t('seating.public.pageEyebrow')}
           </p>
           <h1 className="mt-2 font-display text-3xl font-bold text-us-ink">
             {invitation.title}
@@ -77,7 +78,6 @@ export default function PublicSeatingClient({ data }: Props) {
 
       <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
         <PublicSeatingView
-          invitationId={invitation.id}
           tables={tables}
           highlightGuestId={highlightGuestId ?? undefined}
         />
@@ -85,7 +85,7 @@ export default function PublicSeatingClient({ data }: Props) {
         {shareUrl && (
           <div className="mt-6 rounded-2xl border border-us-ink/8 bg-us-ink/2 p-4 text-center">
             <p className="text-sm text-us-ink-muted">
-              Сохраните эту ссылку — она покажет ваш стол в день торжества
+              {t('seating.public.saveLinkHint')}
             </p>
             <p className="mt-2 break-all font-mono text-xs text-us-ink">{shareUrl}</p>
           </div>

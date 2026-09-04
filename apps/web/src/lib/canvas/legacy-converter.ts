@@ -7,7 +7,7 @@
  * scroll-page), using the same brand colors and fonts the legacy template
  * used. Text content is copied verbatim from templateData / customText.
  */
-import type { InvitationCanvasDocument, CanvasElement } from './types';
+import type { InvitationCanvasDocument, CanvasElement, FontFamily } from './types';
 import type { InvitationData } from '@/components/invitation-layouts/types';
 import { createEmptyDocument } from './mutations';
 import { nanoid } from 'nanoid';
@@ -43,7 +43,7 @@ function textEl(
   id: string,
   y: number,
   text: string,
-  opts: Partial<CanvasElement> & { fontSize?: number; color?: string; fontFamily?: 'Montserrat' | 'Cormorant' | 'Marck' | 'Unbounded' } = {}
+  opts: Partial<CanvasElement> & { fontSize?: number; color?: string; fontFamily?: FontFamily } = {}
 ): CanvasElement {
   return {
     id,
@@ -166,10 +166,9 @@ export function convertLegacyToCanvas(inv: LegacyInvitationLike): InvitationCanv
   }
 
   // Hero greeting — locale-aware default
-  // TODO: add proper Kazakh text (Qurmetti qonaqtar) when encoding issue resolved
-  const greetingText = ct.greeting || (isKz ? 'Qurmetti qonaqtar!' : 'Dorogie gosti!');
+  const greetingText = ct.greeting || (isKz ? 'Құрметті қонақтар!' : 'Дорогие гости!');
   elements.push(textEl(nanoid(10), y, greetingText, {
-    fontFamily: 'Marck',
+    fontFamily: 'Pacifico',
     fontSize: 24,
     color: LUXURY_PRIMARY,
   }));
@@ -251,7 +250,7 @@ export function convertLegacyToCanvas(inv: LegacyInvitationLike): InvitationCanv
     hidden: false,
     targetIso: typeof inv.eventDate === 'string' ? inv.eventDate : inv.eventDate?.toISOString(),
     timezone: inv.eventTimezone || 'Asia/Almaty',
-    fontFamily: 'Unbounded',
+    fontFamily: 'Cormorant',
     fontSize: 20,
     color: LUXURY_PRIMARY,
     showLabels: true,
@@ -260,7 +259,7 @@ export function convertLegacyToCanvas(inv: LegacyInvitationLike): InvitationCanv
   y += 110;
 
   // RSVP button with locale-aware label
-  const rsvpLabel = isKz ? 'Zhawap beru' : 'Otvetit';
+  const rsvpLabel = isKz ? 'Жауап беру' : 'Ответить';
   elements.push({
     id: nanoid(10),
     type: 'button',

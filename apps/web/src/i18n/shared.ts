@@ -56,3 +56,23 @@ export function interpolate(text: string, vars?: Record<string, string | number>
   }
   return result;
 }
+
+/**
+ * Russian noun agreement after a numeral.
+ *
+ * Counters across the app were written as `{n} шаблонов` / `{n} категорий` —
+ * always the genitive plural, so the UI said "1 категорий" and "2 шаблонов".
+ * Kazakh does not inflect the noun after a numeral ("3 үлгі"), so it just takes
+ * the single form.
+ *
+ * `forms` is [1, 2–4, 5+]: pluralize('ru', 1, ['шаблон', 'шаблона', 'шаблонов'])
+ */
+export function pluralize(locale: Locale, count: number, forms: [string, string, string]): string {
+  if (locale !== 'ru') return forms[0];
+  const n = Math.abs(Math.trunc(count));
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return forms[0];
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return forms[1];
+  return forms[2];
+}

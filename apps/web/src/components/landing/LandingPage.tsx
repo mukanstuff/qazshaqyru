@@ -3,13 +3,17 @@
 import { LocaleLink } from '@/components/seo/LocaleLink';
 import { SoftLocaleBanner } from '@/components/seo/SoftLocaleBanner';
 import { SiteCompactFooter } from '@/components/shared/SiteCompactFooter';
-import { SiteMarketingHeader } from '@/components/shared/SiteMarketingHeader';
-import { motion } from 'motion/react';
+import { SiteHeader } from '@/components/shared/SiteHeader';
+import { MobileTabBar } from '@/components/shared/MobileTabBar';
+import { motion, useReducedMotion } from 'motion/react';
 import { ArrowRight, Check, Phone } from 'lucide-react';
 
 import { useI18n } from '@/i18n';
+import { formatKztWithSign } from '@/lib/shared/format-price';
+import type { CategoryCounts } from '@/lib/landing/category-counts';
 
 import { LandingFaq } from './LandingFaq';
+import { LandingReviews } from './LandingReviews';
 import { LandingHeroShowcase } from './LandingHeroShowcase';
 import { LandingCelebrations } from './LandingCelebrations';
 import { LandingGrain } from './LandingGrain';
@@ -21,25 +25,33 @@ type LandingPageProps = {
   /** Kept for callers; hero no longer shows vanity stats (D6 hero budget). */
   publishedInvitations?: number;
   isLoggedIn?: boolean;
-  /** Minimum template price from DB for pricing teaser. */
-  minTemplatePriceKzt?: number;
+  /**
+   * Cheapest active template, in tenge, read from the catalogue.
+   *
+   * `null` means nothing is priced yet, and the hero falls back to the
+   * qualitative promise rather than inventing a figure.
+   */
+  minTemplatePriceKzt?: number | null;
+  /** Live template count per catalogue route, straight from the database. */
+  categoryCounts?: CategoryCounts;
 };
 
 export function LandingPage({
   publishedInvitations: _publishedInvitations = 0,
   isLoggedIn = false,
+  categoryCounts = {},
   // 2026-07-30 OWNER MODEL (docs/PRODUCT_MODEL_AND_RULES.md + PRODUCT_DECISIONS_2026-07-30.md + AUDIT_ISSUES.md):
   // Real value ALWAYS comes from DB (min active Template.priceKzt).
-  // This is ONLY a last-resort default for empty catalog in dev.
-  // Never let this number leak into user-visible strings or decisions.
-  minTemplatePriceKzt = 3_990,
+  // Null rather than a hardcoded fallback: a wrong price on the landing is
+  // worse than no price, and the caller now always supplies the real one.
+  minTemplatePriceKzt = null,
 }: LandingPageProps) {
   void _publishedInvitations;
   const { t } = useI18n();
-  const prefersReducedMotion =
-    typeof window !== 'undefined'
-      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      : false;
+  // motion's own hook instead of reading matchMedia during render: that read
+  // returned false on the server and possibly true on the client, which is a
+  // hydration mismatch, and it never updated if the setting changed.
+  const prefersReducedMotion = useReducedMotion() ?? false;
 
   const hasWhatsapp = Boolean(getPublicWhatsappNumber());
   const contactHref = hasWhatsapp ? getWhatsappHref() : getSupportMailto();
@@ -48,7 +60,7 @@ export function LandingPage({
     <div className="landing-page relative min-h-screen bg-white font-body text-us-ink">
       <LandingGrain />
       <SoftLocaleBanner />
-      <SiteMarketingHeader isLoggedIn={isLoggedIn} />
+      <SiteHeader isLoggedIn={isLoggedIn} />
 
       <div className="overflow-x-clip">
         <section
@@ -105,19 +117,39 @@ export function LandingPage({
                     {t('landing.v2.hero.ctaPrimary')}
                     <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                   </LocaleLink>
+                  {/*
+                    The secondary CTA pointed at `/i/demo`, which defaults to
+                    the `luxe-gold` layout — a slug that is not in the Template
+                    table, so the route served the dead legacy fallback. Rather
+                    than send people to a broken page (or duplicate the primary
+                    CTA, which already goes to /templates), the hero now carries
+                    one action and the pricing link below it.
+                  */}
                   <LocaleLink
-                    href="/templates"
+                    href="/pricing"
                     className="flex min-h-12 max-w-full items-center rounded-full border-2 border-[#16A34A]/30 bg-white px-6 py-3.5 text-base font-medium leading-snug text-[#1F3A2E] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#16A34A]/50 hover:bg-[#16A34A]/5 sm:px-7 md:min-h-[3.25rem]"
-                    aria-label={t('landing.v2.hero.ctaSecondary')}
                   >
-                    {t('landing.v2.hero.ctaSecondary')}
+                    {t('landing.v2.nav.pricing')}
                   </LocaleLink>
                 </div>
 
+                {/* Reassurance line, not navigation — it used to be wrapped in
+                    a link to /pricing, which the secondary CTA above now is. */}
+                {/*
+                  The price is stated as a number, taken from the catalogue.
+                  Both reference services put a concrete figure in the first
+                  screen; ours only promised "pay when you like it", which reads
+                  well but sends the visitor hunting for the cost. The number is
+                  read live so it can never contradict the catalogue, and the
+                  line falls back to the qualitative promise when nothing is
+                  priced yet.
+                */}
                 <p className="mt-4 text-sm text-us-ink-muted">
-                  <LocaleLink href="/pricing" className="underline-offset-2 hover:text-us-accent hover:underline">
-                    {t('landing.v2.hero.priceFrom')}
-                  </LocaleLink>
+                  {minTemplatePriceKzt
+                    ? t('landing.v2.hero.priceFromValue', {
+                        price: formatKztWithSign(minTemplatePriceKzt),
+                      })
+                    : t('landing.v2.hero.priceFrom')}
                 </p>
 
                 <ul
@@ -155,7 +187,7 @@ export function LandingPage({
               <p className="text-sm text-[#6B8A92]">{t('landing.v2.templates.subtitle')}</p>
             </div>
 
-            <LandingCelebrations embedded />
+            <LandingCelebrations embedded categoryCounts={categoryCounts} />
           </div>
         </section>
 
@@ -169,10 +201,14 @@ export function LandingPage({
               </h2>
             </div>
 
-            <PricingTeaser minTemplatePriceKzt={minTemplatePriceKzt} />
+            {/* The teaser wants a concrete number; when nothing is priced yet
+                it keeps its own long-standing default rather than rendering a
+                blank. Only the hero line degrades to the qualitative promise. */}
+            <PricingTeaser minTemplatePriceKzt={minTemplatePriceKzt ?? 3_990} />
           </div>
         </section>
 
+        <LandingReviews />
         <LandingFaq />
 
         <section data-nav-theme="dark" className="relative overflow-hidden bg-gradient-to-br from-[#1F3A2E] via-[#0EA5E9] to-[#16A34A] py-28">
@@ -211,6 +247,9 @@ export function LandingPage({
         </section>
 
         <SiteCompactFooter />
+        {/* Height reserved so the footer clears the fixed bar. */}
+        <div className="h-14 md:hidden" aria-hidden />
+        <MobileTabBar isLoggedIn={isLoggedIn} />
       </div>
     </div>
   );

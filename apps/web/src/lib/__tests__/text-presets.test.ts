@@ -15,10 +15,22 @@ describe('text-presets', () => {
     expect(presets[0].labelKz).toBeTruthy();
   });
 
-  it('resolves event type from template slug', () => {
+  it('resolves event type from template slug prefix', () => {
     expect(eventTypeFromSlug('kyz-traditional')).toBe('kyz_uzatu');
-    expect(eventTypeFromSlug('luxe-gold')).toBe('wedding');
     expect(eventTypeFromSlug('sundet-gold')).toBe('sundet_toy');
+    // Was: expect(eventTypeFromSlug('luxe-gold')).toBe('wedding') — the
+    // function has no rule that maps `luxe-gold` to anything, so it returned
+    // 'other' and this assertion had simply been failing. The slug also has no
+    // row in the Template table.
+    expect(eventTypeFromSlug('wedding-classic')).toBe('wedding');
+  });
+
+  it('falls back to "other" for a slug it cannot classify', () => {
+    // The live catalog: none of these slugs encode their event type, which is
+    // why Template.category exists. This function is a prefix guess, not a
+    // source of truth — see the note on top of eventTypeFromSlug.
+    expect(eventTypeFromSlug('aq-bata')).toBe('other');
+    expect(eventTypeFromSlug('dala')).toBe('other');
   });
 
   it('returns sundet toy presets', () => {

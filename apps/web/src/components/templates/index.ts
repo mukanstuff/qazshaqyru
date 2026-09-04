@@ -1,6 +1,5 @@
 export { TemplateCatalogCard } from './TemplateCatalogCard';
 export { TemplateFilterChip } from './TemplateFilterChip';
-export { TemplatePreviewModal } from './TemplatePreviewModal';
 export { TemplatesPageHero } from './TemplatesPageHero';
 export { TemplatesFilterBar, type FilterCategory } from './TemplatesFilterBar';
 export { TemplatesResultsSummary } from './TemplatesResultsSummary';

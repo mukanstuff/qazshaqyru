@@ -78,12 +78,16 @@ export async function completeOrderPayment(
 
   type PrismaTx = any;
   if (order.status === 'paid') {
-    await prisma.$transaction(async (tx: PrismaTx) => {
-      if (order.invitationId) {
+    // Order was already paid by an earlier call (webhook or a concurrent
+    // sync poll). Only re-run the idempotent publish safety net here —
+    // applyPlanUnlockInTx is NOT idempotent for agency/user-scoped plans
+    // (it always extends planExpiresAt by another `days`), so re-invoking
+    // it on an already-applied order would double-grant subscription time.
+    if (order.invitationId) {
+      await prisma.$transaction(async (tx: PrismaTx) => {
         await publishInvitationInTx(tx, order.invitationId!);
-      }
-      await applyPlanUnlockInTx(tx, order);
-    });
+      });
+    }
     return { ok: true, invitationId: order.invitationId, alreadyPaid: true };
   }
 
@@ -124,18 +128,37 @@ export async function completeOrderPayment(
   });
 
   if (!result.ok) {
+    // The `status: 'pending'` guard above lost a race to a concurrent call
+    // (e.g. webhook vs. the client's /sync poll) that already marked the
+    // order paid. Same idempotency note as above: only re-run the safe
+    // publish no-op, never re-apply the plan unlock.
     const existing = await prisma.order.findUnique({ where: { id: orderId } });
     if (existing?.status === 'paid') {
-      await prisma.$transaction(async (tx: PrismaTx) => {
-        if (existing.invitationId) {
+      if (existing.invitationId) {
+        await prisma.$transaction(async (tx: PrismaTx) => {
           await publishInvitationInTx(tx, existing.invitationId!);
-        }
-        await applyPlanUnlockInTx(tx, existing);
-      });
+        });
+      }
       return { ok: true, invitationId: existing.invitationId, alreadyPaid: true };
     }
     return { ok: false, reason: 'not_found' };
   }
 
   return { ok: true, invitationId, alreadyPaid: false };
+}
+
+/**
+ * Reject a pending manual-transfer order — used when the site owner taps
+ * "Отклонить" on the Telegram approval message because the claimed payment
+ * doesn't actually show up in their Kaspi Pay app. Only touches orders
+ * still `pending`; a `paid` order can't be "un-paid" through this path.
+ */
+export async function rejectOrderPayment(
+  orderId: string
+): Promise<{ ok: true } | { ok: false; reason: 'not_found' }> {
+  const result = await prisma.order.updateMany({
+    where: { id: orderId, status: 'pending' },
+    data: { status: 'cancelled', cancelledAt: new Date() },
+  });
+  return result.count > 0 ? { ok: true } : { ok: false, reason: 'not_found' };
 }

@@ -37,16 +37,32 @@ export function computeConfirmedHeadcount(guests: HeadcountGuest[]): number {
   );
 }
 
+/**
+ * Seats one RSVP row is expected to need when planning (as opposed to
+ * `seatsForRsvpStatus`, which only counts already-confirmed seats).
+ * Pending guests are assumed to be coming, so a plan doesn't under-provision.
+ *
+ * Seating capacity is enforced with this same function, so "20 confirmed
+ * seats" on the hub and "this table is full" in the seating plan can never
+ * disagree about what a guest costs.
+ */
+export function expectedSeatsForRsvpStatus(
+  status: string | null | undefined,
+  hasPlusOne = false
+): number {
+  if (status === 'not_attending') return 0;
+  if (status === 'attending_plus_one') return hasPlusOne ? 2 : 1;
+  if (status === 'attending' || status === 'attending_no_children') return 1;
+  // pending (or unknown): assume coming; 2 if a plus-one is allowed
+  return hasPlusOne ? 2 : 1;
+}
+
 /** Max seats if every pending guest comes (attending) / plus-one when allowed. */
 export function computeExpectedHeadcount(guests: HeadcountGuest[]): number {
-  return guests.reduce((sum, g) => {
-    const status = g.responseStatus ?? 'pending';
-    if (status === 'not_attending') return sum;
-    if (status === 'attending_plus_one') return sum + (g.hasPlusOne ? 2 : 1);
-    if (status === 'attending' || status === 'attending_no_children') return sum + 1;
-    // pending: assume coming; +1 if plus-one allowed
-    return sum + (g.hasPlusOne ? 2 : 1);
-  }, 0);
+  return guests.reduce(
+    (sum, g) => sum + expectedSeatsForRsvpStatus(g.responseStatus ?? 'pending', Boolean(g.hasPlusOne)),
+    0
+  );
 }
 
 export function groupHouseholds(guests: HeadcountGuest[]): HouseholdHeadcount[] {

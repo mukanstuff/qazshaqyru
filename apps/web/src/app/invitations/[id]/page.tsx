@@ -8,10 +8,13 @@ import {
   computeConfirmedHeadcount,
   computeExpectedHeadcount,
 } from '@/lib/guests/headcount';
-import { GuestOpsHub } from '@/components/editor/GuestOpsHub';
 import { HubSectionList } from '@/components/hub/HubSectionList';
-import { isOpenRsvpEnabled } from '@/lib/guests/open-rsvp-config';
-import type { EventType } from '@prisma/client';
+import { SiteHeader } from '@/components/shared/SiteHeader';
+import { SiteCompactFooter } from '@/components/shared/SiteCompactFooter';
+import type { HubGuest } from '@/components/hub/useHubGuests';
+import { parseCanvasOrEmpty } from '@/lib/canvas/validation';
+import { deriveHubTextDefaults, deriveMusicUrl } from '@/lib/canvas/derive-invitation-fields';
+import { getI18n } from '@/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,8 +61,11 @@ export default async function InvitationEditorPage({ params, searchParams }: Pro
         orderBy: { createdAt: 'asc' },
         take: 2000,
       },
-      template: { select: { previewImageUrl: true } },
+      template: { select: { previewImageUrl: true, nameRu: true, nameKz: true } },
       _count: { select: { guests: true } },
+      // Only the existence of a review matters here, so one boolean-ish row
+      // rather than the whole record.
+      serviceReviews: { select: { id: true }, take: 1 },
     },
   });
 
@@ -105,75 +111,89 @@ export default async function InvitationEditorPage({ params, searchParams }: Pro
 
   const entitlements = pricing?.entitlements;
 
-  const customText = (invitation.customText ?? {}) as {
-    greeting?: string;
-    intro?: string;
-    details?: string;
-    closing?: string;
-    dressCode?: string;
-    groomName?: string;
-    brideName?: string;
-    eventPlace?: string;
-    address?: string;
+  type FullGuestRow = InvitationGuestRow & {
+    response?: {
+      status: string;
+      dietaryRestrictions?: string | null;
+      message?: string | null;
+    } | null;
   };
+
+  const hubGuests: HubGuest[] = (invitation.guests as unknown as FullGuestRow[]).map((g) => ({
+    id: g.id,
+    name: g.name,
+    phone: g.phone,
+    side: g.side === 'bride' || g.side === 'groom' ? g.side : null,
+    householdLabel: g.householdLabel,
+    hasPlusOne: g.hasPlusOne,
+    plusOneName: g.plusOneName ?? null,
+    sentAt: g.sentAt ? g.sentAt.toISOString() : null,
+    openedAt: g.openedAt ? g.openedAt.toISOString() : null,
+    responseStatus: g.response?.status ?? null,
+    dietaryRestrictions: g.response?.dietaryRestrictions ?? null,
+    message: g.response?.message ?? null,
+  }));
+
+  // Canonical editor URL: skip the legacy /invitations/[id]/canvas stub and
+  // link straight to /editor/[templateKey]?id=<draftUuid>. The templateKey
+  // is non-null in the schema (default "classic") so this is always safe.
+  const editorHref = `/editor/${encodeURIComponent(invitation.templateKey)}?id=${encodeURIComponent(invitation.id)}`;
+
+  const canvasDoc = parseCanvasOrEmpty(invitation.canvas);
+  const textDefaults = deriveHubTextDefaults(canvasDoc);
+  const canvasMusicUrl = deriveMusicUrl(canvasDoc);
+
+  const { locale } = await getI18n();
+  const templateLabel =
+    (locale === 'kz' ? invitation.template?.nameKz : invitation.template?.nameRu) ??
+    invitation.template?.nameRu ??
+    invitation.templateKey;
 
   return (
     <>
-      {/* Phase 2 (2026-08-18): the new hub screen. Renders above the
-          legacy GuestOpsHub, which keeps PostPublishShareScreen, the funnel,
-          CSV export, and the restaurant-share controls intact below. */}
+      <SiteHeader isLoggedIn backHref="/dashboard" title={invitation.title} />
       <HubSectionList
         invitationId={invitation.id}
         invitationSlug={invitation.slug}
         invitationTitle={invitation.title}
         status={invitation.status as 'draft' | 'published' | 'archived'}
         templateKey={invitation.templateKey}
-        editHref={`/invitations/${encodeURIComponent(invitation.id)}/canvas`}
+        /* Human-readable template name. The hub row used to print the raw
+           slug ("dala", "aq-bata") as its value — an internal identifier
+           shown to a customer. */
+        templateLabel={templateLabel}
+        editHref={editorHref}
+        previewImageUrl={invitation.template?.previewImageUrl ?? null}
         viewCount={invitation.viewCount ?? 0}
         confirmedSeats={computeConfirmedHeadcount(headcountGuests)}
         expectedSeats={computeExpectedHeadcount(headcountGuests)}
-        customText={customText}
+        textDefaults={textDefaults}
         eventDate={toYmd(invitation.eventDate)}
         eventTime={toHm(invitation.eventTime)}
         eventPlace={invitation.eventPlace ?? ''}
         address={invitation.address ?? ''}
         eventTimezone={invitation.eventTimezone ?? 'Asia/Almaty'}
-        musicUrl={invitation.musicUrl ?? ''}
+        musicUrl={canvasMusicUrl}
         restaurantLinkAllowed={entitlements?.restaurantLink ?? false}
         guestCount={invitation._count.guests}
         guestCountAttending={funnel.attending}
+        guests={hubGuests}
         fullAccess={fullAccess}
         priceKzt={pricing?.priceKzt ?? 3990 /* fallback only */}
-      />
-      <GuestOpsHub
-        invitationId={invitation.id}
-        invitationSlug={invitation.slug}
-        invitationTitle={invitation.title}
-        templateKey={invitation.templateKey}
-        status={invitation.status as 'draft' | 'published' | 'archived'}
-        isPublished={invitation.status === 'published'}
-        priceKzt={pricing?.priceKzt ?? 3990}
-        editHref={`/invitations/${encodeURIComponent(invitation.id)}/canvas`}
-        planSku={entitlements?.planSku ?? 'free'}
-        watermark={entitlements?.watermark ?? true}
-        guestOpsUnlocked={entitlements?.guestOps ?? false}
-        customSlugAllowed={entitlements?.customSlug ?? false}
-        restaurantLinkAllowed={entitlements?.restaurantLink ?? false}
-        fullAccess={fullAccess}
-        funnel={funnel}
-        confirmedSeats={computeConfirmedHeadcount(headcountGuests)}
-        expectedSeats={computeExpectedHeadcount(headcountGuests)}
-        showPublishedBanner={published === '1'}
-        showPostPublishShare={published === '1'}
-        guestCount={invitation._count.guests}
-        openRsvp={isOpenRsvpEnabled(
-          invitation.customText,
-          invitation.eventType as EventType,
-        )}
+        // Trust the DB over the query param — a stray `?published=1` (old
+        // editor links, a replayed/bookmarked URL) must never claim success
+        // for an invitation that is still actually a draft.
+        showPublishedBanner={published === '1' && invitation.status === 'published'}
         showPaymentFailed={payment === 'failed'}
         showPaymentInvalid={payment === 'invalid'}
         showPaymentPending={payment === 'pending'}
+        /* The review ask is time-gated: it appears only after the event, when
+           the customer actually has something to judge. */
+        eventPassed={Boolean(invitation.eventDate) && new Date(invitation.eventDate as Date) < new Date()}
+        alreadyReviewed={invitation.serviceReviews.length > 0}
+        ownerDisplayName={ctx.user?.name ?? ''}
       />
+      <SiteCompactFooter />
     </>
   );
 }

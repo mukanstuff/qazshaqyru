@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 130" width="260" height="130" fill="none" stroke="#000" stroke-width="1.7" stroke-linecap="round">
+  <!-- Қошқар мүйіз (ram's horns), the central Kazakh ornamental motif.
+       Built as one horn plus an exact mirror so the symmetry is mathematical.
+       Used as the focal ornament above the couple's names. -->
+  <defs>
+    <g id="h">
+      <path d="M0,0 C0,-16 5,-28 17,-33 C29,-38 41,-31 41,-20 C41,-12 35,-6 27,-6 C20,-6 15,-11 15,-18 C15,-23 19,-26 23,-26 C26,-26 28,-24 28,-21"/>
+    </g>
+  </defs>
+  <g transform="translate(130,112) scale(1.25)"><use href="#h"/><use href="#h" transform="scale(-1,1)"/></g>
+  <g transform="translate(130,112) scale(0.6)"><use href="#h"/><use href="#h" transform="scale(-1,1)"/></g>
+  <path d="M130,112 L130,74"/>
+  <path d="M130,74 C123,80 118,84 111,86 M130,74 C137,80 142,84 149,86"/>
+  <circle cx="130" cy="70" r="3.4" fill="#000" stroke="none"/>
+  <circle cx="130" cy="112" r="2.6" fill="#000" stroke="none"/>
+</svg>

@@ -6,7 +6,6 @@ import { PublicShell } from '@/components/shared/PublicShell';
 import {
   BlankCanvasCta,
   TemplateCatalogCard,
-  TemplatePreviewModal,
   TemplatesFilterBar,
   type FilterCategory,
   TemplatesPageHero,
@@ -16,6 +15,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { LocaleLink } from '@/components/seo/LocaleLink';
 import { useI18n } from '@/i18n';
+import { pluralize } from '@/i18n/shared';
 import { templateMatchesSearch } from '@/lib/shared/ux-guided-flow';
 import type { Template } from '@prisma/client';
 
@@ -35,18 +35,12 @@ const CATEGORY_ORDER = [
 interface Props {
   templates: Template[];
   isLoggedIn?: boolean;
-  showManaged?: boolean;
 }
 
-export function TemplatesClient({
-  templates,
-  isLoggedIn = false,
-  showManaged = false,
-}: Props) {
+export function TemplatesClient({ templates, isLoggedIn = false }: Props) {
   const { t, locale } = useI18n();
   const searchParams = useSearchParams();
   const [activeCategory, setActiveCategory] = useState<string>('all');
-  const [previewSlug, setPreviewSlug] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
@@ -55,11 +49,6 @@ export function TemplatesClient({
       setActiveCategory(category);
     }
   }, [searchParams]);
-
-  const previewTemplate = useMemo(
-    () => templates.find((tpl) => tpl.slug === previewSlug) ?? null,
-    [templates, previewSlug],
-  );
 
   const grouped = useMemo(
     () =>
@@ -107,6 +96,13 @@ export function TemplatesClient({
     });
   }, [activeCategory, grouped, locale, searchQuery, t, templates]);
 
+  const countLabel = (n: number, base: 'compactStatsLabel' | 'categoryCount') =>
+    pluralize(locale, n, [
+      t(`templatesPage.${base}One`),
+      t(`templatesPage.${base}Few`),
+      t(`templatesPage.${base}Many`),
+    ]);
+
   const hasActiveFilter = activeCategory !== 'all' || searchQuery.trim().length > 0;
 
   const handleReset = () => {
@@ -121,19 +117,26 @@ export function TemplatesClient({
 
   return (
     <PublicShell isLoggedIn={isLoggedIn}>
+      {/* The eyebrow used to render an uppercase "КАТАЛОГ" immediately after a
+          breadcrumb whose current crumb already said "Каталог". Counters were
+          fixed genitive plurals, so this strip read "3 шаблонов · 1 категорий".
+          The category chip row is dropped below when there is only one
+          category — a filter that cannot filter anything is just noise. */}
       <TemplatesPageHero
         variant="compact"
-        eyebrow={t('templatesPage.overline')}
         breadcrumb={[{ label: t('templatesPage.compactBreadcrumb'), href: '/' }]}
         current={t('templatesPage.compactBreadcrumbCurrent')}
         stats={[
-          { value: totalTemplates, label: t('templatesPage.compactStatsLabel') },
-          { value: presentCategories.length, label: t('templatesPage.categoryCount') },
+          { value: totalTemplates, label: countLabel(totalTemplates, 'compactStatsLabel') },
+          {
+            value: presentCategories.length,
+            label: countLabel(presentCategories.length, 'categoryCount'),
+          },
         ]}
       />
 
       <TemplatesFilterBar
-        categories={filterCategories}
+        categories={presentCategories.length > 1 ? filterCategories : []}
         active={activeCategory}
         onSelect={setActiveCategory}
         query={searchQuery}
@@ -151,14 +154,13 @@ export function TemplatesClient({
           />
 
           {filteredItems.length > 0 ? (
-            <div className="grid grid-cols-2 gap-4 sm:gap-5 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            <div className="grid grid-cols-2 gap-4 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
               {filteredItems.map((template) => (
                 <TemplateCatalogCard
                   key={template.id}
                   template={template}
                   displayName={(locale === 'kz' ? template.nameKz : template.nameRu) ?? template.nameRu}
                   categoryLabel={t(`events.${template.category}` as 'events.wedding')}
-                  onPreview={() => setPreviewSlug(template.slug)}
                 />
               ))}
             </div>
@@ -191,19 +193,6 @@ export function TemplatesClient({
       </section>
 
       <TemplatesSeoBlock />
-
-      {showManaged ? null : null}
-
-      {previewTemplate ? (
-        <TemplatePreviewModal
-          template={previewTemplate}
-          displayName={
-            (locale === 'kz' ? previewTemplate.nameKz : previewTemplate.nameRu) ??
-            previewTemplate.nameRu
-          }
-          onClose={() => setPreviewSlug(null)}
-        />
-      ) : null}
     </PublicShell>
   );
 }

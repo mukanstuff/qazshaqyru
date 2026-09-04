@@ -11,6 +11,7 @@ import {
 import Image from 'next/image';
 import prisma from '@/lib/shared/db';
 import { cn } from '@/lib/shared/utils';
+import { formatKzt } from '@/lib/shared/format-price';
 
 type AdminTemplateRow = {
   id: string;
@@ -18,7 +19,6 @@ type AdminTemplateRow = {
   slug: string;
   category: string;
   priceKzt: number;
-  isPublic: boolean;
   isActive: boolean;
   isFeatured: boolean;
   previewImageUrl: string;
@@ -51,8 +51,10 @@ export default async function AdminTemplatesPage() {
             <th className={adminTableThClass}>Шаблон</th>
             <th className={adminTableThClass}>Категория</th>
             <th className={adminTableThClass}>Цена</th>
-            <th className={adminTableThClass}>Использований</th>
-            <th className={adminTableThClass}>Активен</th>
+            <th className={adminTableThClass}>Приглашений / заказов</th>
+            <th className={adminTableThClass} title="Показывается в публичном каталоге">
+              В каталоге
+            </th>
             <th className={adminTableThClass}>Хит</th>
             <th className={adminTableThClass}>Действия</th>
           </tr>
@@ -80,7 +82,7 @@ export default async function AdminTemplatesPage() {
               </td>
               <td className={cn(adminTableTdClass, 'capitalize')}>{t.category}</td>
               <td className={adminTableTdClass}>
-                {t.priceKzt.toLocaleString('ru-RU')} ₸
+                {formatKzt(t.priceKzt)} ₸
               </td>
               <td className={cn(adminTableTdClass, 'text-us-ink-muted')}>
                 {t._count.invitations} / {t._count.orders}
@@ -92,10 +94,20 @@ export default async function AdminTemplatesPage() {
                 <ToggleTemplateButton id={t.id} initial={t.isFeatured} field="isFeatured" />
               </td>
               <td className={adminTableTdClass}>
-                <TemplateAdminActions id={t.id} slug={t.slug} isPublic={t.isPublic} />
+                <TemplateAdminActions id={t.id} slug={t.slug} />
               </td>
             </tr>
           ))}
+          {templates.length === 0 && (
+            <tr>
+              <td
+                colSpan={7}
+                className={cn(adminTableTdClass, 'py-10 text-center text-us-ink-muted')}
+              >
+                Шаблонов пока нет
+              </td>
+            </tr>
+          )}
         </tbody>
       </AdminTableShell>
     </div>

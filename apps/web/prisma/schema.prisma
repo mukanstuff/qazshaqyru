@@ -101,16 +101,22 @@ enum TemplateCategory {
 }
 
 model User {
-  id              String    @id @default(uuid())
-  /// Optional. Required for SMS/WhatsApp login, null for OAuth-only users.
-  phone           String?
+  id              String          @id @default(uuid())
+  /// Optional. Required for phone+password login, null for OAuth-only users.
+  /// Unique so an account is addressable by phone: sign-in looks a user up by
+  /// this column, and two rows sharing a number would make "which account is
+  /// this?" undecidable.
+  phone           String?         @unique
+  /// bcrypt hash of the account password. Null for accounts that only ever
+  /// signed in with Google. The plaintext password is never stored.
+  passwordHash    String?
   /// Optional. Required for OAuth login (Google), null for phone-only users.
-  email           String?   @unique
+  email           String?         @unique
   /// Profile photo from OAuth provider.
   avatarUrl       String?
   name            String?
-  language        Language  @default(ru)
-  isAdmin         Boolean   @default(false)
+  language        Language        @default(ru)
+  isAdmin         Boolean         @default(false)
   /// Active user-level plan (agency). Invitation unlocks live on Invitation.unlockedPlanSku.
   planSku         PlanSku?
   planExpiresAt   DateTime?
@@ -119,11 +125,12 @@ model User {
   invitations     Invitation[]
   orders          Order[]
   identities      Identity[]
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  serviceReviews  ServiceReview[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
-  @@index([phone])
-  @@index([email])
+  // No @@index([phone]) — @unique already creates one, and `email` is @unique
+  // for the same reason yet also carried a redundant index here.
   @@index([isAdmin])
   @@index([planSku, planExpiresAt])
 }
@@ -147,15 +154,15 @@ model Identity {
 }
 
 model Session {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash   String   @unique
-  expiresAt   DateTime
-  deviceInfo  String?
-  ipAddress   String?
-  revokedAt   DateTime?
-  createdAt   DateTime @default(now())
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  deviceInfo String?
+  ipAddress  String?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
 
   @@index([tokenHash])
   @@index([userId])
@@ -163,61 +170,44 @@ model Session {
   @@index([userId, expiresAt])
 }
 
-model OTPToken {
-  id        String   @id @default(uuid())
-  phone     String
-  /// bcrypt hash of the 6-digit OTP code.
-  /// The plaintext code is NEVER stored in the database.
-  codeHash  String
-  attempts  Int      @default(0)
-  expiresAt DateTime
-  usedAt    DateTime?
-  ipAddress String?
-  createdAt DateTime @default(now())
-
-  @@index([phone])
-  @@index([expiresAt])
-  @@index([phone, usedAt])
-}
+// OTPToken was removed 2026-09-01 together with the WhatsApp one-time-code
+// login. Phone sign-in is phone + password now, with no verification step.
 
 model RateLimitEntry {
-  id        String   @id @default(uuid())
-  key       String   @unique
-  count     Int      @default(0)
-  resetAt   DateTime
-  blocked   Boolean  @default(false)
+  id           String    @id @default(uuid())
+  key          String    @unique
+  count        Int       @default(0)
+  resetAt      DateTime
+  blocked      Boolean   @default(false)
   blockedUntil DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@index([key])
   @@index([resetAt])
 }
 
 model Template {
-  id              String          @id @default(uuid())
-  slug            String          @unique
-  nameRu          String
-  nameKz          String
-  descriptionRu   String?
-  descriptionKz   String?
-  category        TemplateCategory
-  previewImageUrl String
-  demoUrl         String?
-  priceKzt        Int             @default(0)
-  config           Json            @default("{}")
+  id               String           @id @default(uuid())
+  slug             String           @unique
+  nameRu           String
+  nameKz           String
+  descriptionRu    String?
+  descriptionKz    String?
+  category         TemplateCategory
+  previewImageUrl  String
+  demoUrl          String?
+  priceKzt         Int              @default(0)
   /// Canvas document JSON (for new WYSIWYG editor-built templates). When set, template is canvas-backed.
   canvas           Json?
-  mobileCanvas     Json?
-  isCanvasTemplate Boolean         @default(false)
-  editableConfig   Json?
-  isActive         Boolean         @default(true)
-  isFeatured       Boolean         @default(false)
-  sortOrder        Int             @default(0)
+  isCanvasTemplate Boolean          @default(false)
+  isActive         Boolean          @default(true)
+  isFeatured       Boolean          @default(false)
+  sortOrder        Int              @default(0)
   invitations      Invitation[]
   orders           Order[]
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
   @@index([slug])
   @@index([category])
@@ -226,40 +216,36 @@ model Template {
 }
 
 model Invitation {
-  id           String           @id @default(uuid())
-  userId       String
-  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  templateId   String?
-  template     Template?        @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  templateId String?
+  template   Template? @relation(fields: [templateId], references: [id], onDelete: SetNull)
 
-  slug         String           @unique
-  title        String
-  eventType    EventType
-  eventDate    DateTime
-  eventTime    String?
-  eventPlace   String?
-  eventTimezone String          @default("Asia/Almaty")
+  slug          String    @unique
+  title         String
+  eventType     EventType
+  eventDate     DateTime
+  eventTime     String?
+  eventPlace    String?
+  eventTimezone String    @default("Asia/Almaty")
 
-  templateKey  String           @default("classic")
-  templateData Json             @default("{}")
-  /// Canvas document JSON for the new WYSIWYG editor (desktop layout).
+  templateKey  String  @default("classic")
+  templateData Json    @default("{}")
+  /// Canvas document JSON for the new WYSIWYG editor.
   canvas       Json?
-  /// Mobile override canvas; when null, renderer scales from desktop.
-  mobileCanvas Json?
   musicUrl     String?
 
-  mapUrl       String?
-  address      String?
+  mapUrl  String?
+  address String?
 
-  customText   Json             @default("{}")
+  customText Json @default("{}")
 
-  status       InvitationStatus @default(draft)
-  /// HMAC hash of shareable family-preview token (draft link before payment).
-  previewTokenHash String?      @unique
-  publishedAt  DateTime?
-  archivedAt   DateTime?
+  status      InvitationStatus @default(draft)
+  publishedAt DateTime?
+  archivedAt  DateTime?
   /// Incremented when guests open the public page /i/[slug].
-  viewCount    Int              @default(0)
+  viewCount   Int              @default(0)
 
   /// Highest invitation-level paid plan unlocked for this invite (null = free/watermark).
   unlockedPlanSku PlanSku?
@@ -270,12 +256,13 @@ model Invitation {
   guests           Guest[]
   orders           Order[]
   wishes           Wish[]
+  serviceReviews   ServiceReview[]
   giftTransfers    GiftTransfer[]
   seatingTables    SeatingTable[]
   restaurantShares RestaurantShareLink[]
 
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
   @@index([slug])
@@ -289,22 +276,22 @@ model Invitation {
 }
 
 model Guest {
-  id            String           @id @default(uuid())
-  invitationId  String
-  invitation    Invitation       @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  id           String     @id @default(uuid())
+  invitationId String
+  invitation   Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
 
-  name          String
-  phone         String?
-  side          GuestSide?
-  hasPlusOne    Boolean          @default(false)
-  plusOneName   String?
+  name           String
+  phone          String?
+  side           GuestSide?
+  hasPlusOne     Boolean    @default(false)
+  plusOneName    String?
   /// Optional household / family label for banquet headcount grouping.
   householdLabel String?
   /// HMAC-SHA256 of the random token we give to the guest. We never store
   /// the token itself, so leaking server logs / WhatsApp URLs / Referer
   /// headers does not let an attacker impersonate a guest.
   /// Lookup: compute hash(token) -> find by tokenHash.
-  tokenHash     String           @unique
+  tokenHash      String     @unique
 
   response      GuestResponse?
   seating       SeatingAssignment?
@@ -315,8 +302,8 @@ model Guest {
   sentVia       SentVia?
   lastError     String?
 
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([invitationId, phone])
   @@index([invitationId])
@@ -326,29 +313,29 @@ model Guest {
 }
 
 model GuestResponse {
-  id                   String              @id @default(uuid())
-  guestId              String              @unique
-  guest                Guest               @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  id      String @id @default(uuid())
+  guestId String @unique
+  guest   Guest  @relation(fields: [guestId], references: [id], onDelete: Cascade)
 
-  status               GuestResponseStatus @default(pending)
-  dietaryRestrictions  String?
-  message              String?
+  status              GuestResponseStatus @default(pending)
+  dietaryRestrictions String?
+  message             String?
 
-  respondedAt          DateTime            @default(now())
-  updatedAt            DateTime            @updatedAt
+  respondedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([guestId])
   @@index([status])
 }
 
 model Order {
-  id              String      @id @default(uuid())
-  userId          String?
-  user            User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  templateId      String
-  template        Template    @relation(fields: [templateId], references: [id], onDelete: Restrict)
-  invitationId    String?
-  invitation      Invitation? @relation(fields: [invitationId], references: [id], onDelete: SetNull)
+  id           String      @id @default(uuid())
+  userId       String?
+  user         User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  templateId   String
+  template     Template    @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  invitationId String?
+  invitation   Invitation? @relation(fields: [invitationId], references: [id], onDelete: SetNull)
 
   amountKzt       Int
   currency        String      @default("KZT")
@@ -361,16 +348,33 @@ model Order {
   cancelledAt     DateTime?
   refundedAt      DateTime?
 
-  customerPhone   String
-  customerName    String?
-  notes           String?
-  eventDate       DateTime?
-  eventType       EventType?
+  customerPhone String
+  customerName  String?
+  notes         String?
+  eventDate     DateTime?
+  eventType     EventType?
+
+  /// First-touch marketing attribution, captured from ?utm_* on the visitor's
+  /// first page view (see middleware.ts) and carried into the order at
+  /// checkout — without this there was no way to tell which channel a sale
+  /// came from.
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  utmTerm     String?
+  utmContent  String?
 
   // Managed order (сделаем за вас)
-  orderType       OrderType         @default(self)
-  managedStatus   ManagedOrderStatus?
-  adminNotes      String?
+  orderType     OrderType           @default(self)
+  managedStatus ManagedOrderStatus?
+  adminNotes    String?
+
+  /// Discount applied at checkout, if any. The code is a relation so the admin
+  /// can see what each code actually earned; the amount is denormalized because
+  /// a code's value can change afterwards and this order must not change with it.
+  promoCodeId String?
+  promoCode   PromoCode? @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
+  discountKzt Int        @default(0)
 
   /// Ladder SKU for this payment (null = legacy publication fee → treat as standard).
   planSku          PlanSku?
@@ -378,8 +382,8 @@ model Order {
   planDurationDays Int?
   planExpiresAt    DateTime?
 
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([paymentProvider, paymentId])
   @@index([userId])
@@ -391,6 +395,8 @@ model Order {
   @@index([status, createdAt])
   @@index([orderType, status])
   @@index([planSku])
+  @@index([promoCodeId])
+  @@index([utmSource])
 }
 
 /// Magic-link read-only banquet portal for restaurant / тойхана managers.
@@ -413,21 +419,21 @@ model RestaurantShareLink {
 }
 
 model PaymentWebhookEvent {
-  id             String   @id @default(uuid())
-  provider       String
-  dedupeKey      String   @unique
-  orderId        String?
-  paymentId      String?
-  action         String
-  signatureValid Boolean
-  processingState String  @default("pending")
-  processed      Boolean  @default(false)
-  retryCount     Int      @default(0)
-  lastAttemptAt  DateTime?
-  lastError      String?
-  receivedAt     DateTime @default(now())
-  processedAt    DateTime?
-  payloadHash    String
+  id              String    @id @default(uuid())
+  provider        String
+  dedupeKey       String    @unique
+  orderId         String?
+  paymentId       String?
+  action          String
+  signatureValid  Boolean
+  processingState String    @default("pending")
+  processed       Boolean   @default(false)
+  retryCount      Int       @default(0)
+  lastAttemptAt   DateTime?
+  lastError       String?
+  receivedAt      DateTime  @default(now())
+  processedAt     DateTime?
+  payloadHash     String
 
   @@index([provider, receivedAt])
   @@index([orderId, receivedAt])
@@ -438,24 +444,24 @@ model Wish {
   invitationId String
   invitation   Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
 
-  authorName   String
-  text         String
-  reactions    WishReaction[]
+  authorName String
+  text       String
+  reactions  WishReaction[]
 
-  createdAt    DateTime   @default(now())
+  createdAt DateTime @default(now())
 
   @@index([invitationId])
   @@index([invitationId, createdAt(sort: Desc)])
 }
 
 model WishReaction {
-  id        String   @id @default(uuid())
+  id        String @id @default(uuid())
   wishId    String
-  wish      Wish     @relation(fields: [wishId], references: [id], onDelete: Cascade)
+  wish      Wish   @relation(fields: [wishId], references: [id], onDelete: Cascade)
   /// Hash of client fingerprint (IP + UA) — one reaction per visitor.
   likerHash String
   /// heart | pray | celebrate | clap
-  emoji     String   @default("heart")
+  emoji     String @default("heart")
 
   createdAt DateTime @default(now())
 
@@ -523,4 +529,98 @@ model TemplateWaitlistSignup {
   createdAt DateTime @default(now())
 
   @@index([slug, createdAt])
+}
+
+/// A review left by an invitation owner about the service itself.
+///
+/// Deliberately a first-class model rather than a string in a CMS: the landing
+/// must never show a testimonial that nobody actually wrote. Nothing here is
+/// seeded, and the landing section renders nothing at all until enough approved
+/// rows exist — an empty proof block is honest, an invented one is not.
+///
+/// `approved` is opt-in moderation, not censorship of bad ratings: it exists so
+/// spam and abuse do not land straight on the front page.
+model ServiceReview {
+  id String @id @default(uuid())
+
+  /// Author — always a real account, so a review cannot be posted anonymously.
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// The invitation the review is about. Kept nullable so a customer can still
+  /// review after deleting their invitation.
+  invitationId String?
+  invitation   Invitation? @relation(fields: [invitationId], references: [id], onDelete: SetNull)
+
+  /// 1-5. Stored even when low: the average has to be real to be worth showing.
+  rating Int
+  text   String
+
+  /// Shown next to the review. The owner picks it; defaults to their own name.
+  authorName String
+
+  approved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, invitationId])
+  @@index([approved, createdAt(sort: Desc)])
+}
+
+enum PromoKind {
+  /// `value` is a percentage, 1..100.
+  percent
+  /// `value` is an absolute discount in tenge.
+  fixed
+}
+
+enum PromoScope {
+  /// Template purchase — the publication fee for one invitation.
+  template
+  /// Agency subscription.
+  agency
+  /// Both of the above.
+  all
+}
+
+/// A discount code the site owner hands out — to a blogger, a partner тойхана,
+/// or a customer whose first invitation went wrong.
+///
+/// Redemptions are counted on the code and, separately, recorded on each Order
+/// (promoCodeId + discountKzt), because "how many are left" and "what did this
+/// customer actually pay" are different questions and the second one has to
+/// survive the code being edited or deleted.
+model PromoCode {
+  id String @id @default(uuid())
+
+  /// Stored upper-case; lookups normalize before querying, so "toi10", "Toi10"
+  /// and " TOI10 " are the same code to a customer typing it on a phone.
+  code String @unique
+
+  kind  PromoKind
+  /// Percent (1..100) or tenge, per `kind`.
+  value Int
+
+  scope PromoScope @default(template)
+
+  /// null = unlimited. Counted against `redemptions` at the moment an order is
+  /// created, not when it is paid: an unpaid order holds no seat, so the count
+  /// is decremented again if that order is cancelled.
+  maxRedemptions Int?
+  redemptions    Int  @default(0)
+
+  /// null = never expires.
+  expiresAt DateTime?
+  /// Off switch that keeps the history: deleting a code would orphan the
+  /// discount recorded on past orders.
+  isActive  Boolean   @default(true)
+
+  /// Free-text note for the owner ("для @blogger, март").
+  note String?
+
+  orders Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, expiresAt])
 }

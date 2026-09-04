@@ -1,29 +1,27 @@
 /**
- * Catalog rollout — only slugs listed here appear on /templates and in create defaults.
- * Designer delivers assets; agents register slug here when ready (HOW-TO-ADD-A-TEMPLATE.md).
- * Do not add placeholders or AI-generated «pretty» backgrounds.
+ * Catalog constants.
+ *
+ * This file used to declare `CATALOG_TEMPLATE_SLUG = 'luxe-gold'` and re-export
+ * it as `DEFAULT_TEMPLATE_SLUG` — the fallback slug used whenever a caller had
+ * no template to work with. `luxe-gold` has never existed as a row in the
+ * Template table: the live catalog is `aq-bata`, `dala` and
+ * `elegant-gold-wedding-01`. Every path that fell back to it therefore produced
+ * a URL, a preview fetch or an Invitation row pointing at nothing — the landing
+ * page's `/i/demo?layout=luxe-gold` link was the visible symptom, but the same
+ * phantom was also the default templateKey for invitation creation.
+ *
+ * There is no such thing as a "default template": a template is always an
+ * explicit choice by the person creating the invitation, or there is no
+ * template at all (see /editor/new, which seeds a blank canvas instead).
+ * Callers that need one must now pass it, and the type system enforces that.
  */
-export const CATALOG_TEMPLATE_SLUG = 'luxe-gold' as const;
-
-export const DEFAULT_TEMPLATE_SLUG = CATALOG_TEMPLATE_SLUG;
-
-export const CATALOG_TEMPLATE_SLUGS = [CATALOG_TEMPLATE_SLUG] as const;
-
-export type CatalogTemplateSlug = (typeof CATALOG_TEMPLATE_SLUGS)[number];
-
-export function isCatalogTemplateSlug(slug: string): slug is CatalogTemplateSlug {
-  return (CATALOG_TEMPLATE_SLUGS as readonly string[]).includes(slug);
-}
-
-/** Live sales count — used for Standard price decision (≥15 → consider 2 990). */
-export function catalogLiveCount(): number {
-  return CATALOG_TEMPLATE_SLUGS.length;
-}
 
 /**
- * 2026-07-30 PRODUCT MODEL (see docs/PRODUCT_MODEL_AND_RULES.md + PRODUCT_DECISIONS_2026-07-30.md):
- * Real price is ALWAYS Template.priceKzt (resolved via resolvePublicationPriceKzt).
- * This threshold is purely for when admin decides to lower the *minimum* catalog template price.
+ * 2026-07-30 PRODUCT MODEL (see docs/PRODUCT_MODEL_AND_RULES.md +
+ * PRODUCT_DECISIONS_2026-07-30.md):
+ * Real price is ALWAYS Template.priceKzt (resolved via
+ * resolvePublicationPriceKzt). This threshold is purely for when admin decides
+ * to lower the *minimum* catalog template price.
  * Never hardcode 3990 in user-facing copy or CTAs.
  */
 export const CATALOG_PRICE_DROP_THRESHOLD = 15;

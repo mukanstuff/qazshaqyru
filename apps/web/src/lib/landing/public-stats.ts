@@ -6,6 +6,13 @@ export type LandingPublicStats = {
 
 const EMPTY_STATS: LandingPublicStats = { publishedInvitations: 0 };
 
+/**
+ * Public counters for the landing.
+ *
+ * Deliberately does NOT carry the minimum template price: the landing page
+ * already queries that separately, and two sources for one number is how a
+ * price on the front page drifts away from the catalogue.
+ */
 export async function getLandingPublicStats(): Promise<LandingPublicStats> {
   try {
     const publishedInvitations = await prisma.invitation.count({

@@ -23,11 +23,22 @@ describe('canvas zod schemas', () => {
     expect(parsed.success).toBe(true);
   });
 
-  it('rejects element with x > 100 (out-of-bounds percent)', () => {
+  // Full-bleed decoration needs x < 0 and w > 100 — an ornament ~150% of the
+  // page width starting at ≈-25% so it runs off both edges. That used to be
+  // rejected, which made the category's core visual device inexpressible.
+  it('accepts full-bleed geometry (negative x, width over 100%)', () => {
+    const bleed = addElement(createEmptyDocument(), 'shape', {
+      x: -25,
+      w: 150,
+    });
+    expect(canvasDocumentSchema.safeParse(bleed).success).toBe(true);
+  });
+
+  it('still rejects absurd geometry far outside any bleed', () => {
     const bad = {
       id: 'x',
       type: 'text' as const,
-      x: 150,
+      x: 5000,
       y: 0,
       w: 50,
       h: 'auto' as const,

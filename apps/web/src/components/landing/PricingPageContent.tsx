@@ -5,7 +5,7 @@ import { Check } from 'lucide-react';
 import { LocaleLink } from '@/components/seo/LocaleLink';
 import { useI18n } from '@/i18n';
 import { Button } from '@/components/ui/button';
-import { getWhatsappHref } from '@/lib/site/legal-config';
+import { formatKzt } from '@/lib/shared/format-price';
 
 interface PricingPageContentProps {
   minTemplatePriceKzt: number;
@@ -14,7 +14,7 @@ interface PricingPageContentProps {
 /** Full pricing page — two cards: one invitation (from {MIN} ₸) + agency (20 000 ₸/мес). */
 export function PricingPageContent({ minTemplatePriceKzt }: PricingPageContentProps) {
   const { t, locale } = useI18n();
-  const formattedMin = minTemplatePriceKzt.toLocaleString('ru-RU');
+  const formattedMin = formatKzt(minTemplatePriceKzt);
 
   return (
     <div className="space-y-12" data-testid="pricing-page-content">
@@ -84,8 +84,8 @@ export function PricingPageContent({ minTemplatePriceKzt }: PricingPageContentPr
           </div>
           <p className="mt-2 text-sm text-white/80">
             {locale === 'kz'
-              ? 'Шексіз шақыру жасау + оқу курсы. Фрилансерлер мен агенттіктерге.'
-              : 'Безлимит приглашений + обучающий курс. Для фрилансеров и агентств.'}
+              ? 'Шексіз шақыру жасау. Фрилансерлер мен агенттіктерге.'
+              : 'Безлимит приглашений. Для фрилансеров и агентств.'}
           </p>
           <ul className="mt-5 flex-1 space-y-2">
             {(['1', '2', '3'] as const).map((key) => (
@@ -96,29 +96,21 @@ export function PricingPageContent({ minTemplatePriceKzt }: PricingPageContentPr
                     ? key === '1'
                       ? 'Шексіз шақыру'
                       : key === '2'
-                        ? 'Оқу курсына қолжетімділік'
+                        ? 'Отырғызу және отбасылар'
                         : 'Клиенттерге шақыру жасау'
                     : key === '1'
                       ? 'Безлимит приглашений'
                       : key === '2'
-                        ? 'Доступ к обучающему курсу'
+                        ? 'Рассадка и семьи гостей'
                         : 'Создание приглашений для клиентов'}
                 </span>
               </li>
             ))}
           </ul>
           <Button asChild variant="secondary" className="mt-6 min-h-11 w-full bg-white text-us-accent hover:bg-white/90">
-            <a
-              href={getWhatsappHref(
-                locale === 'kz'
-                  ? 'Сәлем! Агенттік тарифі туралы сұрағым бар еді.'
-                  : 'Здравствуйте! Хочу узнать об агентском тарифе.',
-              )}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {locale === 'kz' ? 'WhatsApp-та жазыңыз' : 'Написать в WhatsApp'}
-            </a>
+            <LocaleLink href="/agency">
+              {locale === 'kz' ? 'Agency тарифін алу' : 'Оформить Agency'}
+            </LocaleLink>
           </Button>
           <p className="mt-3 text-center text-xs text-white/70">
             {t('landing.v2.pricing.page.monthlyNote')}

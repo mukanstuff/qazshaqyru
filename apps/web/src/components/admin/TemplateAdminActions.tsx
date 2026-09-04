@@ -8,10 +8,9 @@ import { useToast } from '@/components/ui/toaster';
 interface Props {
   id: string;
   slug: string;
-  isPublic: boolean;
 }
 
-export function TemplateAdminActions({ id, slug, isPublic }: Props) {
+export function TemplateAdminActions({ id, slug }: Props) {
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -22,7 +21,7 @@ export function TemplateAdminActions({ id, slug, isPublic }: Props) {
       const res = await fetch(`/api/admin/templates/${id}/clone`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Ошибка клонирования');
-      toast({ title: 'Успешно', description: 'Шаблон клонирован' });
+      toast({ title: 'Успешно', description: 'Шаблон клонирован (пока не активен)' });
       router.refresh();
     } catch (err) {
       toast({
@@ -35,34 +34,21 @@ export function TemplateAdminActions({ id, slug, isPublic }: Props) {
     }
   };
 
-  const handleToggleHide = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/admin/templates/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isPublic: !isPublic }),
-      });
-      if (!res.ok) throw new Error('Ошибка');
-      toast({ title: 'Успешно', description: isPublic ? 'Шаблон скрыт' : 'Шаблон опубликован' });
-      router.refresh();
-    } catch (err) {
-      toast({ title: 'Ошибка', variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleDelete = async () => {
-    if (!confirm('Удалить этот шаблон?')) return;
+    if (!confirm(`Удалить шаблон «${slug}»?`)) return;
     setLoading(true);
     try {
       const res = await fetch(`/api/admin/templates/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Ошибка удаления');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || 'Ошибка удаления');
       toast({ title: 'Успешно', description: 'Шаблон удалён' });
       router.refresh();
     } catch (err) {
-      toast({ title: 'Ошибка', variant: 'destructive' });
+      toast({
+        title: 'Ошибка',
+        description: err instanceof Error ? err.message : 'Не удалось удалить',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
@@ -86,15 +72,6 @@ export function TemplateAdminActions({ id, slug, isPublic }: Props) {
         disabled={loading}
       >
         Клонировать
-      </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        className="h-7 text-xs px-2"
-        onClick={handleToggleHide}
-        disabled={loading}
-      >
-        {isPublic ? 'Скрыть' : 'Показать'}
       </Button>
       <Button
         variant="ghost"

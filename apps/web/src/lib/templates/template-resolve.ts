@@ -5,6 +5,8 @@ export interface ResolvedTemplate {
   slug: string;
   priceKzt: number;
   nameRu: string;
+  canvas: unknown;
+  isCanvasTemplate: boolean;
 }
 
 /**
@@ -22,7 +24,7 @@ export async function resolveTemplateBySlug(
 ): Promise<ResolvedTemplate | null> {
   return prisma.template.findFirst({
     where: { slug, isActive: true },
-    select: { id: true, slug: true, priceKzt: true, nameRu: true },
+    select: { id: true, slug: true, priceKzt: true, nameRu: true, canvas: true, isCanvasTemplate: true },
   });
 }
 

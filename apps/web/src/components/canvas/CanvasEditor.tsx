@@ -1,13 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type {
   CanvasElement,
+  CanvasElementType,
   InvitationCanvasDocument,
 } from '@/lib/canvas/types';
 import { CanvasRenderer } from './CanvasRenderer';
 import {
   HistoryStack,
+  addElement,
   deleteElement,
   deriveMobileDocument,
   duplicateElement,
@@ -16,35 +19,44 @@ import {
 } from '@/lib/canvas/mutations';
 import { SelectionChrome } from './SelectionChrome';
 import { ElementContextMenu } from './ElementContextMenu';
-import { ElementSettingsCard } from './ElementSettingsCard';
-import { CompactFloatingPanel } from './CompactFloatingPanel';
-import { EditorFloatingClusters } from './EditorFloatingClusters';
-import { EditorFab } from './EditorFab';
+import { PropertiesPanel } from './PropertiesPanel';
+import { EditorSheetTabWizard } from './EditorSheetTabWizard';
+import { EditorToolbar } from './EditorToolbar';
 import { EditorSheet } from './EditorSheet';
-import { EditorSheetTabs } from './EditorSheetTabs';
+import { EditorSheetTabs, type SheetTabId } from './EditorSheetTabs';
+import type { EventType } from '@prisma/client';
 import { EditorSheetTabTexts } from './EditorSheetTabTexts';
 import { EditorSheetTabPhotos } from './EditorSheetTabPhotos';
 import { EditorSheetTabMusic } from './EditorSheetTabMusic';
 import { EditorSheetTabSections } from './EditorSheetTabSections';
+import { EditorSheetTabLayers } from './EditorSheetTabLayers';
 import { EditorSheetTabDesign } from './EditorSheetTabDesign';
+import { EditorSheetTabLink } from './EditorSheetTabLink';
+import { ElementPalette } from './ElementPalette';
 import { useI18n } from '@/i18n';
 
 /**
- * 2026-08-17 (pilot-2): floating-everything chrome.
+ * Canvas editor shell.
  *
- *  - NO top toolbar (replaced by `EditorFloatingClusters`).
- *  - NO left palette (this version is for editing pre-made templates ONLY;
- *    adding new blocks lives behind a separate "make your own" mode).
- *  - NO right inspector / sidebar.
- *  - Quick-edit access via a single green FAB at the bottom of the viewport
- *    (see `EditorFab`). Tap opens a bottom sheet with tabbed editors for
- *    texts/photos/music/sections/design (`EditorSheet` + tabs).
- *  - Selected text: thin strip floats above/below the element with
- *    style controls only.
- *  - Selected non-text: `ElementSettingsCard` floats in the lower
- *    half of the viewport, centered, content-sized — NOT fullscreen,
- *    NOT a sidebar.
- *  - NO drag/resize/rotate handles (template vs accidental edit).
+ *  - `EditorToolbar` — one in-flow top bar (Back / Undo / Redo / Заполнить /
+ *    Опубликовать). Not a stack of independently `position: fixed` pills —
+ *    those used to overlap each other whenever a label rendered wider than
+ *    the pixel offset assumed between them.
+ *  - `ElementPalette` — the bottom dock: scrollable category chips plus the
+ *    quick-edit button, in one floating bar. Tapping a chip opens a sheet
+ *    of elements/ready-made sections to insert.
+ *  - Selected element / document settings: `PropertiesPanel` — a bottom
+ *    sheet over the canvas.
+ *  - Doc-level settings (fill / texts / photos / music / sections / design)
+ *    live in the `EditorSheet` opened from the dock's quick-edit button.
+ *
+ * One layout at every width: no docked side rails, no desktop-only
+ * interaction model. Wide screens get the same chrome with more room around
+ * it, and the sheets grow into centered floating cards rather than turning
+ * into something structurally different.
+ *
+ *  - Quality-of-life: undo/redo, autosave with 1 s debounce, flush on
+ *    `beforeunload`/`pagehide`/`visibilitychange` via `keepalive: true`.
  */
 
 export interface SaveRequestOptions {
@@ -59,7 +71,24 @@ export interface CanvasEditorProps {
   locale?: 'ru' | 'kz';
   mode?: 'user' | 'template-builder';
   templateId?: string;
+  /** Used by the wizard sheet to call applyWizardToCanvasDocument. */
+  templateKey?: string;
   editorMode?: 'admin' | 'guest';
+  /**
+   * Owner's invitation id. Required for the Publish button to navigate to
+   * the hub (/invitations/[id]?published=1) after the user finishes editing.
+   * Without this, Publish can only fall back to /dashboard.
+   */
+  invitationId?: string;
+  /** Current public slug (e.g. "aidar-and-aigerim") — no leading /i/. */
+  invitationSlug?: string;
+  /** Template price paid = full access, incl. custom link. Same gate the hub uses. */
+  fullAccess?: boolean;
+  /** Invitation event type — drives the ready-made greetings in the Texts tab.
+   *  Absent in the template builder, which has no invitation behind it. */
+  eventType?: EventType;
+  /** Shown on the locked-link hint when !fullAccess. */
+  priceKzt?: number;
 }
 
 export type SaveState = 'idle' | 'saving' | 'saved' | 'error';
@@ -73,9 +102,19 @@ export function CanvasEditor(props: CanvasEditorProps) {
     locale = 'ru',
     mode = 'user',
     templateId,
+    templateKey,
     editorMode = 'admin',
+    invitationId,
+    invitationSlug,
+    fullAccess = false,
+    eventType,
+    priceKzt = 3990,
   } = props;
   const [doc, setDoc] = useState<InvitationCanvasDocument>(initialDocument);
+  const [slug, setSlug] = useState(invitationSlug ?? '');
+  useEffect(() => {
+    if (invitationSlug !== undefined) setSlug(invitationSlug);
+  }, [invitationSlug]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [savedToastVisible, setSavedToastVisible] = useState(false);
@@ -83,12 +122,36 @@ export function CanvasEditor(props: CanvasEditorProps) {
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState(false);
   const [quickEditOpen, setQuickEditOpen] = useState(false);
-  const [settingsCardOpen, setSettingsCardOpen] = useState(false);
+  /**
+   * Which tab the quick-edit sheet opens on. The FAB ("Быстрая правка")
+   * and the toolbar's "Заполнить" button both open the same sheet — one
+   * used to be a separate wizard sheet, which read as two competing
+   * "edit stuff" menus with overlapping fields (both could edit couple
+   * names). Folding the wizard form into the sheet's first tab keeps two
+   * entry points but only one sheet to reason about.
+   */
+  const [quickEditInitialTab, setQuickEditInitialTab] = useState<SheetTabId>('texts');
+  /**
+   * PropertiesPanel visibility. The panel decides its own rail-vs-sheet
+   * layout internally; this just tracks whether it should be open at all.
+   */
+  const [inspectorOpen, setInspectorOpen] = useState(false);
+
+  // The two editor sheets occupy the same slot at the bottom of the screen.
+  // While they were modal that was academic — the overlay made the other one
+  // unreachable. Non-modal they can genuinely both be open and stack on top of
+  // one another, so opening either now closes the other.
+  const handleOpenQuickEdit = useCallback(() => {
+    setQuickEditInitialTab('texts');
+    setInspectorOpen(false);
+    setQuickEditOpen(true);
+  }, []);
 
   const { t } = useI18n();
 
   const historyRef = useRef<HistoryStack | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
+  const stageWrapRef = useRef<HTMLDivElement | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
 
   if (!historyRef.current) historyRef.current = new HistoryStack(initialDocument);
@@ -228,6 +291,9 @@ export function CanvasEditor(props: CanvasEditorProps) {
         return;
       }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
+        // A locked element is locked against the keyboard too, or the lock is
+        // only a lock against the mouse.
+        if (doc.elements.find((el) => el.id === selectedId)?.locked) return;
         e.preventDefault();
         const next = deleteElement(doc, selectedId);
         setSelectedId(null);
@@ -239,8 +305,8 @@ export function CanvasEditor(props: CanvasEditorProps) {
           setQuickEditOpen(false);
           return;
         }
-        if (settingsCardOpen) {
-          setSettingsCardOpen(false);
+        if (inspectorOpen) {
+          setInspectorOpen(false);
           return;
         }
         if (selectedId) setSelectedId(null);
@@ -248,7 +314,7 @@ export function CanvasEditor(props: CanvasEditorProps) {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [doc, selectedId, quickEditOpen, settingsCardOpen, commit]);
+  }, [doc, selectedId, quickEditOpen, inspectorOpen, commit]);
 
   const handleUpdateSelected = useCallback(
     (patch: Partial<CanvasElement>) => {
@@ -286,22 +352,298 @@ export function CanvasEditor(props: CanvasEditorProps) {
     setEditingTextId(null);
   }, []);
 
-  const handleSelect = useCallback((id: string | null) => {
+  /**
+   * Tapping an element on the canvas only selects it (shows resize/rotate/
+   * drag handles) — it does not open the properties sheet. The sheet is a
+   * modal (see PropertiesPanel.tsx): opening it automatically on every
+   * select used to make the just-selected element completely undraggable,
+   * since the modal overlay swallows every pointer event on the canvas
+   * behind it, even where nothing is visually covered. Opening it is now a
+   * deliberate second action — see handleOpenProperties, wired to the
+   * sliders button SelectionChrome shows once an element is selected.
+   */
+  const handleSelect = useCallback(
+    (id: string | null) => {
+      setSelectedId(id);
+      // Selecting something else (or nothing) always ends any active text
+      // edit session. This is a deliberate invariant, not just a consequence
+      // of blur: DOM focus can end up stranded independently of React's
+      // `editing` state (found via the colour popover — its swatch buttons
+      // take focus on mousedown, and closing the popover unmounts that
+      // focused button with nothing to hand focus to, leaving `editingTextId`
+      // stuck pointing at an element that no longer looks selected). Clearing
+      // it here whenever selection actually changes closes that class of bug
+      // at the source instead of chasing every place focus could get lost.
+      if (editingTextId && id !== editingTextId) {
+        setEditingTextId(null);
+      }
+    },
+    [editingTextId]
+  );
+
+  const handleOpenProperties = useCallback((id: string) => {
     setSelectedId(id);
-    setSettingsCardOpen(false);
+    setQuickEditOpen(false);
+    setInspectorOpen(true);
   }, []);
 
   const handleDeleteSelected = useCallback(() => {
     if (!selectedId) return;
     const next = deleteElement(doc, selectedId);
     setSelectedId(null);
-    setSettingsCardOpen(false);
+    setInspectorOpen(false);
     commit(next);
   }, [doc, selectedId, commit]);
 
+  /**
+   * Add a new element of the given type. Stacks it below the bottom of the
+   * existing canvas so repeated clicks don't pile everything on top of
+   * each other, then selects it and opens the inspector.
+   */
+  const handleAddElement = useCallback(
+    (type: CanvasElementType) => {
+      const lastBottom = doc.elements.reduce(
+        (max, el) => Math.max(max, el.y + (typeof el.h === 'number' ? el.h : 0)),
+        0,
+      );
+      const next = addElement(doc, type, { y: lastBottom + 12 });
+      const added = next.elements[next.elements.length - 1];
+      commit(next);
+      if (added) {
+        setSelectedId(added.id);
+        setQuickEditOpen(false);
+        setInspectorOpen(true);
+      }
+    },
+    [doc, commit],
+  );
+
+  const handleInsertSection = useCallback(
+    (nextDoc: InvitationCanvasDocument) => {
+      commit(nextDoc);
+    },
+    [commit],
+  );
+
+  /**
+   * On every drag move, update position without a history snapshot (perf);
+   * the final commit() happens in the drag-end handlers below.
+   */
+  const handleElementPositionChange = useCallback(
+    (id: string, pos: { x?: number; y?: number }) => {
+      setDoc((prev) => updateElement(prev, id, pos));
+    },
+    [],
+  );
+
+  const handleElementResize = useCallback(
+    (id: string, dim: { w?: number; h?: number | 'auto' }) => {
+      setDoc((prev) => updateElement(prev, id, dim));
+    },
+    [],
+  );
+
+  const handleElementRotate = useCallback(
+    (id: string, rotation: number) => {
+      // Normalise to 0–360.
+      const normalized = ((rotation % 360) + 360) % 360;
+      setDoc((prev) => updateElement(prev, id, { rotation: normalized }));
+    },
+    [],
+  );
+
+  /**
+   * Commit the current (dragged/resized/rotated) document to history after
+   * a drag/resize/rotate session ends. CanvasRenderer fires this via its
+   * mutation callbacks.
+   */
+  const commitCurrentDoc = useCallback(
+    (_id: string) => {
+      commit(doc);
+    },
+    [doc, commit],
+  );
+
+  const handleDuplicateSelected = useCallback(() => {
+    if (!selected) return;
+    const next = duplicateElement(doc, selected.id);
+    commit(next);
+    setSelectedId(next.elements.find((e) => e.id !== selected.id)?.id ?? null);
+  }, [doc, selected, commit]);
+
+  const handleLayerSelected = useCallback(
+    (dir: 'front' | 'back' | 'forward' | 'backward') => {
+      if (!selected) return;
+      commit(moveElement(doc, selected.id, dir));
+    },
+    [doc, selected, commit],
+  );
+
+  /** Closing the panel leaves the element selected (handles still visible,
+   * draggable again now the modal overlay is gone) — selection and the
+   * properties sheet are independent states now. */
+  const handleCloseInspector = useCallback(() => {
+    setInspectorOpen(false);
+  }, []);
   const isGuest = editorMode === 'guest';
-  const stageWidth = 390;
+
+  /**
+   * Auto-open the wizard the first time this invitation is opened in the
+   * editor — i.e. right after picking a template, with no redirect: the
+   * wizard is just the first tab of the same in-editor sheet.
+   *
+   * This used to fire based on whether placeholder-bound elements (couple
+   * names, date, venue...) still held empty text. That heuristic never
+   * actually fired for a real template: every real template ships with
+   * realistic sample copy already filled in ("Айдар және Айсұлу", a sample
+   * date, a sample venue) so a new user sees what the invitation will look
+   * like — meaning every real template's placeholders read as "already
+   * filled" from the very first load, and the wizard never opened. Wired,
+   * but the trigger condition it depended on could not occur in practice.
+   *
+   * The real signal for "first time in the editor" is a persisted flag on
+   * the document itself (`editorMetadata.wizardCompletedAt`, stamped by
+   * `markWizardDone` below on apply or explicit skip), not localStorage —
+   * that only remembers this browser, so reopening the same invitation on
+   * another device replayed the wizard every time.
+   */
+  useEffect(() => {
+    if (isGuest || previewMode) return;
+    if (!invitationId) return;
+    if (doc.editorMetadata?.wizardCompletedAt) return;
+
+    setQuickEditInitialTab('wizard');
+    setQuickEditOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invitationId, isGuest, previewMode]);
+
+  const markWizardDone = useCallback(
+    (next: InvitationCanvasDocument): InvitationCanvasDocument => ({
+      ...next,
+      editorMetadata: {
+        ...(next.editorMetadata ?? { lastModifiedAt: new Date().toISOString() }),
+        wizardCompletedAt: new Date().toISOString(),
+      },
+    }),
+    []
+  );
+
+  const handleWizardApply = useCallback(
+    (next: InvitationCanvasDocument) => commit(markWizardDone(next)),
+    [commit, markWizardDone]
+  );
+
+  // Closing the quick-edit sheet for any reason (X, backdrop, switching to
+  // another tab and closing from there) counts as "seen" even if the user
+  // never applied the wizard — otherwise it would auto-reopen every single
+  // time they re-enter the editor.
+  const quickEditWasOpen = useRef(false);
+  useEffect(() => {
+    if (quickEditOpen) {
+      quickEditWasOpen.current = true;
+      return;
+    }
+    if (quickEditWasOpen.current) {
+      quickEditWasOpen.current = false;
+      if (!doc.editorMetadata?.wizardCompletedAt) commit(markWizardDone(doc));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quickEditOpen]);
+  // Adaptive stage width.
+  // Mobile (<768px): fill the screen edge to edge — see the scale transform
+  // below.
+  // Tablet (768-1024): 520px — wider for better tap targets on elements.
+  // Desktop (≥1024): 390px (matches the invitation canvas design width for consistency).
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === 'undefined' ? 1280 : window.innerWidth
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  const stageWidth = viewportWidth < 768 ? 360 : viewportWidth < 1024 ? 520 : 390;
   const effectiveDoc = useMemo(() => deriveMobileDocument(doc), [doc]);
+
+  /**
+   * On phones, the canvas renders at its own design width (`effectiveDoc.width`,
+   * usually 390) and gets scaled up via CSS transform to fill the actual
+   * screen — rather than stretching the document's percent-based layout to a
+   * wider box, which would leave every absolute-px value (font sizes, border
+   * radii, icon sizes) looking proportionally smaller than designed. A
+   * uniform `transform: scale()` keeps everything in proportion, the same
+   * technique Figma/Canva use to fit a fixed-size canvas to the viewport.
+   *
+   * `transform` doesn't change the element's box for layout purposes, so the
+   * *wrapper* needs an explicit scaled width/height reserved for it — width
+   * is just `viewportWidth`, but height depends on content, so it's measured
+   * off the unscaled render via ResizeObserver.
+   */
+  const isMobileStage = viewportWidth < 768;
+  const stageScale = isMobileStage ? viewportWidth / effectiveDoc.width : 1;
+  const naturalStageWidth = isMobileStage ? effectiveDoc.width : stageWidth;
+  const [naturalStageHeight, setNaturalStageHeight] = useState(600);
+  useEffect(() => {
+    const node = previewRef.current;
+    if (!node) return;
+    const measure = () => setNaturalStageHeight(node.offsetHeight);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(node);
+    return () => ro.disconnect();
+    // Mount-once: ResizeObserver already reacts to any future size change
+    // (new elements, edits, locale swaps) without needing to be re-attached.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /**
+   * Keep the thing you are editing where you can see it.
+   *
+   * The inspector and the quick-edit sheet are no longer modal (they no longer
+   * dim or block the canvas), but on a phone they still occupy the bottom half
+   * of the screen. Selecting an element near the fold and opening its panel
+   * would therefore still hide it. This scrolls the stage so the selection
+   * sits in the strip that stays visible — and only when the sheet actually
+   * overlaps the stage horizontally, which on desktop (sheet parked
+   * bottom-left, stage centred) it does not.
+   */
+  useEffect(() => {
+    if (!(inspectorOpen || quickEditOpen) || !selectedId) return;
+    const wrap = stageWrapRef.current;
+    if (!wrap) return;
+
+    // Measure after the sheet's enter animation, or the sheet is still
+    // off-screen and its top edge reads as the bottom of the viewport.
+    const timer = window.setTimeout(() => {
+      const node = wrap.querySelector<HTMLElement>(
+        `[data-selected-id="${CSS.escape(selectedId)}"]`,
+      );
+      const sheet = window.document.querySelector<HTMLElement>('[data-canvas-sheet]');
+      if (!node || !sheet) return;
+
+      const sheetRect = sheet.getBoundingClientRect();
+      const nodeRect = node.getBoundingClientRect();
+      const overlapsHorizontally =
+        sheetRect.left < nodeRect.right && sheetRect.right > nodeRect.left;
+      if (!overlapsHorizontally) return;
+
+      const margin = 16;
+      const topLimit = Math.max(wrap.getBoundingClientRect().top, 0) + margin;
+      const bottomLimit = sheetRect.top - margin;
+      if (bottomLimit <= topLimit) return;
+
+      let delta = 0;
+      if (nodeRect.bottom > bottomLimit) delta = nodeRect.bottom - bottomLimit;
+      // Never push the top of the element above the visible strip: seeing
+      // where a block starts matters more than seeing where it ends.
+      if (nodeRect.top - delta < topLimit) delta = nodeRect.top - topLimit;
+      if (Math.abs(delta) < 2) return;
+      wrap.scrollBy({ top: delta, behavior: 'smooth' });
+    }, 320);
+
+    return () => window.clearTimeout(timer);
+  }, [inspectorOpen, quickEditOpen, selectedId]);
 
   const handleBack = useCallback(() => {
     if (typeof window !== 'undefined' && window.history.length > 1) {
@@ -309,15 +651,25 @@ export function CanvasEditor(props: CanvasEditorProps) {
     }
   }, []);
 
+  const router = useRouter();
+
   const handlePublish = useCallback(() => {
-    // Force-flush pending save so the publish action sees the latest doc.
+    // Force-flush pending save so the hub sees the latest doc.
     if (onSaveRequest && pendingSaveRef.current) {
       void onSaveRequest(pendingSaveRef.current).catch(() => {});
     }
-    // For this version, publish is a no-op (the share screen is a separate
-    // route). The button is wired so the rest of the chrome is honest about
-    // what exists.
-  }, [onSaveRequest]);
+    // This button ("Готово"/"Дайын") only leaves the editor — it does NOT
+    // publish anything. Actually publishing (free-with-watermark or paid)
+    // is a real, separate action the hub itself owns (HubSectionList's
+    // publishFree/upgrade). Previously this pushed `?published=1`, which
+    // makes the hub show "Invitation published!" even for an untouched
+    // draft — a false success message sitting right above its own pay wall.
+    if (invitationId) {
+      router.push(`/invitations/${encodeURIComponent(invitationId)}`);
+    } else {
+      router.push('/dashboard');
+    }
+  }, [onSaveRequest, invitationId, router]);
 
   return (
     <div
@@ -325,9 +677,11 @@ export function CanvasEditor(props: CanvasEditorProps) {
       data-editor-mode={editorMode}
       data-preview-mode={previewMode ? 'on' : 'off'}
     >
-      {/* Top floating clusters — admin only, hidden in preview/guest. */}
+      {/* Top controls — floating over the canvas, admin only, hidden in
+          preview/guest. See EditorToolbar.tsx for why it's not an in-flow
+          header. */}
       {!isGuest && !previewMode && (
-        <EditorFloatingClusters
+        <EditorToolbar
           canUndo={historyRef.current?.canUndo() ?? false}
           canRedo={historyRef.current?.canRedo() ?? false}
           onUndo={() => {
@@ -338,14 +692,16 @@ export function CanvasEditor(props: CanvasEditorProps) {
             const p = historyRef.current!.redo();
             if (p) setDoc(p);
           }}
-          onBack={handleBack}
-          onPublish={handlePublish}
+          // Template-builder hosts its own back + save controls in the same
+          // top corners (TemplateBuilderClient's header) — rendering these
+          // here too would float directly on top of them.
+          onBack={mode === 'template-builder' ? undefined : handleBack}
+          onPublish={mode === 'template-builder' ? undefined : handlePublish}
         />
       )}
 
-      {/* Save toast — short-lived indicator above the FAB. Hidden in
-          preview/guest. Lives in CanvasEditor (not EditorFloatingClusters)
-          because it's transient UI, not chrome. */}
+      {/* Save toast — short-lived indicator. Lives in CanvasEditor (not
+          EditorToolbar) because it's transient UI, not chrome. */}
       {!isGuest && !previewMode && savedToastVisible && (
         <div
           className="editor-saved-toast"
@@ -370,18 +726,41 @@ export function CanvasEditor(props: CanvasEditorProps) {
         </button>
       )}
 
-      {/* Canvas — center stage, no side panels. */}
+      {/* Canvas — the only in-flow content in the whole shell. Toolbar, dock,
+          and every sheet float above it (see canvas-editor.css for their
+          fixed positioning and the clearance padding below), so the stage
+          always gets the full viewport to fill rather than whatever's left
+          over after side panels or an in-flow header. */}
       <div
-        className="flex-1 overflow-auto p-6 flex items-start justify-center"
+        ref={stageWrapRef}
+        className="flex min-h-0 flex-1 items-start justify-center overflow-auto px-0 md:px-6 canvas-stage-wrap"
         data-testid="canvas-stage-wrap"
+        onClick={(e) => {
+          // Deselect when the click lands on the grey margin around the
+          // stage, not on the stage or an element. CanvasRenderer already
+          // deselects for a click on the stage background itself, but that
+          // listener only covers the stage element's own area — clicking
+          // outside the template (the padding this wrapper adds around it)
+          // never reached any deselect handler at all, so the selection
+          // outline and inspector stayed open no matter where else you clicked.
+          if (e.target === e.currentTarget && selectedId) handleSelect(null);
+        }}
       >
         <div
           className="relative shadow-2xl"
-          style={{ width: stageWidth }}
+          style={
+            isMobileStage
+              ? { width: viewportWidth, height: naturalStageHeight * stageScale }
+              : { width: stageWidth }
+          }
         >
           <div
             ref={stageRef}
-            style={{ width: stageWidth }}
+            style={{
+              width: naturalStageWidth,
+              transform: isMobileStage ? `scale(${stageScale})` : undefined,
+              transformOrigin: 'top left',
+            }}
           >
             <CanvasRenderer
               ref={previewRef}
@@ -394,52 +773,85 @@ export function CanvasEditor(props: CanvasEditorProps) {
               onStopTextEdit={handleStopTextEdit}
               onTextChange={handleTextChange}
               onTextPatch={handleTextPatch}
-              editingTrigger="single"
+              // A single click selects (so it can be dragged, matching every
+              // other element type); a double click enters text edit. It used
+              // to be the reverse — the very first click already opened the
+              // caret, so there was no way to grab and move the block without
+              // first clicking empty space to deselect it.
+              editingTrigger="double"
+              onElementPositionChange={handleElementPositionChange}
+              onElementResize={handleElementResize}
+              onElementRotate={handleElementRotate}
+              onElementDragEnd={commitCurrentDoc}
               renderEditorShell={
                 isGuest || previewMode
                   ? (_el, children) => <>{children}</>
-                  : (el, children) => (
+                  : (el, children, _cw, callbacks) => (
                       <SelectionChrome
                         el={el}
+                        canvasWidth={effectiveDoc.width}
+                        stageRef={stageRef}
                         selected={el.id === selectedId}
+                        // While the caret is in this element's text, the
+                        // pointer belongs to the text: dragging must be off so
+                        // a mouse sweep selects words instead of moving the
+                        // block.
+                        editing={el.id === editingTextId}
                         onTap={() => handleSelect(el.id)}
+                        onEditProperties={() => handleOpenProperties(el.id)}
                         onDelete={() => {
                           const next = deleteElement(doc, el.id);
                           if (selectedId === el.id) setSelectedId(null);
                           commit(next);
                         }}
+                        onPositionChange={(pos) => callbacks.onPositionChange(el.id, pos)}
+                        onResize={(dim) => callbacks.onResize(el.id, dim)}
+                        onRotate={(rot) => callbacks.onRotate(el.id, rot)}
+                        onContextMenu={(e) => setContextMenu({ x: e.clientX, y: e.clientY, el })}
+                        locale={locale}
                       >
                         {children}
                       </SelectionChrome>
                     )
               }
               shareUrl={shareUrl}
-              locale={locale}
+              // The invitation's own language, not the host's interface
+              // language: renderer-supplied labels (calendar month and weekday
+              // names, RSVP buttons, countdown units) must match the words
+              // already on the canvas. Editing a Kazakh design in a Russian UI
+              // otherwise previewed a calendar reading "МАЙ / ПН ВТ СР" that
+              // the guest would never see.
+              locale={doc.locale ?? locale}
             />
           </div>
         </div>
       </div>
 
-      {/* Settings UI — Bug #4 unified pattern: every selected element gets
-          the thin floating toolbar (TextStripAnchor). Per-type extras that
-          don't fit in the strip live in ElementSettingsCard, opened by the
-          cog button in the strip ("more settings" drill-down). */}
-      {!isGuest && !previewMode && selected && !settingsCardOpen && (
-        <TextStripAnchor
-          el={selected}
-          onUpdate={handleUpdateSelected}
-          onDelete={handleDeleteSelected}
-          onOpenSettings={() => setSettingsCardOpen(true)}
-        />
-      )}
+      <PropertiesPanel
+        key={selected?.id ?? 'document'}
+        open={inspectorOpen}
+        selected={selected}
+        onUpdate={handleUpdateSelected}
+        onDelete={handleDeleteSelected}
+        onDuplicate={handleDuplicateSelected}
+        onLayer={handleLayerSelected}
+        locale={locale}
+        mode="user"
+        document={doc}
+        onDocumentChange={(patch) => commit({ ...doc, ...patch })}
+        onClose={handleCloseInspector}
+      />
 
-      {!isGuest && !previewMode && selected && settingsCardOpen && (
-        <ElementSettingsCard
-          key={`settings-${selected.id}`}
-          el={selected}
-          onUpdate={handleUpdateSelected}
-          onDelete={handleDeleteSelected}
-          onClose={() => setSettingsCardOpen(false)}
+      {/* Bottom dock — category chips + quick-edit, one bar at every width
+          (see ElementPalette.tsx). Floats over the stage rather than taking
+          layout space from it. */}
+      {!isGuest && !previewMode && (
+        <ElementPalette
+          locale={locale}
+          document={doc}
+          onAdd={handleAddElement}
+          onInsertSection={handleInsertSection}
+          onOpenQuickEdit={handleOpenQuickEdit}
         />
       )}
 
@@ -485,34 +897,55 @@ export function CanvasEditor(props: CanvasEditorProps) {
         </button>
       )}
 
-      {/* Quick-edit FAB + bottom sheet — admin only, hidden in preview/guest. */}
-      {!isGuest && !previewMode && !quickEditOpen && (
-        <EditorFab onClick={() => setQuickEditOpen(true)} />
-      )}
+      {/* Quick-edit sheet — opened from the dock's quick-edit button. */}
       {!isGuest && !previewMode && (
         <EditorSheet
           open={quickEditOpen}
           onClose={() => setQuickEditOpen(false)}
         >
-          <EditorSheetTabs>
+          <EditorSheetTabs
+            defaultTab={mode === 'template-builder' && quickEditInitialTab === 'wizard' ? 'texts' : quickEditInitialTab}
+            hiddenTabs={mode === 'template-builder' ? ['wizard', 'link'] : undefined}
+          >
             {{
+              wizard: (
+                <EditorSheetTabWizard
+                  document={doc}
+                  onWizardApply={handleWizardApply}
+                  onClose={() => setQuickEditOpen(false)}
+                  locale={locale}
+                />
+              ),
               texts: (
                 <EditorSheetTabTexts
                   document={doc}
                   onDocumentChange={commit}
+                  eventType={eventType}
                 />
               ),
+              /* invitationId here — not templateId — on purpose: the upload
+                 token route checks it against the Invitation table for
+                 ownership, and a Template id is never a valid Invitation id.
+                 This used to pass templateId, which made every photo/music
+                 upload from the admin template-builder fail with 403
+                 ("Нет доступа к этому приглашению") and made every real
+                 user's upload lose its invitation association (silently
+                 fell back to an unscoped "draft" upload token instead —
+                 see /api/upload/token). Template-builder mode has no
+                 invitationId to pass, which is fine: requireUploadAccess
+                 already allows any logged-in session through when no
+                 invitationId is given. */
               photos: (
                 <EditorSheetTabPhotos
                   document={doc}
-                  invitationId={templateId}
+                  invitationId={invitationId}
                   onDocumentChange={commit}
                 />
               ),
               music: (
                 <EditorSheetTabMusic
                   document={doc}
-                  invitationId={templateId}
+                  invitationId={invitationId}
                   onDocumentChange={commit}
                 />
               ),
@@ -522,63 +955,34 @@ export function CanvasEditor(props: CanvasEditorProps) {
                   onDocumentChange={commit}
                 />
               ),
-              design: <EditorSheetTabDesign />,
+              layers: (
+                <EditorSheetTabLayers
+                  document={doc}
+                  selectedId={selectedId}
+                  onSelect={handleSelect}
+                  onDocumentChange={commit}
+                />
+              ),
+              design: (
+                <EditorSheetTabDesign
+                  document={doc}
+                  onDocumentChange={commit}
+                />
+              ),
+              link: invitationId ? (
+                <EditorSheetTabLink
+                  invitationId={invitationId}
+                  slug={slug}
+                  fullAccess={fullAccess}
+                  priceKzt={priceKzt}
+                  onSlugChange={setSlug}
+                />
+              ) : null,
             }}
           </EditorSheetTabs>
         </EditorSheet>
       )}
+
     </div>
-  );
-}
-
-/**
- * Anchor wrapper for CompactFloatingPanel (measures the element's rect
- * after layout so the strip can position itself above/below).
- *
- * Now accepts any CanvasElement (was: text/heading only). Bug #4 unified
- * selection UI so every element type uses the same thin floating strip
- * above/below it.
- */
-function TextStripAnchor({
-  el,
-  onUpdate,
-  onDelete,
-  onOpenSettings,
-}: {
-  el: CanvasElement;
-  onUpdate: (patch: Partial<CanvasElement>) => void;
-  onDelete: () => void;
-  onOpenSettings?: () => void;
-}) {
-  const [rect, setRect] = useState<DOMRect | null>(null);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const measure = () => {
-      const node = window.document.querySelector(
-        `[data-selected-id="${el.id}"]`
-      ) as HTMLElement | null;
-      if (node) setRect(node.getBoundingClientRect());
-    };
-    measure();
-    window.addEventListener('resize', measure);
-    window.addEventListener('scroll', measure, true);
-    const id = window.requestAnimationFrame(measure);
-    return () => {
-      window.removeEventListener('resize', measure);
-      window.removeEventListener('scroll', measure, true);
-      window.cancelAnimationFrame(id);
-    };
-  }, [el.id]);
-
-  if (!rect) return null;
-  return (
-    <CompactFloatingPanel
-      el={el}
-      anchorRect={rect}
-      onUpdate={onUpdate}
-      onDelete={onDelete}
-      onOpenSettings={onOpenSettings}
-    />
   );
 }

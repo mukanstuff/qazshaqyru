@@ -1,6 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <rect width="64" height="64" rx="14" fill="#6b1d3a"/>
-  <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle"
-        font-family="Georgia, 'Times New Roman', serif" font-size="36" fill="#faf8f5" font-weight="600">Қ</text>
-  <circle cx="54" cy="14" r="3" fill="#b8956b"/>
+  <!-- QS monogram in the brand green. Replaces a burgundy "Қ" left over from
+       an abandoned palette — burgundy appears nowhere in the current brand.
+
+       Vertical position is set from the CAP HEIGHT, not from `dominant-baseline
+       = central`: that centres the em box, which reserves room for descenders
+       the word "QS" does not have, so the letters sat visibly low. Georgia's
+       cap height is ~0.692em; at 34px that is ~23.5px, which centres in the
+       64px square with its baseline at ~44. -->
+  <rect width="64" height="64" rx="15" fill="#1F3A2E"/>
+  <text x="32" y="44" text-anchor="middle"
+        font-family="Georgia, 'Times New Roman', serif" font-weight="700"
+        font-size="34" letter-spacing="-1.5" fill="#F7F3EA">QS</text>
 </svg>

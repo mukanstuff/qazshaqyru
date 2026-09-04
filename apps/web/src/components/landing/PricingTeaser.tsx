@@ -4,6 +4,7 @@ import { ArrowRight, Check } from 'lucide-react';
 
 import { LocaleLink } from '@/components/seo/LocaleLink';
 import { useI18n } from '@/i18n';
+import { formatKzt } from '@/lib/shared/format-price';
 
 interface PricingTeaserProps {
   minTemplatePriceKzt: number;
@@ -17,7 +18,7 @@ const TIMELINE_COLORS = ['#16A34A', '#F59E0B', '#F97316'];
 /** Short pricing block for the landing — from {MIN} ₸ per invitation. */
 export function PricingTeaser({ minTemplatePriceKzt }: PricingTeaserProps) {
   const { t } = useI18n();
-  const formattedMin = minTemplatePriceKzt.toLocaleString('ru-RU');
+  const formattedMin = formatKzt(minTemplatePriceKzt);
 
   return (
     <div className="mx-auto max-w-3xl text-center" data-testid="pricing-teaser">

@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { createPortal } from 'react-dom';
 import type { TextElement, HeadingElement, TextProps } from '@/lib/canvas/types';
+import { useI18n } from '@/i18n';
 
 interface Props {
   anchorRef: RefObject<HTMLElement | null>;
@@ -24,6 +26,9 @@ interface Props {
  * here and would steal focus when opened.
  */
 export function TextInlineToolbar({ anchorRef, el, onUpdate }: Props) {
+  // Every label and tooltip here used to be a Russian literal, inside a
+  // bilingual editor a Kazakh-speaking customer uses to build their invitation.
+  const { t } = useI18n();
   const popRef = useRef<HTMLDivElement | null>(null);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
   const [showColor, setShowColor] = useState(false);
@@ -49,6 +54,26 @@ export function TextInlineToolbar({ anchorRef, el, onUpdate }: Props) {
       window.removeEventListener('scroll', measure, true);
     };
   }, [anchorRef]);
+
+  // Return focus to the text when the colour popover closes.
+  //
+  // The swatches are plain `<button>`s (unlike Bold/Italic/etc, which
+  // preventDefault their pointerdown specifically to avoid this): Chromium
+  // focuses a button on mousedown, and `setShowColor(false)` right after
+  // unmounts that now-focused button along with the rest of the popover.
+  // Removing a focused DOM node does not hand focus to anything in
+  // particular — the browser drops it to <body>. `editing` stayed true (the
+  // blur-ignore fix in EditableTextView's handleBlur sees that focus), but
+  // real DOM focus was now nowhere: the caret was gone, the element showed no
+  // selection outline, and clicking the text again took the "already editing"
+  // branch (which only refocuses, it does not re-select) instead of actually
+  // reselecting it — so nothing the user did brought the text back.
+  useEffect(() => {
+    if (!showColor) return;
+    return () => {
+      anchorRef.current?.focus({ preventScroll: true });
+    };
+  }, [showColor, anchorRef]);
 
   // Click-outside on the color popover closes it.
   useEffect(() => {
@@ -83,11 +108,11 @@ export function TextInlineToolbar({ anchorRef, el, onUpdate }: Props) {
     '#1a3a5c', '#8b1a1a', '#f59e0b', '#0ea5e9', '#9d8ec4',
   ];
 
-  return (
+  const toolbar = (
     <div
       ref={popRef}
       role="toolbar"
-      aria-label="Форматирование текста"
+      aria-label={t('textToolbar.label')}
       className="canvas-text-toolbar"
       style={{
         position: 'fixed',
@@ -101,35 +126,35 @@ export function TextInlineToolbar({ anchorRef, el, onUpdate }: Props) {
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >
-      <Btn active={el.fontWeight >= 600} title="Жирный" onPointerDown={(e) => { swallow(e); toggleBold(); }}>
+      <Btn active={el.fontWeight >= 600} title={t('textToolbar.bold')} onPointerDown={(e) => { swallow(e); toggleBold(); }}>
         <span style={{ fontWeight: 800 }}>B</span>
       </Btn>
-      <Btn active={!!el.italic} title="Курсив" onPointerDown={(e) => { swallow(e); toggleItalic(); }}>
+      <Btn active={!!el.italic} title={t('textToolbar.italic')} onPointerDown={(e) => { swallow(e); toggleItalic(); }}>
         <span style={{ fontStyle: 'italic' }}>I</span>
       </Btn>
-      <Btn active={!!el.uppercase} title="КАПС" onPointerDown={(e) => { swallow(e); apply({ uppercase: !el.uppercase }); }}>
+      <Btn active={!!el.uppercase} title={t('textToolbar.uppercase')} onPointerDown={(e) => { swallow(e); apply({ uppercase: !el.uppercase }); }}>
         <span style={{ letterSpacing: '-0.02em' }}>Аа</span>
       </Btn>
 
       <Divider />
 
-      <Btn title="Мельче" onPointerDown={(e) => { swallow(e); stepSize(-2); }}>
+      <Btn title={t('textToolbar.smaller')} onPointerDown={(e) => { swallow(e); stepSize(-2); }}>
         <span style={{ fontSize: 11 }}>A−</span>
       </Btn>
       <span className="canvas-text-toolbar__size">{el.fontSize}</span>
-      <Btn title="Крупнее" onPointerDown={(e) => { swallow(e); stepSize(2); }}>
+      <Btn title={t('textToolbar.larger')} onPointerDown={(e) => { swallow(e); stepSize(2); }}>
         <span style={{ fontSize: 14 }}>A+</span>
       </Btn>
 
       <Divider />
 
-      <Btn active={el.textAlign === 'left'} title="По левому краю" onPointerDown={(e) => { swallow(e); setAlign('left'); }}>
+      <Btn active={el.textAlign === 'left'} title={t('textToolbar.alignLeft')} onPointerDown={(e) => { swallow(e); setAlign('left'); }}>
         <AlignIcon kind="left" />
       </Btn>
-      <Btn active={el.textAlign === 'center'} title="По центру" onPointerDown={(e) => { swallow(e); setAlign('center'); }}>
+      <Btn active={el.textAlign === 'center'} title={t('textToolbar.alignCenter')} onPointerDown={(e) => { swallow(e); setAlign('center'); }}>
         <AlignIcon kind="center" />
       </Btn>
-      <Btn active={el.textAlign === 'right'} title="По правому краю" onPointerDown={(e) => { swallow(e); setAlign('right'); }}>
+      <Btn active={el.textAlign === 'right'} title={t('textToolbar.alignRight')} onPointerDown={(e) => { swallow(e); setAlign('right'); }}>
         <AlignIcon kind="right" />
       </Btn>
 
@@ -139,8 +164,8 @@ export function TextInlineToolbar({ anchorRef, el, onUpdate }: Props) {
         <button
           type="button"
           className="canvas-text-toolbar__color-trigger"
-          aria-label="Цвет текста"
-          title="Цвет текста"
+          aria-label={t('textToolbar.color')}
+          title={t('textToolbar.color')}
           onPointerDown={swallow}
           onClick={() => setShowColor((s) => !s)}
           style={{ backgroundColor: el.color }}
@@ -169,12 +194,8 @@ export function TextInlineToolbar({ anchorRef, el, onUpdate }: Props) {
                   }}
                 />
               ))}
-              <label className="canvas-text-toolbar__color-picker" title="Произвольный цвет">
-                <input
-                  type="color"
-                  value={el.color}
-                  onChange={(e) => setColor(e.target.value)}
-                />
+              <label className="canvas-text-toolbar__color-picker" title={t('textToolbar.customColor')}>
+                <input type="color" value={el.color} onChange={(e) => setColor(e.target.value)} />
                 <span aria-hidden="true">+</span>
               </label>
             </div>
@@ -183,6 +204,14 @@ export function TextInlineToolbar({ anchorRef, el, onUpdate }: Props) {
       </div>
     </div>
   );
+
+  // Rendered into <body>. `position: fixed` resolves against the nearest
+  // ancestor carrying a transform, and CanvasRenderer sets
+  // `translate3d(0,0,0)` on every element to force a GPU layer — so the
+  // toolbar's viewport coordinates were applied relative to the text element
+  // instead of the window, dropping it hundreds of pixels away (measured:
+  // element at 267/546, toolbar at 480/1001).
+  return typeof document === 'undefined' ? toolbar : createPortal(toolbar, document.body);
 }
 
 function Btn({

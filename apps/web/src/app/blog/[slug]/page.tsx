@@ -24,10 +24,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const [{ locale }, headerStore] = await Promise.all([getI18n(), headers()]);
   const post = getBlogPost(locale, slug);
-  if (!post) return { title: 'Блог — QazShaqyru' };
+  if (!post) return { title: 'Блог' };
   const urlLocale = seoLocaleFromHeaders((n) => headerStore.get(n));
+  // No trailing "— QazShaqyru" — the root layout's title.template already
+  // appends it once; adding it here doubled it in the actual <title> tag.
   return {
-    title: `${post.title} — QazShaqyru`,
+    title: post.title,
     description: post.description,
     alternates: buildLanguageAlternates(`/blog/${slug}`, urlLocale),
   };

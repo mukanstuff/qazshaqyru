@@ -41,8 +41,14 @@ export function TemplatesFilterBar({
       )}
     >
       <div className="us-container space-y-3 py-3">
+        {/* Empty when the catalog has a single category: the chip row would be
+            "Все" plus that one category, i.e. two buttons that select the same
+            set of templates. Search still applies. */}
         <div
-          className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden"
+          className={cn(
+            '-mx-4 gap-2 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden',
+            categories.length > 0 ? 'flex' : 'hidden'
+          )}
           role="tablist"
           aria-label={searchLabel}
         >
@@ -79,7 +85,7 @@ export function TemplatesFilterBar({
             <button
               type="button"
               onClick={() => onQueryChange('')}
-              aria-label={t('templatesPage.previewClose')}
+              aria-label={t('templatesPage.searchClear')}
               className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-us-ink-muted transition-colors hover:bg-us-ivory hover:text-us-ink"
             >
               <X className="h-3.5 w-3.5" />

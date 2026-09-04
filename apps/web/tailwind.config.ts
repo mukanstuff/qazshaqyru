@@ -135,12 +135,42 @@ const config: Config = {
           '0%, 100%': { opacity: '1' },
           '50%': { opacity: '0.7' },
         },
+        'overlay-in': {
+          from: { opacity: '0' },
+          to: { opacity: '1' },
+        },
+        'overlay-out': {
+          from: { opacity: '1' },
+          to: { opacity: '0' },
+        },
+        'sheet-in-bottom': {
+          from: { transform: 'translateY(100%)' },
+          to: { transform: 'translateY(0)' },
+        },
+        'sheet-out-bottom': {
+          from: { transform: 'translateY(0)' },
+          to: { transform: 'translateY(100%)' },
+        },
+        'sheet-in-right': {
+          from: { transform: 'translateX(100%)' },
+          to: { transform: 'translateX(0)' },
+        },
+        'sheet-out-right': {
+          from: { transform: 'translateX(0)' },
+          to: { transform: 'translateX(100%)' },
+        },
       },
       animation: {
         'fade-up': 'fade-up 500ms cubic-bezier(0.22, 1, 0.36, 1) both',
         'fade-in': 'fade-in 400ms ease-out both',
         'float': 'float 6s ease-in-out infinite',
         'pulse-soft': 'pulse-soft 3s ease-in-out infinite',
+        'overlay-in': 'overlay-in 200ms ease-out',
+        'overlay-out': 'overlay-out 200ms ease-in',
+        'sheet-in-bottom': 'sheet-in-bottom 280ms cubic-bezier(0.22, 1, 0.36, 1)',
+        'sheet-out-bottom': 'sheet-out-bottom 200ms ease-in',
+        'sheet-in-right': 'sheet-in-right 280ms cubic-bezier(0.22, 1, 0.36, 1)',
+        'sheet-out-right': 'sheet-out-right 200ms ease-in',
       },
     },
   },

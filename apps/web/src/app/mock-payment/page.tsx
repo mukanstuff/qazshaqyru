@@ -7,6 +7,7 @@ import { LogoMark } from '@/components/shared/ornaments';
 import { PublicShell } from '@/components/shared/PublicShell';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { formatKzt } from '@/lib/shared/format-price';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,7 +64,7 @@ export default async function MockPaymentPage({ searchParams }: Props) {
             <div className="rounded-lg border border-us-border bg-us-ivory/80 p-6 text-center">
               <p className="us-overline">К оплате</p>
               <p className="mt-2 font-display text-3xl font-semibold text-us-accent">
-                {order.amountKzt.toLocaleString('ru-RU')} ₸
+                {formatKzt(order.amountKzt)} ₸
               </p>
               <p className="mt-2 font-body text-sm text-us-ink-muted">{order.template.nameRu}</p>
             </div>

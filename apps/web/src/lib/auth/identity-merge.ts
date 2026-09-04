@@ -36,7 +36,16 @@ export async function mergeIdentity(args: MergeIdentityArgs): Promise<SessionUse
   });
 
   let userId: string;
-  let user: { id: string; phone: string | null; email: string | null; avatarUrl: string | null; language: 'kz' | 'ru'; name: string | null; isAdmin: boolean };
+  let user: {
+    id: string;
+    phone: string | null;
+    email: string | null;
+    avatarUrl: string | null;
+    language: 'kz' | 'ru';
+    name: string | null;
+    isAdmin: boolean;
+    passwordHash: string | null;
+  };
 
   if (existing) {
     userId = existing.userId;
@@ -48,6 +57,7 @@ export async function mergeIdentity(args: MergeIdentityArgs): Promise<SessionUse
       language: existing.user.language,
       name: existing.user.name,
       isAdmin: existing.user.isAdmin,
+      passwordHash: existing.user.passwordHash,
     };
     await prisma.identity.update({
       where: { id: existing.id },
@@ -68,7 +78,7 @@ export async function mergeIdentity(args: MergeIdentityArgs): Promise<SessionUse
           name: args.displayName ?? null,
           language: args.language ?? 'ru',
         },
-        select: { id: true, phone: true, email: true, avatarUrl: true, language: true, name: true, isAdmin: true },
+        select: { id: true, phone: true, email: true, avatarUrl: true, language: true, name: true, isAdmin: true, passwordHash: true },
       })).id;
 
       // If linked existing user, fill in missing fields.
@@ -79,7 +89,7 @@ export async function mergeIdentity(args: MergeIdentityArgs): Promise<SessionUse
             avatarUrl: args.avatarUrl ?? undefined,
             name: args.displayName ?? undefined,
           },
-          select: { id: true, phone: true, email: true, avatarUrl: true, language: true, name: true, isAdmin: true },
+          select: { id: true, phone: true, email: true, avatarUrl: true, language: true, name: true, isAdmin: true, passwordHash: true },
         });
         await tx.identity.create({
           data: {
@@ -104,7 +114,7 @@ export async function mergeIdentity(args: MergeIdentityArgs): Promise<SessionUse
       });
       return await tx.user.findUniqueOrThrow({
         where: { id: uid },
-        select: { id: true, phone: true, email: true, avatarUrl: true, language: true, name: true, isAdmin: true },
+        select: { id: true, phone: true, email: true, avatarUrl: true, language: true, name: true, isAdmin: true, passwordHash: true },
       });
     });
     user = created;
@@ -120,8 +130,12 @@ export async function mergeIdentity(args: MergeIdentityArgs): Promise<SessionUse
     language: user.language,
     name: user.name,
     isAdmin: user.isAdmin,
+    hasPassword: Boolean(user.passwordHash),
   };
 }
+
+/** Devices a single account may stay signed in on at once. */
+const MAX_CONCURRENT_SESSIONS = 5;
 
 export type IssueSessionArgs = {
   userId: string;
@@ -135,10 +149,24 @@ export async function issueSession(args: IssueSessionArgs): Promise<{ token: str
   const tokenHash = hashToken(token);
 
   await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    await tx.session.updateMany({
+    // Signing in used to revoke every other live session, so opening the
+    // invitation on your phone silently logged you out of the desktop editor
+    // you were mid-edit in — and there is no "log out everywhere" screen that
+    // needed that behaviour. Keep concurrent devices, but cap them: anything
+    // past the newest few gets revoked, so an abandoned session on a borrowed
+    // device does not live for the full 30 days.
+    const live = await tx.session.findMany({
       where: { userId: args.userId, revokedAt: null },
-      data: { revokedAt: new Date() },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true },
+      skip: MAX_CONCURRENT_SESSIONS - 1,
     });
+    if (live.length > 0) {
+      await tx.session.updateMany({
+        where: { id: { in: live.map((s: { id: string }) => s.id) } },
+        data: { revokedAt: new Date() },
+      });
+    }
     await tx.session.create({
       data: {
         userId: args.userId,
@@ -151,6 +179,30 @@ export async function issueSession(args: IssueSessionArgs): Promise<{ token: str
   });
 
   return { token, expiresAt };
+}
+
+/**
+ * Carries the account's language into the UI on a new device.
+ *
+ * The root layout resolves the interface locale from `pathLocale → 'locale'
+ * cookie → 'user_lang' cookie → 'ru'`. Nothing in the codebase ever wrote
+ * `user_lang`, so `User.language` — set from the phone prefix at sign-up and
+ * editable in /settings — had no effect at all: a Kazakh-speaking customer got
+ * a Russian interface on every fresh browser until they found the header
+ * switcher. Setting the real `locale` cookie at sign-in closes that, and only
+ * when the visitor has not already chosen for themselves.
+ */
+export function applyLocaleCookieFromUser(
+  response: NextResponse,
+  user: Pick<SessionUser, 'language'>,
+  alreadyChosen: boolean
+): void {
+  if (alreadyChosen) return;
+  response.cookies.set('locale', user.language, {
+    path: '/',
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: 'lax',
+  });
 }
 
 export function buildSessionResponse(user: SessionUser, token: string, expiresAt: Date) {

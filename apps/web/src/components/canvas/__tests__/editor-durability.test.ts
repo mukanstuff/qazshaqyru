@@ -9,10 +9,36 @@ import { CanvasEditor } from '../CanvasEditor';
 import { EditorToolbar } from '../EditorToolbar';
 import { ElementContextMenu } from '../ElementContextMenu';
 
+// CanvasEditor calls useRouter() (publish navigates to the hub). Outside the
+// App Router, Next's useRouter throws "invariant expected app router to be
+// mounted" during render, so both durability cases below crashed on mount
+// instead of testing anything.
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    refresh: vi.fn(),
+    back: vi.fn(),
+    forward: vi.fn(),
+    prefetch: vi.fn(),
+  }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => '/editor/test',
+}));
+
 Object.assign(globalThis, {
   React,
   IS_REACT_ACT_ENVIRONMENT: true,
 });
+
+// jsdom has no ResizeObserver; CanvasEditor measures the unscaled stage with
+// one to reserve height for the CSS transform that fits the canvas to a phone.
+class StubResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+globalThis.ResizeObserver = globalThis.ResizeObserver ?? (StubResizeObserver as unknown as typeof ResizeObserver);
 
 const documentFixture: InvitationCanvasDocument = {
   version: 1,
@@ -20,6 +46,33 @@ const documentFixture: InvitationCanvasDocument = {
   height: 844,
   background: { type: 'solid', color: '#ffffff' },
   elements: [],
+};
+
+/** One element, so there is something to edit and therefore something to flush. */
+const editedDocumentFixture: InvitationCanvasDocument = {
+  ...documentFixture,
+  elements: [
+    {
+      id: 't1',
+      type: 'text',
+      x: 10,
+      y: 20,
+      w: 80,
+      h: 40,
+      rotation: 0,
+      zIndex: 1,
+      locked: false,
+      hidden: false,
+      text: 'Той',
+      fontFamily: 'Cormorant',
+      fontSize: 18,
+      fontWeight: 400,
+      color: '#000000',
+      textAlign: 'center',
+      lineHeight: 1.3,
+      letterSpacing: 0,
+    },
+  ],
 };
 
 function render(node: React.ReactNode): { container: HTMLDivElement; root: Root } {
@@ -45,12 +98,8 @@ function toolbarProps() {
     canRedo: false,
     onUndo: vi.fn(),
     onRedo: vi.fn(),
-    saveState: 'idle' as const,
-    lastSaved: null,
-    onSaveNow: vi.fn(),
-    mode: 'user' as const,
-    previewMode: false,
-    onTogglePreview: vi.fn(),
+    onBack: vi.fn(),
+    onPublish: vi.fn(),
   };
 }
 
@@ -68,35 +117,58 @@ describe('canvas editor durability', () => {
     vi.restoreAllMocks();
   });
 
-  it('starts a keepalive save synchronously before unload', () => {
-    const onSaveRequest = vi.fn(() => Promise.resolve());
+  /**
+   * Both cases used to mount the editor and immediately fire the event, with
+   * nothing edited in between — and the flush deliberately does nothing when
+   * no save is pending, so they asserted a call that must never happen. Make a
+   * real edit first (select an element, press Delete), which is what puts a
+   * payload in the pending ref.
+   */
+  function renderEditorWithPendingEdit(onSaveRequest: ReturnType<typeof vi.fn>) {
     const rendered = render(
       React.createElement(CanvasEditor, {
-        initialDocument: documentFixture,
+        initialDocument: editedDocumentFixture,
         onSaveRequest,
       }),
     );
     roots.push(rendered.root);
 
+    const el = rendered.container.querySelector('[data-selected-id="t1"]');
+    if (!el) throw new Error('element not rendered');
+    act(() => el.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }));
+    });
+    // The debounced save must not have fired yet, or there is nothing to flush.
+    expect(onSaveRequest).not.toHaveBeenCalled();
+    return rendered;
+  }
+
+  it('starts a keepalive save synchronously before unload', () => {
+    const onSaveRequest = vi.fn(() => Promise.resolve());
+    renderEditorWithPendingEdit(onSaveRequest);
+
     act(() => window.dispatchEvent(new Event('beforeunload')));
 
-    expect(onSaveRequest).toHaveBeenCalledWith(documentFixture, { keepalive: true });
+    expect(onSaveRequest).toHaveBeenCalledTimes(1);
+    expect(onSaveRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ elements: [] }),
+      { keepalive: true },
+    );
   });
 
   it('flushes a pending save when a mobile tab becomes hidden', () => {
     const onSaveRequest = vi.fn(() => Promise.resolve());
-    const rendered = render(
-      React.createElement(CanvasEditor, {
-        initialDocument: documentFixture,
-        onSaveRequest,
-      }),
-    );
-    roots.push(rendered.root);
+    renderEditorWithPendingEdit(onSaveRequest);
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
 
     act(() => document.dispatchEvent(new Event('visibilitychange')));
 
-    expect(onSaveRequest).toHaveBeenCalledWith(documentFixture, { keepalive: true });
+    expect(onSaveRequest).toHaveBeenCalledTimes(1);
+    expect(onSaveRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ elements: [] }),
+      { keepalive: true },
+    );
   });
 });
 
@@ -105,7 +177,7 @@ describe('canvas editor translations', () => {
     const rendered = renderWithChildren(I18nProvider, React.createElement(EditorToolbar, toolbarProps()));
     rootsForCleanup.push(rendered.root);
 
-    expect(rendered.container.textContent).toContain('Қайтару');
+    expect(rendered.container.textContent).toContain('Дайын');
   });
 
   it('gets context-menu state labels from the active i18n provider', () => {

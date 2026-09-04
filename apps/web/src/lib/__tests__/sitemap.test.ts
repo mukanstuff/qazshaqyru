@@ -44,8 +44,10 @@ describe('sitemap builder', () => {
     expect(locs).toContain('https://qazshaqyru.kz/kk/uzatu');
     expect(locs).toContain('https://qazshaqyru.kz/ru/uzatu');
     expect(locs).toContain('https://qazshaqyru.kz/wedding');
-    expect(locs).not.toContain('https://qazshaqyru.kz/compare/toi');
-    expect(locs).toContain('https://qazshaqyru.kz/compare/done-for-you');
+    // /compare/* is gone entirely: the only page under it was a noindex
+    // 307 to /pricing, while the SEO landings' body copy sent readers there
+    // as if it were a real comparison. Both now point at /agency.
+    expect(locs).not.toContain('https://qazshaqyru.kz/compare/done-for-you');
     expect(locs).toContain('https://qazshaqyru.kz/pricing');
   });
 

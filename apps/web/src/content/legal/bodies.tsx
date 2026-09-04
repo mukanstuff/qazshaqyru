@@ -57,10 +57,10 @@ export function TermsBody({ locale }: { locale: LegalLocale }) {
           Сервис Қазақстандағы той, үйлену тойы және басқа мерекелерге арналған цифрлық шақырулар
           жасауға және жіберуге мүмкіндік береді.
         </p>
-        <h3 className="font-display text-base font-medium text-us-ink">Тіркелу және OTP</h3>
+        <h3 className="font-display text-base font-medium text-us-ink">Тіркелу және кіру</h3>
         <p>
-          Кіру телефон нөмірі және бір реттік код (OTP) арқылы жүреді. Сіз нөмірдің сізге тиесілі
-          екеніне және аккаунттағы әрекеттерге жауаптысыз.
+          Кіру телефон нөмірі мен құпиясөз арқылы немесе Google аккаунтымен жүреді. Сіз нөмірдің
+          сізге тиесілі екеніне, құпиясөзді құпия сақтауға және аккаунттағы әрекеттерге жауаптысыз.
         </p>
         <h3 className="font-display text-base font-medium text-us-ink">Шақырулар және мазмұн</h3>
         <ul className={listClass}>
@@ -105,10 +105,10 @@ export function TermsBody({ locale }: { locale: LegalLocale }) {
         Сервис позволяет создавать и отправлять цифровые приглашения на той, свадьбы и другие
         семейные торжества в Казахстане.
       </p>
-      <h3 className="font-display text-base font-medium text-us-ink">Регистрация и OTP</h3>
+      <h3 className="font-display text-base font-medium text-us-ink">Регистрация и вход</h3>
       <p>
-        Вход выполняется по номеру телефона и одноразовому коду (OTP). Вы отвечаете за то, что
-        номер принадлежит вам, и за действия в аккаунте.
+        Вход выполняется по номеру телефона и паролю либо через аккаунт Google. Вы отвечаете за то,
+        что номер принадлежит вам, за сохранность пароля и за действия в аккаунте.
       </p>
       <h3 className="font-display text-base font-medium text-us-ink">Приглашения и контент</h3>
       <ul className={listClass}>
@@ -156,7 +156,7 @@ export function PrivacyBody({ locale }: { locale: LegalLocale }) {
       <>
         <h3 className="font-display text-base font-medium text-us-ink">Қандай деректерді жинаймыз</h3>
         <ul className={listClass}>
-          <li>Телефон — OTP арқылы кіру үшін</li>
+          <li>Телефон және құпиясөз хеші — аккаунтқа кіру үшін</li>
           <li>Шақыру деректері — атау, күн, орын, мәтін, фото, үлгі</li>
           <li>Қонақ деректері — есімдер, байланыс, қонақ жауаптары, тілектер</li>
           <li>Төлем метадеректері — тапсырыс статусы (Kaspi/Freedom); карта деректері бізге түспейді</li>
@@ -201,7 +201,7 @@ export function PrivacyBody({ locale }: { locale: LegalLocale }) {
     <>
       <h3 className="font-display text-base font-medium text-us-ink">Какие данные мы собираем</h3>
       <ul className={listClass}>
-        <li>Телефон — для входа по OTP</li>
+        <li>Телефон и хеш пароля — для входа в аккаунт</li>
         <li>Данные приглашений — название, дата, место, тексты, фото, шаблон</li>
         <li>Данные гостей — имена, контакты, ответы гостей, пожелания</li>
         <li>

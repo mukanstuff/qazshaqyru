@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { AppHeader } from '@/components/shared/AppHeader';
+import { SiteHeader } from '@/components/shared/SiteHeader';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/shared/utils';
@@ -17,6 +17,7 @@ const NAV = [
   { href: '/admin', label: 'Обзор', exact: true },
   { href: '/admin/orders', label: 'Заказы', badgeKey: 'orders' as const },
   { href: '/admin/templates', label: 'Шаблоны', countKey: 'templates' as const },
+  { href: '/admin/promo', label: 'Промокоды' },
 ];
 
 export function AdminHeader({ pendingOrders, activeTemplates, totalUsers }: AdminNavProps) {
@@ -24,7 +25,7 @@ export function AdminHeader({ pendingOrders, activeTemplates, totalUsers }: Admi
 
   return (
     <>
-      <AppHeader variant="admin" />
+      <SiteHeader variant="admin" isLoggedIn />
       <div className="border-b border-us-border bg-us-surface">
         <div className="us-container flex flex-wrap items-center gap-2 px-0 py-2">
           {NAV.map((item) => {

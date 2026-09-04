@@ -10,6 +10,15 @@ export interface CheckoutResponse {
   slug: string | null;
   planSku?: string | null;
   message?: string;
+  /** True when paymentUrl is a manual Kaspi transfer link — the customer
+   *  types the amount themselves and confirms over WhatsApp, no automated
+   *  redirect-back. The caller must show the confirm-by-WhatsApp step
+   *  instead of just navigating straight to paymentUrl. */
+  manual?: boolean;
+  /** Code the server actually applied — null when none was sent, or the one
+   *  sent turned out to be unusable. Never assume the code you sent stuck. */
+  promoCode?: string | null;
+  discountKzt?: number;
 }
 
 import type { PaymentProviderName } from '@/lib/payments/payment-provider-config';
@@ -23,6 +32,7 @@ export async function checkoutInvitationClient(
         provider?: PaymentProviderName;
         intent?: 'publish' | 'pay' | 'plan';
         planSku?: PaidPlanSku;
+        promoCode?: string | null;
       }
 ): Promise<CheckoutResponse> {
   const options =
@@ -37,6 +47,7 @@ export async function checkoutInvitationClient(
       ...(options.provider ? { provider: options.provider } : {}),
       intent: options.intent ?? 'pay',
       ...(options.planSku ? { planSku: options.planSku } : {}),
+      ...(options.promoCode ? { promoCode: options.promoCode } : {}),
     }),
   });
 

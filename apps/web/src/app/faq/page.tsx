@@ -10,10 +10,10 @@ import { buildFaqPageSchema, resolveLandingFaqItems } from '@/lib/seo/json-ld';
 export async function generateMetadata(): Promise<Metadata> {
   const headerStore = await headers();
   const urlLocale = seoLocaleFromHeaders((n) => headerStore.get(n));
+  const { t } = await getI18n();
   return {
-    title: 'FAQ — цены, ответ гостей, WhatsApp и Kaspi | QazShaqyru',
-    description:
-      'Сколько стоит онлайн-приглашение, как слать ссылку в WhatsApp, как гости подтверждают присутствие и как оплатить через Kaspi. Ответы QazShaqyru.',
+    title: t('site.meta.faq'),
+    description: t('site.meta.faqDescription'),
     alternates: buildLanguageAlternates('/faq', urlLocale),
   };
 }

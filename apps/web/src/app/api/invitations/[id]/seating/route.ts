@@ -14,32 +14,57 @@ import {
   createSeatingTable,
   deleteSeatingTable,
   listSeatingTables,
+  moveSeatingTables,
   updateSeatingTable,
 } from '@/lib/guests/seating';
+import {
+  TABLE_MAX_CAPACITY,
+  TABLE_MIN_CAPACITY,
+  tableShapeSchema,
+} from '@/lib/guests/seating-layout';
+
+/** #rrggbb only — this value is interpolated into an inline style. */
+const colorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Ожидается цвет в формате #rrggbb');
+const capacitySchema = z.number().int().min(TABLE_MIN_CAPACITY).max(TABLE_MAX_CAPACITY);
+const finiteNumber = z.number().finite();
 
 const createSchema = z.object({
   name: z.string().min(1).max(80),
-  capacity: z.number().int().min(1).max(50).optional(),
-  x: z.number().optional().nullable(),
-  y: z.number().optional().nullable(),
-  w: z.number().optional().nullable(),
-  h: z.number().optional().nullable(),
-  rotation: z.number().optional().nullable(),
-  shape: z.string().max(20).optional().nullable(),
-  tableColor: z.string().max(20).optional().nullable(),
+  capacity: capacitySchema.optional(),
+  x: finiteNumber.optional().nullable(),
+  y: finiteNumber.optional().nullable(),
+  w: finiteNumber.optional().nullable(),
+  h: finiteNumber.optional().nullable(),
+  rotation: finiteNumber.optional().nullable(),
+  shape: tableShapeSchema.optional().nullable(),
+  tableColor: colorSchema.optional().nullable(),
 });
 
 const updateSchema = z.object({
   tableId: z.string().uuid(),
   name: z.string().min(1).max(80).optional(),
-  capacity: z.number().int().min(1).max(50).optional(),
-  x: z.number().optional().nullable(),
-  y: z.number().optional().nullable(),
-  w: z.number().optional().nullable(),
-  h: z.number().optional().nullable(),
-  rotation: z.number().optional().nullable(),
-  shape: z.string().max(20).optional().nullable(),
-  tableColor: z.string().max(20).optional().nullable(),
+  capacity: capacitySchema.optional(),
+  x: finiteNumber.optional().nullable(),
+  y: finiteNumber.optional().nullable(),
+  w: finiteNumber.optional().nullable(),
+  h: finiteNumber.optional().nullable(),
+  rotation: finiteNumber.optional().nullable(),
+  shape: tableShapeSchema.optional().nullable(),
+  tableColor: colorSchema.optional().nullable(),
+});
+
+/** Batched positions after a drag, so moving N tables is one request, not N. */
+const moveSchema = z.object({
+  moves: z
+    .array(
+      z.object({
+        tableId: z.string().uuid(),
+        x: finiteNumber,
+        y: finiteNumber,
+      })
+    )
+    .min(1)
+    .max(100),
 });
 
 const assignSchema = z.object({
@@ -97,6 +122,15 @@ export async function POST(
         tableId: parsed.data.tableId,
       });
       return NextResponse.json({ ok: true, ...result });
+    }
+
+    if ('moves' in body) {
+      const parsed = moveSchema.safeParse(body);
+      if (!parsed.success) {
+        throw new ApiError('validation_error', 'Ошибка валидации', 400, parsed.error.flatten());
+      }
+      const tables = await moveSeatingTables(id, ctx.user.id, parsed.data.moves);
+      return NextResponse.json({ ok: true, tables });
     }
 
     const parsed = createSchema.safeParse(body);

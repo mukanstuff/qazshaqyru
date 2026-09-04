@@ -13,6 +13,10 @@ import {
   apiErrorResponse,
   ApiError,
   getCurrentSession,
+  checkSameOrigin,
+  applyRateLimit,
+  rateLimitResponse,
+  RATE_LIMITS,
 } from '@/lib/shared/api';
 import prisma from '@/lib/shared/db';
 import { canvasDocumentSchema } from '@/lib/canvas/schemas';
@@ -20,6 +24,7 @@ import { convertLegacyToCanvas } from '@/lib/canvas/legacy-converter';
 import { parseCanvasOrEmpty, validateCanvasDocument } from '@/lib/canvas/validation';
 import { getInvitationPricing } from '@/lib/invitations/invitation-pricing';
 import { ensureCanvasDocument } from '@/lib/invitations/ensure-canvas';
+import { deriveInvitationFieldsFromCanvas } from '@/lib/canvas/derive-invitation-fields';
 import type { InvitationCanvasDocument } from '@/lib/canvas/types';
 
 export const dynamic = 'force-dynamic';
@@ -48,7 +53,7 @@ async function loadOwnedInvitation(id: string) {
       title: true,
       eventType: true,
       canvas: true,
-      mobileCanvas: true,
+      updatedAt: true,
     },
   });
   if (!inv) throw new ApiError('not_found', 'Приглашение не найдено', 404);
@@ -71,10 +76,11 @@ export async function GET(_req: NextRequest, { params }: RouteCtx) {
       // re-fetch
       const refreshed = await prisma.invitation.findUnique({
         where: { id },
-        select: { canvas: true },
+        select: { canvas: true, updatedAt: true },
       });
       if (refreshed?.canvas) {
         (inv as any).canvas = refreshed.canvas;
+        (inv as any).updatedAt = refreshed.updatedAt;
       }
     }
 
@@ -97,7 +103,7 @@ export async function GET(_req: NextRequest, { params }: RouteCtx) {
         customText: inv.customText as Record<string, unknown> | null,
       });
     }
-    return NextResponse.json({ success: true, document: doc });
+    return NextResponse.json({ success: true, document: doc, updatedAt: inv.updatedAt.toISOString() });
   } catch (err) {
     return apiErrorResponse(err as Error, 'Canvas GET');
   }
@@ -105,12 +111,23 @@ export async function GET(_req: NextRequest, { params }: RouteCtx) {
 
 const patchBodySchema = z.object({
   document: z.unknown(),
+  // ISO timestamp of the invitation's `updatedAt` the client last saw (from
+  // GET or a prior PATCH response). Used for optimistic concurrency: two
+  // tabs/devices editing the same invitation must not silently clobber each
+  // other's saves. Optional for back-compat with any caller that hasn't been
+  // updated to send it, in which case we fall back to unconditional write.
+  baseVersion: z.string().datetime().optional(),
 });
 
 export async function PATCH(req: NextRequest, { params }: RouteCtx) {
   try {
+    if (!checkSameOrigin(req)) {
+      throw new ApiError('forbidden', 'Неверный origin', 403);
+    }
     const { id } = await params;
     const { session } = await loadOwnedInvitation(id);
+    const rate = await applyRateLimit(req, `canvas_save:${session.user.id}`, RATE_LIMITS.API_CANVAS_SAVE);
+    if (!rate.allowed) return rateLimitResponse(rate);
     // Edit is free per product model: pay at publication only.
     // (pricing kept for future, but no gate on PATCH for free users)
     const body = await req.json().catch(() => null);
@@ -126,14 +143,48 @@ export async function PATCH(req: NextRequest, { params }: RouteCtx) {
     const doc = validation.document;
     doc.editorMetadata = { ...(doc.editorMetadata || {}), lastModifiedAt: new Date().toISOString() };
 
-    // Persist canvas document. The `canvas` column is added by migration
-    // 20260727000000_canvas_document; `prisma migrate deploy` must be run before
-    // editor saves take effect.
-    await (prisma as unknown as { invitation: { update: (args: unknown) => Promise<unknown> } }).invitation.update({
-      where: { id },
-      data: { canvas: doc as unknown as object },
+    // Project canvas onto the flat columns the OG image, .ics export, browser
+    // tab title, reminders and dashboard read without parsing canvas — keeps
+    // them from drifting behind whatever the editor/wizard/hub last wrote.
+    const derived = deriveInvitationFieldsFromCanvas(doc);
+    const derivedData: Record<string, unknown> = {};
+    if (derived.title !== undefined) derivedData.title = derived.title;
+    if (derived.eventDate !== undefined) derivedData.eventDate = derived.eventDate;
+    if (derived.eventTime !== undefined) derivedData.eventTime = derived.eventTime;
+    if (derived.eventPlace !== undefined) derivedData.eventPlace = derived.eventPlace;
+    if (derived.address !== undefined) derivedData.address = derived.address;
+
+    type PrismaTx = any;
+    const { baseVersion } = parsed.data;
+    const newUpdatedAt = await prisma.$transaction(async (tx: PrismaTx) => {
+      if (baseVersion) {
+        const result = await tx.invitation.updateMany({
+          where: { id, updatedAt: new Date(baseVersion) },
+          data: { canvas: doc as unknown as object, ...derivedData },
+        });
+        if (result.count === 0) return null;
+      } else {
+        await tx.invitation.update({
+          where: { id },
+          data: { canvas: doc as unknown as object, ...derivedData },
+        });
+      }
+      const row = await tx.invitation.findUnique({ where: { id }, select: { updatedAt: true } });
+      return row?.updatedAt ?? null;
     });
-    return NextResponse.json({ success: true, document: doc });
+
+    if (!newUpdatedAt) {
+      // Someone else (another tab, another device) saved this invitation
+      // since the client last loaded it. Don't silently overwrite their
+      // edit — tell the client to reconcile instead.
+      throw new ApiError(
+        'canvas_conflict',
+        'Приглашение было изменено в другом окне. Обновите страницу, чтобы продолжить.',
+        409
+      );
+    }
+
+    return NextResponse.json({ success: true, document: doc, updatedAt: newUpdatedAt.toISOString() });
   } catch (err) {
     return apiErrorResponse(err as Error, 'Canvas PATCH');
   }

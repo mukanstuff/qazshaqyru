@@ -2,16 +2,39 @@
 
 import { useState } from 'react';
 import type { MapElement } from '@/lib/canvas/types';
-import { fontStack } from './TextElementView';
 import { canEmbedMap, to2GisEmbedUrl, parseMapUrl } from '@/lib/shared/map-url';
 
-export function MapElementView({ el }: { el: MapElement }) {
+interface Props {
+  el: MapElement;
+  locale?: 'ru' | 'kz';
+}
+
+const LABELS = {
+  ru: {
+    venueFallback: 'Место проведения',
+    addressFallback: 'Адрес на карте',
+    showInteractive: 'Показать интерактивную карту',
+    openButton: 'Открыть в 2GIS / Картах →',
+    iframeTitle: 'Карта проезда',
+  },
+  kz: {
+    venueFallback: 'Өткізу орны',
+    addressFallback: 'Картадағы мекенжай',
+    showInteractive: 'Интерактивті картаны көрсету',
+    openButton: '2GIS / Карталарда ашу →',
+    iframeTitle: 'Жол картасы',
+  },
+};
+
+export function MapElementView({ el, locale = 'ru' }: Props) {
   const [interactive, setInteractive] = useState(false);
+  const t = LABELS[locale];
 
   const rawUrl = el.address || '';
   const parsedUrl = parseMapUrl(rawUrl) || 'https://2gis.kz';
   const embeddable = canEmbedMap(rawUrl);
   const embedUrl = to2GisEmbedUrl(rawUrl);
+  const accent = el.accentColor || '#6b1d3a';
 
   const fontFamily = 'Montserrat, system-ui, sans-serif';
   const borderRadius = 12;
@@ -22,7 +45,7 @@ export function MapElementView({ el }: { el: MapElement }) {
         fontFamily,
         borderRadius,
         overflow: 'hidden',
-        border: '1px solid rgba(107,29,58,0.15)',
+        border: `1px solid color-mix(in srgb, ${accent} 15%, transparent)`,
         boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
         backgroundColor: '#ffffff',
         width: '100%',
@@ -32,7 +55,7 @@ export function MapElementView({ el }: { el: MapElement }) {
     >
       <div style={{ padding: 12, borderBottom: '1px solid rgba(0,0,0,0.06)', textAlign: 'center' }}>
         <div style={{ fontWeight: 700, fontSize: 14, color: '#2c1810' }}>
-          {el.markerTitle || 'Место проведения'}
+          {el.markerTitle || t.venueFallback}
         </div>
         {el.address && (
           <div style={{ fontSize: 12, color: '#6b5a52', marginTop: 2 }}>{el.address}</div>
@@ -44,7 +67,7 @@ export function MapElementView({ el }: { el: MapElement }) {
           <iframe
             src={embedUrl}
             style={{ width: '100%', height: '100%', border: 'none' }}
-            title="Карта проезда"
+            title={t.iframeTitle}
             loading="lazy"
           />
         ) : (
@@ -63,7 +86,7 @@ export function MapElementView({ el }: { el: MapElement }) {
           >
             <span style={{ fontSize: 32 }}>📍</span>
             <div style={{ fontSize: 13, fontWeight: 600, color: '#2c1810' }}>
-              {el.address || 'Адрес на карте'}
+              {el.address || t.addressFallback}
             </div>
             {embeddable && embedUrl && (
               <button
@@ -72,15 +95,15 @@ export function MapElementView({ el }: { el: MapElement }) {
                 style={{
                   padding: '6px 12px',
                   borderRadius: 6,
-                  border: '1px solid #6b1d3a',
+                  border: `1px solid ${accent}`,
                   backgroundColor: 'transparent',
-                  color: '#6b1d3a',
+                  color: accent,
                   fontSize: 12,
                   fontWeight: 600,
                   cursor: 'pointer',
                 }}
               >
-                Показать интерактивную карту
+                {t.showInteractive}
               </button>
             )}
           </div>
@@ -96,14 +119,14 @@ export function MapElementView({ el }: { el: MapElement }) {
             display: 'inline-block',
             padding: '8px 16px',
             borderRadius: 8,
-            backgroundColor: '#6b1d3a',
+            backgroundColor: accent,
             color: '#ffffff',
             fontSize: 13,
             fontWeight: 600,
             textDecoration: 'none',
           }}
         >
-          {el.buttonLabel || 'Открыть в 2GIS / Картах →'}
+          {el.buttonLabel || t.openButton}
         </a>
       </div>
     </div>

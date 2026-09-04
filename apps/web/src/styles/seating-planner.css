@@ -1,0 +1,658 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Seating planner — the owner's hall plan.
+ *
+ * Mobile-first: the hall scales to viewport width and every control is a real
+ * touch target. Colours come from the site's --us-* tokens so the planner
+ * reads as part of the product rather than a bolted-on tool.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
+.seating-shell {
+  --sp-surface: var(--us-surface, #fff);
+  --sp-bg: var(--us-ivory, #faf8f4);
+  --sp-border: var(--us-border, rgba(31, 58, 46, 0.08));
+  --sp-text: var(--us-ink, #1f3a2e);
+  --sp-muted: var(--us-ink-muted, rgba(31, 58, 46, 0.58));
+  --sp-accent: var(--us-accent, #16a34a);
+  --sp-accent-strong: var(--us-accent-strong, #15803d);
+  --sp-danger: #c2410c;
+  --sp-radius: 16px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  color: var(--sp-text);
+}
+
+@media (min-width: 900px) {
+  .seating-shell {
+    max-width: 1080px;
+    margin-inline: auto;
+    padding: 24px;
+  }
+}
+
+/* ═══ Toolbar ════════════════════════════════════════════════════════════════ */
+.seating-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.seating-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/*
+ * Fixtures are secondary to tables: same row, quieter buttons, so the eye
+ * still lands on "add a table" first.
+ */
+.seating-toolbar-actions--objects {
+  align-items: center;
+  gap: 6px;
+}
+
+.seating-toolbar-label {
+  font-size: 12px;
+  color: var(--sp-muted);
+}
+
+.seating-btn--ghost {
+  min-height: 36px;
+  padding: 0 11px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--sp-muted);
+  background: transparent;
+  border-style: dashed;
+}
+
+.seating-btn--ghost:hover:not(:disabled) {
+  color: var(--sp-text);
+}
+
+.seating-toolbar-status {
+  font-size: 12.5px;
+  color: var(--sp-muted);
+  min-height: 18px;
+}
+
+.seating-toolbar-status .is-ok {
+  color: var(--sp-accent-strong);
+}
+
+.seating-toolbar-status .is-err {
+  color: var(--sp-danger);
+}
+
+.seating-summary {
+  font-size: 13px;
+  color: var(--sp-muted);
+  margin: 0;
+}
+
+.seating-hint {
+  font-size: 12.5px;
+  color: var(--sp-muted);
+  margin: 0;
+  text-align: center;
+}
+
+/* ═══ Buttons ════════════════════════════════════════════════════════════════ */
+.seating-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--sp-border);
+  background: var(--sp-surface);
+  color: var(--sp-text);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, opacity 150ms ease;
+}
+
+.seating-btn:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--sp-accent) 35%, transparent);
+  background: color-mix(in srgb, var(--sp-accent) 6%, var(--sp-surface));
+}
+
+.seating-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.seating-btn--primary {
+  background: var(--sp-accent);
+  border-color: var(--sp-accent);
+  color: #fff;
+}
+
+.seating-btn--primary:hover:not(:disabled) {
+  background: var(--sp-accent-strong);
+  border-color: var(--sp-accent-strong);
+}
+
+.seating-btn--danger {
+  color: var(--sp-danger);
+  border-color: color-mix(in srgb, var(--sp-danger) 25%, transparent);
+}
+
+.seating-btn--danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--sp-danger) 8%, var(--sp-surface));
+  border-color: color-mix(in srgb, var(--sp-danger) 40%, transparent);
+}
+
+.seating-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 999px;
+  border: 1px solid var(--sp-border);
+  background: var(--sp-surface);
+  color: var(--sp-muted);
+  cursor: pointer;
+}
+
+/* ═══ Hall ═══════════════════════════════════════════════════════════════════ */
+
+/*
+ * Window onto the hall.
+ *
+ * The hall itself is scaled to fit its width, which on a phone renders a
+ * twenty-table plan at roughly 40px per table — too small to read and too
+ * small to grab. Zoom grows the surface past the window and this scrolls it.
+ */
+.seating-hall-frame {
+  position: relative;
+}
+
+.seating-hall-viewport {
+  overflow: auto;
+  border-radius: var(--sp-radius);
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Outside the scroller, so it stays put while the hall pans under it. */
+.seating-hall-zoom {
+  position: absolute;
+  z-index: 2;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid var(--sp-border);
+  background: var(--sp-surface);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--sp-text) 16%, transparent);
+}
+
+.seating-hall-zoom button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  color: var(--sp-text);
+  cursor: pointer;
+}
+
+.seating-hall-zoom button:disabled {
+  color: var(--sp-muted);
+  opacity: 0.45;
+  cursor: default;
+}
+
+.seating-hall-zoom span {
+  min-width: 42px;
+  text-align: center;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--sp-muted);
+}
+
+.seating-hall {
+  position: relative;
+  width: 100%;
+  border-radius: var(--sp-radius);
+  border: 1px solid var(--sp-border);
+  background-color: var(--sp-surface);
+  /* Faint floor grid gives the drag somewhere to land instead of a void. */
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--sp-text) 5%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--sp-text) 5%, transparent) 1px, transparent 1px);
+  background-size: 8.3333% 12.5%;
+  overflow: hidden;
+  user-select: none;
+}
+
+.seating-table {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: #fff;
+  cursor: grab;
+  /*
+   * On the table, not on the hall. The hall now lives in a scroller, so a
+   * finger on empty floor has to pan it; only a finger on a table belongs to
+   * the drag gesture.
+   */
+  touch-action: none;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--sp-text) 22%, transparent);
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition: outline-color 140ms ease, box-shadow 140ms ease;
+}
+
+.seating-table:active {
+  cursor: grabbing;
+}
+
+.seating-table--round {
+  border-radius: 999px;
+}
+
+.seating-table--rect {
+  border-radius: 14px;
+}
+
+.seating-table.is-selected {
+  outline-color: var(--sp-text);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--sp-text) 32%, transparent);
+}
+
+/* Over capacity is a real planning error — make it impossible to miss. */
+.seating-table.is-over {
+  outline-color: var(--sp-danger);
+}
+
+.seating-table-name {
+  font-family: var(--font-display), 'Onest', sans-serif;
+  font-size: clamp(12px, 2.4vw, 16px);
+  font-weight: 700;
+  line-height: 1.1;
+  text-align: center;
+  padding-inline: 4px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.seating-table-seats {
+  font-size: clamp(10px, 1.9vw, 12px);
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+/*
+ * A twenty-table hall on a phone draws each table about 40px across, and
+ * "10 орынның 0-і" needs 74px — so the seats label spilled out over its
+ * neighbours and the whole floor read as green mush. Below the width where it
+ * fits, the table shows its name only; the count is one zoom step away.
+ */
+.seating-table {
+  container-type: inline-size;
+}
+
+@container (max-width: 78px) {
+  .seating-table-seats {
+    display: none;
+  }
+}
+
+/*
+ * The name always shows — a nameless green circle is no plan at all — so it is
+ * clipped to the table rather than hidden or allowed to spill.
+ */
+.seating-table-name {
+  max-width: 92%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ═══ Chairs ═════════════════════════════════════════════════════════════════ */
+
+/*
+ * One dot per seat, empty or filled. This is the difference between a plan you
+ * read and a plan you count: four filled dots out of ten is visible across the
+ * room, "10 орынның 4-і" has to be read one table at a time.
+ */
+.seating-seat {
+  position: absolute;
+  width: 13%;
+  aspect-ratio: 1;
+  max-width: 14px;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  background: var(--sp-surface);
+  border: 1.5px solid color-mix(in srgb, var(--sp-text) 28%, transparent);
+  box-sizing: border-box;
+}
+
+.seating-seat.is-taken {
+  background: var(--sp-text);
+  border-color: var(--sp-text);
+}
+
+/* Below this the dots merge into a grey fringe and read as noise. */
+@container (max-width: 66px) {
+  .seating-seat {
+    display: none;
+  }
+}
+
+/* ═══ Hall fixtures ══════════════════════════════════════════════════════════ */
+
+/*
+ * Stage, dance floor, bar, entrance. They are rows in the same list as tables
+ * but they are the room, not the furniture — flat, unsaturated, behind
+ * everything, and never coloured by the table palette.
+ */
+.seating-object {
+  z-index: 0;
+  color: color-mix(in srgb, var(--sp-text) 72%, transparent);
+  background: color-mix(in srgb, var(--sp-text) 6%, transparent);
+  border: 1.5px dashed color-mix(in srgb, var(--sp-text) 26%, transparent);
+  box-shadow: none;
+  border-radius: 10px;
+}
+
+.seating-object .seating-table-name {
+  font-size: clamp(10px, 2vw, 14px);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.seating-object.is-selected {
+  border-style: solid;
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--sp-text) 18%, transparent);
+}
+
+/* The dance floor is the one fixture people stand *on*, so it reads as floor. */
+.seating-object--dancefloor {
+  border-radius: 14px;
+  background: repeating-linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--sp-text) 5%, transparent) 0 10px,
+    transparent 10px 20px
+  );
+}
+
+.seating-object--stage {
+  border-radius: 10px 10px 4px 4px;
+}
+
+.seating-object--entrance {
+  border-style: solid;
+  border-width: 0 0 3px 0;
+  background: none;
+}
+
+/* Tables stand on the floor plan, above the fixtures. */
+.seating-table:not(.seating-object) {
+  z-index: 1;
+}
+
+/* ═══ Panels ═════════════════════════════════════════════════════════════════ */
+.seating-panel,
+.seating-inspector {
+  border-radius: var(--sp-radius);
+  border: 1px solid var(--sp-border);
+  background: var(--sp-surface);
+  padding: 14px;
+}
+
+.seating-panel-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--sp-text);
+}
+
+.seating-panel-empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--sp-muted);
+}
+
+.seating-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.seating-chip-list--picker {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--sp-border);
+}
+
+.seating-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--sp-border);
+  background: color-mix(in srgb, var(--sp-text) 4%, transparent);
+  color: var(--sp-text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.seating-chip:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--sp-accent) 40%, transparent);
+  background: color-mix(in srgb, var(--sp-accent) 8%, transparent);
+}
+
+.seating-chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.seating-chip--seated {
+  background: color-mix(in srgb, var(--sp-accent) 10%, transparent);
+  border-color: color-mix(in srgb, var(--sp-accent) 28%, transparent);
+}
+
+.seating-chip-name {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A guest bringing a plus-one costs two chairs — say so on the chip. */
+.seating-chip-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--sp-accent-strong);
+}
+
+/* ═══ Inspector ══════════════════════════════════════════════════════════════ */
+.seating-inspector {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.seating-inspector-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.seating-field-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+@media (min-width: 520px) {
+  .seating-field-row {
+    grid-template-columns: 140px 1fr;
+  }
+}
+
+.seating-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.seating-field-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--sp-muted);
+}
+
+.seating-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid var(--sp-border);
+  background: var(--sp-bg);
+  color: var(--sp-text);
+  font-size: 14px;
+}
+
+.seating-input:focus {
+  outline: none;
+  border-color: var(--sp-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sp-accent) 16%, transparent);
+}
+
+.seating-input--title {
+  flex: 1;
+  font-family: var(--font-display), 'Onest', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.seating-segmented {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--sp-bg);
+  border: 1px solid var(--sp-border);
+}
+
+.seating-segmented button {
+  flex: 1;
+  min-height: 36px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--sp-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.seating-segmented button.is-active {
+  background: var(--sp-surface);
+  color: var(--sp-text);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--sp-text) 12%, transparent);
+}
+
+.seating-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.seating-swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  box-shadow: 0 0 0 1px var(--sp-border);
+  cursor: pointer;
+}
+
+.seating-swatch.is-active {
+  border-color: var(--sp-surface);
+  box-shadow: 0 0 0 2px var(--sp-text);
+}
+
+.seating-inspector-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.seating-seated {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--sp-border);
+}
+
+.seating-error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--sp-danger);
+}
+
+/* ═══ Empty states ═══════════════════════════════════════════════════════════ */
+.seating-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 40px 20px;
+  text-align: center;
+  border-radius: var(--sp-radius);
+  border: 1px dashed var(--sp-border);
+  background: var(--sp-surface);
+}
+
+.seating-empty--inline {
+  padding: 32px 20px;
+}
+
+.seating-empty-title {
+  margin: 0;
+  font-family: var(--font-display), 'Onest', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.seating-empty-desc {
+  margin: 0;
+  max-width: 42ch;
+  font-size: 13.5px;
+  color: var(--sp-muted);
+}

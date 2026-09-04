@@ -1,18 +1,32 @@
 /**
- * Pre-made section blocks for the admin template builder.
- * Each section is a group of canvas elements designed for a specific
- * use-case (hero, date/time, venue, program, etc.).
+ * Pre-made section blocks — composite groups of canvas elements
+ * (hero, date/time, venue, program, etc.) inserted as a unit from the
+ * editor's "Секции" dock tab.
  *
- * Sections are inserted as a unit, positioned relative to each other.
- * y-coordinates are stacked so sections appear in order when inserted.
+ * Unlike a plain element from ElementPalette, a section bundles several
+ * elements with sensible relative positions. Its style and language are
+ * derived from the document being edited (existing heading/body font and
+ * colour, and `doc.locale`) rather than fixed constants, so the inserted
+ * block matches whatever template it lands in instead of always coming out
+ * in one hardcoded burgundy/gold Russian palette.
  */
 import { nanoid } from 'nanoid';
 import type {
   CanvasElement,
+  FontFamily,
   InvitationCanvasDocument,
 } from './types';
 
 // ─── Section definition ─────────────────────────────────────────────────────
+
+export interface SectionContext {
+  locale: 'kz' | 'ru';
+  headingFont: FontFamily;
+  bodyFont: FontFamily;
+  primary: string;
+  accent: string;
+  body: string;
+}
 
 export interface SectionDefinition {
   id: string;
@@ -21,7 +35,7 @@ export interface SectionDefinition {
   descriptionRu: string;
   descriptionKz: string;
   heightHint: number;
-  build(startY: number): CanvasElement[];
+  build(startY: number, ctx: SectionContext): CanvasElement[];
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -30,17 +44,63 @@ function uid(): string {
   return nanoid(10);
 }
 
-const BRAND = { primary: '#6b1d3a', accent: '#c9a961', dark: '#1b1419', ivory: '#fff8f1' };
+function pick(ctx: SectionContext, ru: string, kz: string): string {
+  return ctx.locale === 'kz' ? kz : ru;
+}
+
+const FALLBACK: SectionContext = {
+  locale: 'ru',
+  headingFont: 'Cormorant',
+  bodyFont: 'Montserrat',
+  primary: '#2c2117',
+  accent: '#c9a961',
+  body: '#555555',
+};
+
+/**
+ * Reads the document's own elements to figure out what "matching the
+ * template" means here — its actual heading/body fonts and colours —
+ * instead of a hardcoded brand palette that ignored the current theme.
+ */
+export function deriveSectionContext(doc: InvitationCanvasDocument): SectionContext {
+  const els = doc.elements;
+  const coupleNames = els.find((e) => e.type === 'couple-names');
+  const heading = els.find((e) => e.type === 'heading');
+  const text = els.find((e) => e.type === 'text');
+  const accentSource = els.find((e) => e.type === 'divider' || e.type === 'ornament');
+
+  const headingFont =
+    (coupleNames?.type === 'couple-names' ? coupleNames.font : undefined) ??
+    (heading?.type === 'heading' ? heading.fontFamily : undefined) ??
+    FALLBACK.headingFont;
+  const bodyFont = (text?.type === 'text' ? text.fontFamily : undefined) ?? FALLBACK.bodyFont;
+  const primary =
+    (coupleNames?.type === 'couple-names' ? coupleNames.color : undefined) ??
+    (heading?.type === 'heading' ? heading.color : undefined) ??
+    FALLBACK.primary;
+  const body = (text?.type === 'text' ? text.color : undefined) ?? FALLBACK.body;
+  const accent =
+    (accentSource?.type === 'divider' ? accentSource.color : undefined) ?? FALLBACK.accent;
+
+  return {
+    locale: doc.locale ?? FALLBACK.locale,
+    headingFont,
+    bodyFont,
+    primary,
+    accent,
+    body,
+  };
+}
 
 // ─── Section builders ────────────────────────────────────────────────────────
 
-function buildHeroSection(startY: number): CanvasElement[] {
+function buildHeroSection(startY: number, ctx: SectionContext): CanvasElement[] {
   const el1: CanvasElement = {
     id: uid(), type: 'heading', as: 'h1',
     x: 5, y: startY, w: 90, h: 'auto',
-    text: 'Айбек & Айдана',
-    fontFamily: 'Cormorant', fontSize: 52, fontWeight: 600,
-    color: BRAND.primary, textAlign: 'center', lineHeight: 1.2,
+    text: pick(ctx, 'Айбек & Айдана', 'Айбек & Айдана'),
+    fontFamily: ctx.headingFont, fontSize: 52, fontWeight: 600,
+    color: ctx.primary, textAlign: 'center', lineHeight: 1.2,
     letterSpacing: 0.5, rotation: 0, zIndex: 1, locked: false, hidden: false,
     editableByEndUser: true, editableProperties: ['text'],
     placeholderKey: 'coupleNames',
@@ -48,9 +108,9 @@ function buildHeroSection(startY: number): CanvasElement[] {
   const el2: CanvasElement = {
     id: uid(), type: 'text',
     x: 10, y: startY + 90, w: 80, h: 'auto',
-    text: 'Приглашаем вас на нашу свадьбу',
-    fontFamily: 'Montserrat', fontSize: 16, fontWeight: 400,
-    color: '#555', textAlign: 'center', lineHeight: 1.5,
+    text: pick(ctx, 'Приглашаем вас на нашу свадьбу', 'Сіздерді үйлену тойымызға шақырамыз'),
+    fontFamily: ctx.bodyFont, fontSize: 16, fontWeight: 400,
+    color: ctx.body, textAlign: 'center', lineHeight: 1.5,
     letterSpacing: 0, rotation: 0, zIndex: 1, locked: false, hidden: false,
     editableByEndUser: true, editableProperties: ['text'],
     placeholderKey: 'heroSubtitle',
@@ -58,27 +118,27 @@ function buildHeroSection(startY: number): CanvasElement[] {
   const el3: CanvasElement = {
     id: uid(), type: 'divider',
     x: 25, y: startY + 150, w: 50, h: 2,
-    color: BRAND.accent, thickness: 1, style: 'solid',
+    color: ctx.accent, thickness: 1, style: 'solid',
     rotation: 0, zIndex: 1, locked: false, hidden: false,
   };
   return [el1, el2, el3];
 }
 
-function buildDateTimeSection(startY: number): CanvasElement[] {
+function buildDateTimeSection(startY: number, ctx: SectionContext): CanvasElement[] {
   const el1: CanvasElement = {
     id: uid(), type: 'text',
     x: 10, y: startY, w: 80, h: 'auto',
-    text: 'Дата и время',
-    fontFamily: 'Montserrat', fontSize: 12, fontWeight: 500,
-    color: BRAND.accent, textAlign: 'center', lineHeight: 1.4,
+    text: pick(ctx, 'Дата и время', 'Күні мен уақыты'),
+    fontFamily: ctx.bodyFont, fontSize: 12, fontWeight: 500,
+    color: ctx.accent, textAlign: 'center', lineHeight: 1.4,
     letterSpacing: 2, rotation: 0, zIndex: 1, locked: false, hidden: false,
   };
   const el2: CanvasElement = {
     id: uid(), type: 'heading', as: 'h2',
     x: 5, y: startY + 30, w: 90, h: 'auto',
-    text: '15 августа 2026',
-    fontFamily: 'Cormorant', fontSize: 36, fontWeight: 600,
-    color: BRAND.primary, textAlign: 'center', lineHeight: 1.2,
+    text: pick(ctx, '15 августа 2026', '2026 жылдың 15 тамызы'),
+    fontFamily: ctx.headingFont, fontSize: 36, fontWeight: 600,
+    color: ctx.primary, textAlign: 'center', lineHeight: 1.2,
     letterSpacing: 0.5, rotation: 0, zIndex: 1, locked: false, hidden: false,
     editableByEndUser: true, editableProperties: ['text'],
     placeholderKey: 'eventDate',
@@ -86,9 +146,9 @@ function buildDateTimeSection(startY: number): CanvasElement[] {
   const el3: CanvasElement = {
     id: uid(), type: 'text',
     x: 10, y: startY + 90, w: 80, h: 'auto',
-    text: 'в 16:00',
-    fontFamily: 'Montserrat', fontSize: 22, fontWeight: 400,
-    color: '#333', textAlign: 'center', lineHeight: 1.4,
+    text: pick(ctx, 'в 16:00', '16:00-де'),
+    fontFamily: ctx.bodyFont, fontSize: 22, fontWeight: 400,
+    color: ctx.body, textAlign: 'center', lineHeight: 1.4,
     letterSpacing: 0, rotation: 0, zIndex: 1, locked: false, hidden: false,
     editableByEndUser: true, editableProperties: ['text'],
     placeholderKey: 'eventTime',
@@ -102,21 +162,21 @@ function buildDateTimeSection(startY: number): CanvasElement[] {
   return [el1, el2, el3, el4];
 }
 
-function buildVenueSection(startY: number): CanvasElement[] {
+function buildVenueSection(startY: number, ctx: SectionContext): CanvasElement[] {
   const el1: CanvasElement = {
     id: uid(), type: 'text',
     x: 10, y: startY, w: 80, h: 'auto',
-    text: 'Место проведения',
-    fontFamily: 'Montserrat', fontSize: 12, fontWeight: 500,
-    color: BRAND.accent, textAlign: 'center', lineHeight: 1.4,
+    text: pick(ctx, 'Место проведения', 'Өткізу орны'),
+    fontFamily: ctx.bodyFont, fontSize: 12, fontWeight: 500,
+    color: ctx.accent, textAlign: 'center', lineHeight: 1.4,
     letterSpacing: 2, rotation: 0, zIndex: 1, locked: false, hidden: false,
   };
   const el2: CanvasElement = {
     id: uid(), type: 'heading', as: 'h2',
     x: 5, y: startY + 30, w: 90, h: 'auto',
-    text: 'Ресторан Жетысу',
-    fontFamily: 'Cormorant', fontSize: 32, fontWeight: 600,
-    color: BRAND.primary, textAlign: 'center', lineHeight: 1.2,
+    text: pick(ctx, 'Ресторан Жетысу', 'Жетісу мейрамханасы'),
+    fontFamily: ctx.headingFont, fontSize: 32, fontWeight: 600,
+    color: ctx.primary, textAlign: 'center', lineHeight: 1.2,
     letterSpacing: 0.5, rotation: 0, zIndex: 1, locked: false, hidden: false,
     editableByEndUser: true, editableProperties: ['text'],
     placeholderKey: 'venueName',
@@ -124,9 +184,9 @@ function buildVenueSection(startY: number): CanvasElement[] {
   const el3: CanvasElement = {
     id: uid(), type: 'text',
     x: 10, y: startY + 85, w: 80, h: 'auto',
-    text: 'г. Алматы, ул. Абая 100',
-    fontFamily: 'Montserrat', fontSize: 14, fontWeight: 400,
-    color: '#555', textAlign: 'center', lineHeight: 1.5,
+    text: pick(ctx, 'г. Алматы, ул. Абая 100', 'Алматы қ., Абай көш. 100'),
+    fontFamily: ctx.bodyFont, fontSize: 14, fontWeight: 400,
+    color: ctx.body, textAlign: 'center', lineHeight: 1.5,
     letterSpacing: 0, rotation: 0, zIndex: 1, locked: false, hidden: false,
     editableByEndUser: true, editableProperties: ['text'],
     placeholderKey: 'venueAddress',
@@ -134,7 +194,7 @@ function buildVenueSection(startY: number): CanvasElement[] {
   const el4: CanvasElement = {
     id: uid(), type: 'map',
     x: 5, y: startY + 130, w: 90, h: 180,
-    zoom: 14, showStaticOnly: false,
+    zoom: 14, showStaticOnly: false, accentColor: ctx.accent,
     rotation: 0, zIndex: 1, locked: false, hidden: false,
   };
   return [el2, el3, el1, el4];
@@ -159,103 +219,21 @@ function buildPhotoSection(startY: number): CanvasElement[] {
   return [el1, el2];
 }
 
-function buildProgramSection(startY: number): CanvasElement[] {
-  const el1: CanvasElement = {
-    id: uid(), type: 'text',
-    x: 10, y: startY, w: 80, h: 'auto',
-    text: 'ПРОГРАММА ДНЯ',
-    fontFamily: 'Montserrat', fontSize: 12, fontWeight: 600,
-    color: BRAND.accent, textAlign: 'center', lineHeight: 1.4,
-    letterSpacing: 3, rotation: 0, zIndex: 1, locked: false, hidden: false,
-  };
-  const el2: CanvasElement = {
-    id: nanoid(10), type: 'program',
-    x: 5, y: startY + 35, w: 90, h: 'auto',
-    items: [
-      { id: nanoid(6), time: '16:00', title: 'Сбор гостей' },
-      { id: nanoid(6), time: '17:00', title: 'Церемония' },
-      { id: nanoid(6), time: '18:30', title: 'Банкет' },
-      { id: nanoid(6), time: '22:00', title: 'Торт и танцы' },
-    ],
-    fontFamily: 'Montserrat', bgColor: 'transparent',
-    textColor: '#333', accentColor: BRAND.accent,
-    rotation: 0, zIndex: 1, locked: false, hidden: false,
-  };
-  return [el1, el2];
-}
-
-function buildWishesSection(startY: number): CanvasElement[] {
-  const el1: CanvasElement = {
-    id: uid(), type: 'text',
-    x: 10, y: startY, w: 80, h: 'auto',
-    text: 'ПОЖЕЛАНИЯ',
-    fontFamily: 'Montserrat', fontSize: 12, fontWeight: 600,
-    color: BRAND.accent, textAlign: 'center', lineHeight: 1.4,
-    letterSpacing: 3, rotation: 0, zIndex: 1, locked: false, hidden: false,
-  };
-  const el2: CanvasElement = {
-    id: uid(), type: 'wishes',
-    x: 5, y: startY + 35, w: 90, h: 'auto',
-    fontFamily: 'Montserrat', bgColor: 'transparent',
-    textColor: '#333', accentColor: BRAND.primary,
-    reactions: ['❤️', '🙏', '🥂', '👏'], allowAnonymous: true,
-    rotation: 0, zIndex: 1, locked: false, hidden: false,
-  };
-  return [el1, el2];
-}
-
-function buildRsvpSection(startY: number): CanvasElement[] {
-  const el1: CanvasElement = {
-    id: uid(), type: 'text',
-    x: 10, y: startY, w: 80, h: 'auto',
-    text: 'ПОДТВЕРЖДЕНИЕ ПРИСУТСТВИЯ',
-    fontFamily: 'Montserrat', fontSize: 12, fontWeight: 600,
-    color: BRAND.accent, textAlign: 'center', lineHeight: 1.4,
-    letterSpacing: 3, rotation: 0, zIndex: 1, locked: false, hidden: false,
-  };
-  const el2: CanvasElement = {
-    id: uid(), type: 'heading', as: 'h2',
-    x: 5, y: startY + 30, w: 90, h: 'auto',
-    text: 'С的非会',
-    fontFamily: 'Cormorant', fontSize: 32, fontWeight: 600,
-    color: BRAND.primary, textAlign: 'center', lineHeight: 1.2,
-    letterSpacing: 0.5, rotation: 0, zIndex: 1, locked: false, hidden: false,
-    editableByEndUser: true, editableProperties: ['text'],
-  };
-  const el3: CanvasElement = {
-    id: uid(), type: 'text',
-    x: 10, y: startY + 85, w: 80, h: 'auto',
-    text: 'Пожалуйста, сообщите нам о своём решении до 1 августа',
-    fontFamily: 'Montserrat', fontSize: 14, fontWeight: 400,
-    color: '#666', textAlign: 'center', lineHeight: 1.5,
-    letterSpacing: 0, rotation: 0, zIndex: 1, locked: false, hidden: false,
-  };
-  const el4: CanvasElement = {
-    id: uid(), type: 'rsvp-form',
-    x: 5, y: startY + 130, w: 90, h: 'auto',
-    fontFamily: 'Montserrat', bgColor: 'transparent',
-    textColor: '#333', accentColor: BRAND.primary,
-    askPlusOne: true, askDietary: true, askChildren: true,
-    rotation: 0, zIndex: 1, locked: false, hidden: false,
-  };
-  return [el1, el2, el3, el4];
-}
-
-function buildDressCodeSection(startY: number): CanvasElement[] {
+function buildDressCodeSection(startY: number, ctx: SectionContext): CanvasElement[] {
   const el1: CanvasElement = {
     id: uid(), type: 'text',
     x: 10, y: startY, w: 80, h: 'auto',
     text: 'DRESS CODE',
-    fontFamily: 'Montserrat', fontSize: 12, fontWeight: 600,
-    color: BRAND.accent, textAlign: 'center', lineHeight: 1.4,
+    fontFamily: ctx.bodyFont, fontSize: 12, fontWeight: 600,
+    color: ctx.accent, textAlign: 'center', lineHeight: 1.4,
     letterSpacing: 3, rotation: 0, zIndex: 1, locked: false, hidden: false,
   };
   const el2: CanvasElement = {
     id: uid(), type: 'heading', as: 'h2',
     x: 5, y: startY + 30, w: 90, h: 'auto',
-    text: 'Элегантный',
-    fontFamily: 'Cormorant', fontSize: 32, fontWeight: 600,
-    color: BRAND.primary, textAlign: 'center', lineHeight: 1.2,
+    text: pick(ctx, 'Элегантный', 'Талғампаз'),
+    fontFamily: ctx.headingFont, fontSize: 32, fontWeight: 600,
+    color: ctx.primary, textAlign: 'center', lineHeight: 1.2,
     letterSpacing: 0.5, rotation: 0, zIndex: 1, locked: false, hidden: false,
     editableByEndUser: true, editableProperties: ['text'],
     placeholderKey: 'dressCode',
@@ -263,64 +241,53 @@ function buildDressCodeSection(startY: number): CanvasElement[] {
   const el3: CanvasElement = {
     id: uid(), type: 'shape',
     x: 30, y: startY + 90, w: 40, h: 12,
-    shape: 'rect', fill: '#d4af37', strokeWidth: 0, opacity: 1,
+    shape: 'rect', fill: ctx.accent, strokeWidth: 0, opacity: 1,
     rotation: 0, zIndex: 1, locked: false, hidden: false,
   };
   const el4: CanvasElement = {
     id: uid(), type: 'text',
     x: 10, y: startY + 115, w: 80, h: 'auto',
-    text: 'Бежевый, золотой, шампань',
-    fontFamily: 'Montserrat', fontSize: 13, fontWeight: 400,
-    color: '#888', textAlign: 'center', lineHeight: 1.5,
+    text: pick(ctx, 'Бежевый, золотой, шампань', 'Бежевый, алтын, шампан түстері'),
+    fontFamily: ctx.bodyFont, fontSize: 13, fontWeight: 400,
+    color: ctx.body, textAlign: 'center', lineHeight: 1.5,
     letterSpacing: 0, rotation: 0, zIndex: 1, locked: false, hidden: false,
   };
   return [el1, el2, el3, el4];
 }
 
-function buildGiftSection(startY: number): CanvasElement[] {
+function buildCountdownSection(startY: number, ctx: SectionContext): CanvasElement[] {
   const el1: CanvasElement = {
     id: uid(), type: 'text',
     x: 10, y: startY, w: 80, h: 'auto',
-    text: 'ПОДАРОК',
-    fontFamily: 'Montserrat', fontSize: 12, fontWeight: 600,
-    color: BRAND.accent, textAlign: 'center', lineHeight: 1.4,
-    letterSpacing: 3, rotation: 0, zIndex: 1, locked: false, hidden: false,
-  };
-  const el2: CanvasElement = {
-    id: uid(), type: 'gift',
-    x: 5, y: startY + 35, w: 90, h: 'auto',
-    showDonors: true, accentColor: BRAND.accent,
-    rotation: 0, zIndex: 1, locked: false, hidden: false,
-  };
-  return [el1, el2];
-}
-
-function buildCountdownSection(startY: number): CanvasElement[] {
-  const el1: CanvasElement = {
-    id: uid(), type: 'text',
-    x: 10, y: startY, w: 80, h: 'auto',
-    text: 'ДО СВАДЬБЫ',
-    fontFamily: 'Montserrat', fontSize: 12, fontWeight: 600,
-    color: BRAND.accent, textAlign: 'center', lineHeight: 1.4,
+    text: pick(ctx, 'ДО СВАДЬБЫ', 'ТОЙҒА ДЕЙІН'),
+    fontFamily: ctx.bodyFont, fontSize: 12, fontWeight: 600,
+    color: ctx.accent, textAlign: 'center', lineHeight: 1.4,
     letterSpacing: 3, rotation: 0, zIndex: 1, locked: false, hidden: false,
   };
   const el2: CanvasElement = {
     id: uid(), type: 'countdown',
     x: 5, y: startY + 30, w: 90, h: 'auto',
-    fontFamily: 'Unbounded', fontSize: 28,
-    color: BRAND.primary, showLabels: true,
+    fontFamily: ctx.headingFont, fontSize: 28,
+    color: ctx.primary, showLabels: true,
+    labels: ctx.locale === 'kz'
+      ? { days: 'күн', hours: 'сағ', minutes: 'мин', seconds: 'сек' }
+      : { days: 'дн', hours: 'ч', minutes: 'мин', seconds: 'сек' },
     rotation: 0, zIndex: 1, locked: false, hidden: false,
   };
   return [el1, el2];
 }
 
-function buildTextBlockSection(startY: number): CanvasElement[] {
+function buildTextBlockSection(startY: number, ctx: SectionContext): CanvasElement[] {
   const el1: CanvasElement = {
     id: uid(), type: 'text',
     x: 10, y: startY, w: 80, h: 'auto',
-    text: 'Дорогие наши! Мы так счастливы разделить с вами этот особенный день. Ваше присутствие сделает наш праздник по-настоящему незабываемым.',
-    fontFamily: 'Montserrat', fontSize: 15, fontWeight: 400,
-    color: '#444', textAlign: 'center', lineHeight: 1.7,
+    text: pick(
+      ctx,
+      'Дорогие наши! Мы так счастливы разделить с вами этот особенный день. Ваше присутствие сделает наш праздник по-настоящему незабываемым.',
+      'Қымбатты достар! Осы ерекше күнді сіздермен бөлісуге қуаныштымыз. Сіздердің қатысуларыңыз тойымызды есте қаларлықтай етеді.'
+    ),
+    fontFamily: ctx.bodyFont, fontSize: 15, fontWeight: 400,
+    color: ctx.body, textAlign: 'center', lineHeight: 1.7,
     letterSpacing: 0, rotation: 0, zIndex: 1, locked: false, hidden: false,
     editableByEndUser: true, editableProperties: ['text'],
     placeholderKey: 'greetingText',
@@ -328,19 +295,19 @@ function buildTextBlockSection(startY: number): CanvasElement[] {
   const el2: CanvasElement = {
     id: uid(), type: 'divider',
     x: 35, y: startY + 90, w: 30, h: 1,
-    color: BRAND.accent, thickness: 1, style: 'solid',
+    color: ctx.accent, thickness: 1, style: 'solid',
     rotation: 0, zIndex: 1, locked: false, hidden: false,
   };
   return [el1, el2];
 }
 
-function buildHashtagSection(startY: number): CanvasElement[] {
+function buildHashtagSection(startY: number, ctx: SectionContext): CanvasElement[] {
   const el1: CanvasElement = {
     id: uid(), type: 'heading', as: 'h2',
     x: 5, y: startY, w: 90, h: 'auto',
     text: '#АйбекАйдана2026',
-    fontFamily: 'Unbounded', fontSize: 22, fontWeight: 700,
-    color: BRAND.primary, textAlign: 'center', lineHeight: 1.2,
+    fontFamily: ctx.headingFont, fontSize: 22, fontWeight: 700,
+    color: ctx.primary, textAlign: 'center', lineHeight: 1.2,
     letterSpacing: 0.5, rotation: 0, zIndex: 1, locked: false, hidden: false,
     editableByEndUser: true, editableProperties: ['text'],
     placeholderKey: 'hashtag',
@@ -348,29 +315,37 @@ function buildHashtagSection(startY: number): CanvasElement[] {
   const el2: CanvasElement = {
     id: uid(), type: 'text',
     x: 10, y: startY + 50, w: 80, h: 'auto',
-    text: 'Делитесь фото и видео с нашего торжества в соцсетях',
-    fontFamily: 'Montserrat', fontSize: 13, fontWeight: 400,
-    color: '#888', textAlign: 'center', lineHeight: 1.5,
+    text: pick(
+      ctx,
+      'Делитесь фото и видео с нашего торжества в соцсетях',
+      'Тойымыздың фото-бейнелерін әлеуметтік желіде бөлісіңіз'
+    ),
+    fontFamily: ctx.bodyFont, fontSize: 13, fontWeight: 400,
+    color: ctx.body, textAlign: 'center', lineHeight: 1.5,
     letterSpacing: 0, rotation: 0, zIndex: 1, locked: false, hidden: false,
   };
   return [el1, el2];
 }
 
-function buildThankYouSection(startY: number): CanvasElement[] {
+function buildThankYouSection(startY: number, ctx: SectionContext): CanvasElement[] {
   const el1: CanvasElement = {
     id: uid(), type: 'heading', as: 'h2',
     x: 5, y: startY, w: 90, h: 'auto',
-    text: 'Спасибо, что были с нами!',
-    fontFamily: 'Cormorant', fontSize: 36, fontWeight: 600,
-    color: BRAND.primary, textAlign: 'center', lineHeight: 1.2,
+    text: pick(ctx, 'Спасибо, что были с нами!', 'Бізбен бірге болғандарыңызға рақмет!'),
+    fontFamily: ctx.headingFont, fontSize: 36, fontWeight: 600,
+    color: ctx.primary, textAlign: 'center', lineHeight: 1.2,
     letterSpacing: 0.5, rotation: 0, zIndex: 1, locked: false, hidden: false,
   };
   const el2: CanvasElement = {
     id: uid(), type: 'text',
     x: 10, y: startY + 60, w: 80, h: 'auto',
-    text: 'Ваша любовь и поддержка сделали этот день идеальным',
-    fontFamily: 'Montserrat', fontSize: 15, fontWeight: 400,
-    color: '#555', textAlign: 'center', lineHeight: 1.6,
+    text: pick(
+      ctx,
+      'Ваша любовь и поддержка сделали этот день идеальным',
+      'Сіздердің сүйіспеншілігіңіз бен қолдауыңыз бұл күнді керемет етті'
+    ),
+    fontFamily: ctx.bodyFont, fontSize: 15, fontWeight: 400,
+    color: ctx.body, textAlign: 'center', lineHeight: 1.6,
     letterSpacing: 0, rotation: 0, zIndex: 1, locked: false, hidden: false,
   };
   const el3: CanvasElement = {
@@ -422,33 +397,6 @@ export const TEMPLATE_SECTIONS: SectionDefinition[] = [
     build: buildPhotoSection,
   },
   {
-    id: 'program',
-    nameRu: 'Программа дня',
-    nameKz: 'Күн бағдарламасы',
-    descriptionRu: 'Расписание с временим и описанием',
-    descriptionKz: 'Уақыт пен сипаттамасы бар бағдарлама',
-    heightHint: 220,
-    build: buildProgramSection,
-  },
-  {
-    id: 'wishes',
-    nameRu: 'Пожелания гостей',
-    nameKz: 'Қонақтар тілектері',
-    descriptionRu: 'Блок для поздравлений с реакциями',
-    descriptionKz: 'Реакциялары бар құттықтау блогы',
-    heightHint: 300,
-    build: buildWishesSection,
-  },
-  {
-    id: 'rsvp',
-    nameRu: 'Подтверждение RSVP',
-    nameKz: 'RSVP растау',
-    descriptionRu: 'Форма подтверждения присутствия',
-    descriptionKz: 'қатысу растау формасы',
-    heightHint: 380,
-    build: buildRsvpSection,
-  },
-  {
     id: 'dresscode',
     nameRu: 'Dress Code',
     nameKz: 'Dress Code',
@@ -456,15 +404,6 @@ export const TEMPLATE_SECTIONS: SectionDefinition[] = [
     descriptionKz: 'Түс индикаторы бар дресс-код',
     heightHint: 150,
     build: buildDressCodeSection,
-  },
-  {
-    id: 'gift',
-    nameRu: 'Подарки',
-    nameKz: 'Сыйлықтар',
-    descriptionRu: 'Блок «Подарки» с Kaspi',
-    descriptionKz: 'Kaspi болатын «Сыйлықтар» блогы',
-    heightHint: 150,
-    build: buildGiftSection,
   },
   {
     id: 'countdown',
@@ -514,8 +453,10 @@ export function insertSection(
   const section = TEMPLATE_SECTIONS.find((s) => s.id === sectionId);
   if (!section) return doc;
 
+  const ctx = deriveSectionContext(doc);
+
   // Stack sections with 20px gap
-  const elements = section.build(afterY + 20);
+  const elements = section.build(afterY + 20, ctx);
 
   return {
     ...doc,

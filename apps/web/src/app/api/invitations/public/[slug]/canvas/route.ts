@@ -6,9 +6,10 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/shared/db';
 import { ensureCanvasDocument } from '@/lib/invitations/ensure-canvas';
-import { isValidPaidOrder } from '@/lib/payments/pricing-integrity';
-import { resolvePublicationPriceKzt } from '@/lib/invitations/invitation-pricing';
+import { resolvePublicationPriceKzt, resolvePaidTemplateOrder } from '@/lib/invitations/invitation-pricing';
+import { shouldShowPublishWatermark } from '@/lib/invitations/publish-watermark';
 import { getCurrentSession } from '@/lib/shared/api';
+import { isOpenRsvpEnabled } from '@/lib/guests/open-rsvp-config';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,14 +36,11 @@ export async function GET(_req: Request, { params }: Ctx) {
         customText: true,
         status: true,
         canvas: true,
-        mobileCanvas: true,
         templateId: true,
         templateKey: true,
         orders: {
           where: { status: 'paid', orderType: 'self' },
           select: { id: true, templateId: true, amountKzt: true },
-          orderBy: { paidAt: 'desc' },
-          take: 1,
         },
       },
     });
@@ -50,9 +48,14 @@ export async function GET(_req: Request, { params }: Ctx) {
     if (!inv) {
       return NextResponse.json({ error: 'not_found' }, { status: 404 });
     }
+
+    // Summed across every paid order (not just the most recent one) so a
+    // template switch paid for in two steps — the original purchase plus a
+    // top-up for the price difference — still adds up to full access.
+    const totalPaidKzt = inv.orders.reduce((sum: number, o: { amountKzt: number }) => sum + o.amountKzt, 0);
+    const session = await getCurrentSession();
+    const isOwner = session?.user.id === inv.userId;
     if (inv.status !== 'published') {
-      const session = await getCurrentSession();
-      const isOwner = session?.user.id === inv.userId;
       if (!isOwner) {
         return NextResponse.json({ error: 'not_published' }, { status: 403 });
       }
@@ -68,7 +71,7 @@ export async function GET(_req: Request, { params }: Ctx) {
         : null;
 
       const priceKzt = resolvePublicationPriceKzt(templatePrice);
-      const hasPaid = inv.orders.some((o: any) => isValidPaidOrder(o, inv.templateId, priceKzt));
+      const hasPaid = resolvePaidTemplateOrder(totalPaidKzt, priceKzt);
 
       if (hasPaid) {
         // Seed canvas so guest page and editor are consistent.
@@ -80,12 +83,11 @@ export async function GET(_req: Request, { params }: Ctx) {
         // Re-fetch to get the newly seeded canvas
         const refreshed = await prisma.invitation.findUnique({
           where: { id: inv.id },
-          select: { canvas: true, mobileCanvas: true },
+          select: { canvas: true },
         });
         if (refreshed?.canvas) {
           hasCanvas = true;
           (inv as any).canvas = refreshed.canvas;
-          (inv as any).mobileCanvas = refreshed.mobileCanvas;
         }
       }
     }
@@ -95,7 +97,10 @@ export async function GET(_req: Request, { params }: Ctx) {
       ? (await prisma.template.findUnique({ where: { id: inv.templateId }, select: { priceKzt: true } }))?.priceKzt ?? null
       : null;
     const priceKzt = resolvePublicationPriceKzt(templatePrice);
-    const hasPaidOrder = inv.orders.some((o: any) => isValidPaidOrder(o, inv.templateId, priceKzt));
+    const hasPaidOrder = resolvePaidTemplateOrder(totalPaidKzt, priceKzt);
+    const showWatermark =
+      inv.status === 'published' &&
+      shouldShowPublishWatermark({ priceKzt, hasPaidOrder, fullAccess: hasPaidOrder });
 
     return NextResponse.json({
       id: inv.id,
@@ -109,8 +114,18 @@ export async function GET(_req: Request, { params }: Ctx) {
       eventTimezone: inv.eventTimezone,
       customText: inv.customText,
       canvas: (inv as any).canvas ?? null,
-      mobileCanvas: (inv as any).mobileCanvas ?? null,
       fullAccess: hasPaidOrder,
+      showWatermark,
+      isOwner,
+      /*
+       * Whether a guest arriving on the plain public link (no ?guest= token)
+       * can answer at all. Open RSVP is OFF by default for wedding, той,
+       * беташар, қыз ұзату, сүндет той and тұсаукесер — those use personal
+       * links. The guest page did not receive this flag, so it rendered the
+       * RSVP form to everyone; on a wedding, filling it in and pressing send
+       * answered 403 open_rsvp_disabled with no explanation.
+       */
+      openRsvp: isOpenRsvpEnabled(inv.customText, inv.eventType),
     });
   } catch (err) {
     // Graceful fallback for migration / transient errors

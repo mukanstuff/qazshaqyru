@@ -2,7 +2,8 @@
 
 import { SoftLocaleBanner } from '@/components/seo/SoftLocaleBanner';
 import { SiteCompactFooter } from '@/components/shared/SiteCompactFooter';
-import { SiteMarketingHeader } from '@/components/shared/SiteMarketingHeader';
+import { SiteHeader } from '@/components/shared/SiteHeader';
+import { MobileTabBar } from '@/components/shared/MobileTabBar';
 import { cn } from '@/lib/shared/utils';
 
 interface PublicShellProps {
@@ -16,9 +17,12 @@ export function PublicShell({ children, className, isLoggedIn = false }: PublicS
   return (
     <div className={cn('min-h-screen bg-[#fcfcfb] font-body text-us-ink', className)}>
       <SoftLocaleBanner />
-      <SiteMarketingHeader isLoggedIn={isLoggedIn} />
+      <SiteHeader isLoggedIn={isLoggedIn} />
       <main className="pt-[4.75rem] md:pt-[5.5rem]">{children}</main>
       <SiteCompactFooter />
+      {/* Reserve the bar's height so the footer is never trapped underneath it. */}
+      <div className="h-14 md:hidden" aria-hidden />
+      <MobileTabBar isLoggedIn={isLoggedIn} />
     </div>
   );
 }

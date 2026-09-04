@@ -8,7 +8,7 @@ interface Props {
 }
 
 /**
- * /create?template=<slug> → /preview/<slug>
+ * /create?template=<slug> → /editor/<slug>
  * Preserves backwards compatibility for old links and the OAuth returnTo path.
  */
 export default async function CreatePageRedirect({ searchParams }: Props) {
@@ -20,5 +20,5 @@ export default async function CreatePageRedirect({ searchParams }: Props) {
   if (!template) {
     redirect('/templates');
   }
-  redirect(`/preview/${encodeURIComponent(template.slug)}`);
+  redirect(`/editor/${encodeURIComponent(template.slug)}`);
 }

@@ -60,6 +60,11 @@ function setLocaleCookie(locale: Locale) {
   document.cookie = `${LOCALE_COOKIE}=${locale}; path=/; max-age=31536000; SameSite=Lax`;
 }
 
+const LANGUAGES = [
+  { code: 'ru' as const, label: LOCALE_LABELS.ru },
+  { code: 'kz' as const, label: LOCALE_LABELS.kz },
+];
+
 export function I18nProvider({
   children,
   initialLocale = DEFAULT_LOCALE,
@@ -92,41 +97,36 @@ export function I18nProvider({
     [locale, messages]
   );
 
-  return (
-    <I18nContext.Provider
-      value={{
-        locale,
-        setLocale,
-        t,
-        languages: [
-          { code: 'ru', label: LOCALE_LABELS.ru },
-          { code: 'kz', label: LOCALE_LABELS.kz },
-        ],
-        messages,
-      }}
-    >
-      {children}
-    </I18nContext.Provider>
+  const value = useMemo<I18nContextType>(
+    () => ({ locale, setLocale, t, languages: LANGUAGES, messages }),
+    [locale, setLocale, t, messages]
   );
+
+  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 
+/**
+ * Stable fallback for trees rendered without <I18nProvider>.
+ *
+ * This MUST be a module-level singleton. It used to be an object literal built
+ * inside useI18n(), so every render handed the caller a brand-new `t` — and
+ * `t` is in the dependency array of ~20 effects and callbacks across the app
+ * (HubSectionList, InvitationRowActions, TemplatesClient, LayoutRouter…). Any
+ * one of them rendered outside the provider would re-run forever. Same defect
+ * that made useToast() spin the template builder into an endless refetch.
+ */
+const FALLBACK_MESSAGES = ALL_MESSAGES[DEFAULT_LOCALE];
+const FALLBACK_I18N: I18nContextType = {
+  locale: DEFAULT_LOCALE,
+  setLocale: () => {},
+  t: (key: string, vars?: Record<string, string | number>) =>
+    interpolate(tForLocale(DEFAULT_LOCALE, FALLBACK_MESSAGES, key), vars),
+  languages: LANGUAGES,
+  messages: FALLBACK_MESSAGES,
+};
+
 export function useI18n() {
-  const ctx = useContext(I18nContext);
-  if (!ctx) {
-    // Return a default value when used outside I18nProvider
-    const defaultMessages = ALL_MESSAGES[DEFAULT_LOCALE];
-    return {
-      locale: DEFAULT_LOCALE,
-      setLocale: () => {},
-      t: (key: string) => tForLocale(DEFAULT_LOCALE, defaultMessages, key),
-      languages: [
-        { code: 'ru' as const, label: LOCALE_LABELS.ru },
-        { code: 'kz' as const, label: LOCALE_LABELS.kz },
-      ],
-      messages: defaultMessages,
-    };
-  }
-  return ctx;
+  return useContext(I18nContext) ?? FALLBACK_I18N;
 }
 
 /**

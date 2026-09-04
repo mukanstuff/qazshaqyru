@@ -2,16 +2,26 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { CanvasRenderer } from './CanvasRenderer';
+import { EnvelopeGate } from './EnvelopeGate';
+import { useAutoScroll } from './useAutoScroll';
 import type { InvitationCanvasDocument } from '@/lib/canvas/types';
 import { parseCanvasOrEmpty } from '@/lib/canvas/validation';
 import { convertLegacyToCanvas } from '@/lib/canvas/legacy-converter';
-import { ShareIcon } from 'lucide-react';
+import { PublicPublishWatermark } from '@/components/invitation-layouts/PublicPublishWatermark';
+import { GuestActionBar } from '@/components/canvas/GuestActionBar';
 
 interface Props {
   slug: string;
   shareUrl: string;
   /** When true (from paid template order), never show watermark */
   fullAccess?: boolean;
+  /** Free-tier publish (unpaid): show the "remove watermark" banner. */
+  showWatermark?: boolean;
+  /** Personal guest link token (?guest=...) — routes the RSVP form to the
+   *  token-identified endpoint instead of the open/public one. */
+  guestToken?: string | null;
+  /** False when this invitation only accepts answers via personal links. */
+  openRsvp?: boolean;
 }
 
 type State =
@@ -37,8 +47,22 @@ type State =
  * Parent (public-invitation-client) aggressively chooses canvas for:
  *   hasCanvas || fullAccess
  */
-export function CanvasGuestPage({ slug, shareUrl, fullAccess = false }: Props) {
+export function CanvasGuestPage({
+  slug,
+  shareUrl,
+  fullAccess = false,
+  showWatermark = false,
+  guestToken = null,
+  openRsvp = true,
+}: Props) {
   const [state, setState] = useState<State>({ loading: true, doc: null, error: null });
+  // Only the owner can actually do anything about the watermark — a guest
+  // clicking it used to land on their own dashboard with a dead `?pay=`
+  // param that nothing read, for an invitation that isn't even theirs.
+  const [owner, setOwner] = useState<{ isOwner: boolean; invitationId: string | null }>({
+    isOwner: false,
+    invitationId: null,
+  });
 
   useEffect(() => {
     let alive = true;
@@ -59,13 +83,14 @@ export function CanvasGuestPage({ slug, shareUrl, fullAccess = false }: Props) {
         const doc = parseCanvasOrEmpty(data.canvas);
         if (alive) {
           setState({ loading: false, doc, error: null });
-          if (data.id) {
-            fetch(`/api/invitations/${data.id}/event`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ type: 'open', userAgent: navigator.userAgent }),
-            }).catch(() => {});
-          }
+          setOwner({ isOwner: !!data.isOwner, invitationId: typeof data.id === 'string' ? data.id : null });
+          // View tracking lives solely in public-invitation-client's mount
+          // effect (POST /api/invitations/public/{slug}/view) — it fires
+          // once regardless of which renderer (canvas or legacy) ends up
+          // mounting. This used to *also* POST /api/invitations/{id}/event
+          // here, so every real visit was counted twice before either the
+          // owner-exclusion or the per-visitor dedup even had a chance to
+          // matter.
         }
       } catch (e) {
         if (alive) setState({ loading: false, doc: null, error: 'load_failed' });
@@ -75,6 +100,8 @@ export function CanvasGuestPage({ slug, shareUrl, fullAccess = false }: Props) {
       alive = false;
     };
   }, [slug]);
+
+  const [envelopeOpen, setEnvelopeOpen] = useState(false);
 
   const doc = state.doc;
   const docWithDefaults = useMemo(() => {
@@ -98,69 +125,77 @@ export function CanvasGuestPage({ slug, shareUrl, fullAccess = false }: Props) {
     return convertLegacyToCanvas({});
   }, [doc, state.loading, fullAccess]);
 
+  const autoScrollActive =
+    !!docWithDefaults?.autoScroll?.enabled &&
+    (!docWithDefaults?.envelopeEnabled || envelopeOpen);
+  useAutoScroll(autoScrollActive, docWithDefaults?.autoScroll?.speed);
+
   if (state.loading) {
+    // No text. The invitation's own language is not known until its document
+    // arrives, and this screen was showing a hardcoded Russian "Загрузка…" to
+    // every guest of every Kazakh invitation. A spinner says the same thing in
+    // no language at all.
     return (
-      <div className="min-h-screen flex items-center justify-center bg-us-ivory text-us-ink-muted text-sm">
-        Загрузка…
+      <div className="flex min-h-screen items-center justify-center bg-us-ivory">
+        <span
+          className="h-7 w-7 animate-spin rounded-full border-2 border-us-border border-t-us-accent"
+          role="status"
+          aria-label="…"
+        />
       </div>
     );
   }
   if (state.error === 'no_canvas') return null;
   if (!docWithDefaults) return null;
 
+  if (docWithDefaults.envelopeEnabled && !envelopeOpen) {
+    return (
+      <EnvelopeGate document={docWithDefaults} onOpen={() => setEnvelopeOpen(true)} />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white">
       <div className="mx-auto max-w-[600px] relative">
-        {/* 
-          2026-07-30 PRODUCT MODEL (PRODUCT_MODEL_AND_RULES.md):
-          CanvasGuestPage is ONLY mounted for paid/fullAccess or already-canvas invites.
-          fullAccess=true ⇒ NEVER watermark, clean public page.
-          We explicitly pass fullAccess down so future elements (watermark, upsell)
-          inside the canvas tree can guard themselves.
-          Legacy watermark logic lives ONLY in section-engine / GuestInvitationPage.
+        {/*
+          fullAccess=true ⇒ paid, no watermark. Unpaid (free-tier) publishes
+          show PublicPublishWatermark below, driven by `showWatermark` from
+          the public canvas API (shouldShowPublishWatermark).
         */}
-        <CanvasRenderer 
-          document={docWithDefaults} 
-          mode="guest" 
-          shareUrl={shareUrl} 
+        <CanvasRenderer
+          document={docWithDefaults}
+          mode="guest"
+          // Renderer-supplied labels (RSVP buttons, countdown units, calendar
+          // month/weekday names) must match the language the invitation is
+          // actually written in. Without this the renderer fell back to `ru`
+          // for every invitation, so a fully Kazakh design still rendered
+          // "ПН ВТ СР" in its calendar.
+          locale={docWithDefaults.locale ?? 'ru'}
+          shareUrl={shareUrl}
+          slug={slug}
           fullAccess={fullAccess}
+          guestToken={guestToken}
+          openRsvp={openRsvp}
         />
       </div>
-      <FloatingShare shareUrl={shareUrl} />
-    </div>
-  );
-}
-
-function FloatingShare({ shareUrl }: { shareUrl: string }) {
-  const [copied, setCopied] = useState(false);
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      /* ignore */
-    }
-  };
-  const wa = `https://wa.me/?text=${encodeURIComponent(shareUrl)}`;
-  return (
-    <div className="fixed bottom-4 right-4 z-40 flex flex-col gap-2">
-      <a
-        href={wa}
-        target="_blank"
-        rel="noreferrer"
-        className="flex h-11 w-11 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg"
-        title="WhatsApp"
-      >
-        <ShareIcon className="h-5 w-5" />
-      </a>
-      <button
-        onClick={copy}
-        className="flex h-11 w-11 items-center justify-center rounded-full bg-us-accent text-white shadow-lg text-xs"
-        title="Скопировать ссылку"
-      >
-        {copied ? '✓' : '🔗'}
-      </button>
+      {/*
+        Replaces <FloatingShare/>: that stack offered a guest only "share this"
+        and "copy the link" — the owner's actions — while the things a guest
+        came to do (reply, get directions, save the date) had no affordance at
+        all and the reply block sat at the bottom of a long scroll.
+      */}
+      <GuestActionBar
+        document={docWithDefaults}
+        shareUrl={shareUrl}
+        slug={slug}
+        locale={docWithDefaults.locale ?? 'ru'}
+        canRsvp={Boolean(guestToken) || openRsvp}
+      />
+      <PublicPublishWatermark
+        show={showWatermark}
+        locale={docWithDefaults.locale ?? 'ru'}
+        removeHref={owner.isOwner && owner.invitationId ? `/invitations/${owner.invitationId}` : undefined}
+      />
     </div>
   );
 }

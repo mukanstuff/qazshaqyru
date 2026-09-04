@@ -13,6 +13,7 @@ import type {
   InvitationCanvasDocument,
 } from './types';
 import { elementDefaultSize, CANVAS_VERSION } from './types';
+import { deriveSectionContext, type SectionContext } from './sections';
 
 export function createEmptyDocument(
   width: number = 390,
@@ -69,6 +70,15 @@ export function addElement(
     hidden: false,
   };
 
+  // A new element used to always come out in one hardcoded burgundy/gold
+  // Russian palette (see sections.ts, which fixed the same bug for the
+  // "Секции" dock) regardless of which template it landed in or what
+  // language the invitation is written in. Derive from the document itself
+  // instead, so a plain text/button/divider dropped onto a green Kazakh
+  // template picks up that template's own colors and language.
+  const ctx: SectionContext = deriveSectionContext(doc);
+  const pick = (ru: string, kz: string) => (ctx.locale === 'kz' ? kz : ru);
+
   // Per-type defaults for text/content properties.
   let el: CanvasElement;
   switch (type) {
@@ -76,11 +86,11 @@ export function addElement(
       el = {
         ...base,
         type: 'text',
-        text: (partial as { text?: string }).text ?? 'Текст',
-        fontFamily: 'Montserrat',
+        text: (partial as { text?: string }).text ?? pick('Текст', 'Мәтін'),
+        fontFamily: ctx.bodyFont,
         fontSize: 16,
         fontWeight: 400,
-        color: '#1a1a1a',
+        color: ctx.body,
         textAlign: 'center',
         lineHeight: 1.4,
         letterSpacing: 0,
@@ -91,11 +101,11 @@ export function addElement(
         ...base,
         type: 'heading',
         as: 'h1',
-        text: (partial as { text?: string }).text ?? 'Заголовок',
-        fontFamily: 'Cormorant',
+        text: (partial as { text?: string }).text ?? pick('Заголовок', 'Тақырып'),
+        fontFamily: ctx.headingFont,
         fontSize: 36,
         fontWeight: 600,
-        color: '#6b1d3a',
+        color: ctx.primary,
         textAlign: 'center',
         lineHeight: 1.2,
         letterSpacing: 0.5,
@@ -114,12 +124,12 @@ export function addElement(
       el = {
         ...base,
         type: 'button',
-        label: 'Подробнее',
+        label: pick('Подробнее', 'Толығырақ'),
         action: { kind: 'rsvp' },
-        bgColor: '#6b1d3a',
+        bgColor: ctx.primary,
         textColor: '#ffffff',
         fontSize: 16,
-        fontFamily: 'Montserrat',
+        fontFamily: ctx.bodyFont,
         fontWeight: 600,
         borderRadius: 999,
       } as CanvasElement;
@@ -129,7 +139,7 @@ export function addElement(
         ...base,
         type: 'shape',
         shape: 'rect',
-        fill: '#c9a961',
+        fill: ctx.accent,
         strokeWidth: 0,
         opacity: 1,
       } as CanvasElement;
@@ -138,7 +148,7 @@ export function addElement(
       el = {
         ...base,
         type: 'divider',
-        color: '#c9a961',
+        color: ctx.accent,
         thickness: 2,
         style: 'solid',
       } as CanvasElement;
@@ -150,29 +160,45 @@ export function addElement(
         first: 'Айбек',
         second: 'Айдана',
         connector: '&',
-        font: 'Cormorant',
+        font: ctx.headingFont,
         fontSize: 56,
-        color: '#6b1d3a',
+        color: ctx.primary,
       } as CanvasElement;
       break;
     case 'countdown':
       el = {
         ...base,
         type: 'countdown',
-        fontFamily: 'Unbounded',
+        // Not Unbounded: it cannot render Kazakh letters (see
+        // KAZAKH_SUBSTITUTE in components/canvas/elements/fontStack.ts).
+        fontFamily: ctx.headingFont,
         fontSize: 22,
-        color: '#6b1d3a',
+        color: ctx.primary,
         showLabels: true,
+      } as CanvasElement;
+      break;
+    case 'calendar':
+      el = {
+        ...base,
+        type: 'calendar',
+        fontFamily: ctx.headingFont,
+        fontSize: 14,
+        color: ctx.body,
+        accentColor: ctx.accent,
+        markStyle: 'ring',
+        showMonthTitle: true,
+        showWeekdays: true,
+        showAdjacentDays: false,
       } as CanvasElement;
       break;
     case 'rsvp-form':
       el = {
         ...base,
         type: 'rsvp-form',
-        fontFamily: 'Montserrat',
+        fontFamily: ctx.bodyFont,
         bgColor: '#ffffff',
-        textColor: '#1a1a1a',
-        accentColor: '#6b1d3a',
+        textColor: ctx.body,
+        accentColor: ctx.primary,
         askPlusOne: true,
         askDietary: true,
         askChildren: true,
@@ -182,10 +208,10 @@ export function addElement(
       el = {
         ...base,
         type: 'wishes',
-        fontFamily: 'Montserrat',
+        fontFamily: ctx.bodyFont,
         bgColor: '#ffffff',
-        textColor: '#1a1a1a',
-        accentColor: '#6b1d3a',
+        textColor: ctx.body,
+        accentColor: ctx.primary,
         reactions: ['❤️', '🙏', '🥂', '👏'],
         allowAnonymous: true,
       } as CanvasElement;
@@ -195,10 +221,10 @@ export function addElement(
         ...base,
         type: 'program',
         items: [],
-        fontFamily: 'Montserrat',
+        fontFamily: ctx.bodyFont,
         bgColor: '#ffffff',
-        textColor: '#1a1a1a',
-        accentColor: '#c9a961',
+        textColor: ctx.body,
+        accentColor: ctx.accent,
       } as CanvasElement;
       break;
     case 'map':
@@ -207,6 +233,7 @@ export function addElement(
         type: 'map',
         zoom: 14,
         showStaticOnly: false,
+        accentColor: ctx.primary,
       } as CanvasElement;
       break;
     case 'music':
@@ -214,7 +241,13 @@ export function addElement(
         ...base,
         type: 'music',
         autoPlayMuted: true,
-        accentColor: '#6b1d3a',
+        accentColor: ctx.primary,
+        // Pinned by default. A music toggle is page chrome, not content: it
+        // has to stay reachable while the guest scrolls the whole invitation.
+        // Left unpinned it dropped wherever it was inserted, scrolled away
+        // with the rest of the page, and invited the host to drag it around
+        // as if its position on the canvas meant something.
+        pinned: { corner: 'bottom-left', offsetX: 16, offsetY: 92 },
       } as CanvasElement;
       break;
     case 'gift':
@@ -222,7 +255,7 @@ export function addElement(
         ...base,
         type: 'gift',
         showDonors: true,
-        accentColor: '#c9a961',
+        accentColor: ctx.accent,
       } as CanvasElement;
       break;
     case 'qr':
@@ -311,7 +344,11 @@ export function moveElement(
 ): InvitationCanvasDocument {
   const idx = doc.elements.findIndex((e) => e.id === id);
   if (idx === -1) return doc;
-  const els = [...doc.elements].sort((a, b) => a.zIndex - b.zIndex);
+  // Copy each element before sorting/mutating zIndex below — sort() alone
+  // only creates a new array, not new element objects, so without this the
+  // in-place zIndex writes further down would mutate doc.elements' original
+  // objects too and break the immutability every caller relies on.
+  const els = doc.elements.map((e) => ({ ...e }) as CanvasElement).sort((a, b) => a.zIndex - b.zIndex);
   const sortedIdx = els.findIndex((e) => e.id === id);
   const el = els[sortedIdx];
   switch (direction) {
@@ -388,8 +425,6 @@ export function resizeElement(
   let h: number | 'auto' = newH;
   if (options.lockRatio && typeof el.h === 'number' && typeof newH === 'number' && options.origW && options.origH) {
     const ratio = options.origH / options.origW;
-    h = Math.max(5, w * (doc.width / 100) * ratio) / (doc.width / 100);
-    // convert px h... since h is px we compute differently
     h = Math.max(5, (w / 100) * doc.width * ratio);
   } else if (typeof h === 'number') {
     h = Math.max(5, h);
@@ -445,7 +480,6 @@ export class HistoryStack {
 }
 
 export function deriveMobileDocument(doc: InvitationCanvasDocument): InvitationCanvasDocument {
-  if (doc.mobile) return doc.mobile;
   return {
     ...cloneDocument(doc),
     width: 390,

@@ -11,11 +11,13 @@ import {
 } from '@/lib/shared/api';
 import { checkoutInvitation } from '@/lib/payments/checkout';
 import prisma from '@/lib/shared/db';
+import { ATTRIBUTION_COOKIE, parseAttributionCookie } from '@/lib/shared/attribution';
 
 const bodySchema = z.object({
   provider: z.enum(['kaspi', 'freedom', 'mock']).optional(),
   intent: z.enum(['publish', 'pay', 'plan', 'agency']).optional(),
   planSku: z.string().min(1).max(64).optional(),
+  promoCode: z.string().max(40).optional(),
 });
 
 function getAppUrl(request: NextRequest): string {
@@ -29,7 +31,7 @@ function getAppUrl(request: NextRequest): string {
 
 /**
  * POST /api/invitations/[id]/checkout
- * publish = legacy freemium (being phased out). pay = template price purchase → full access.
+ * publish = free-tier publish (no charge, watermarked). pay = template price purchase → full access.
  */
 export async function POST(
   request: NextRequest,
@@ -68,6 +70,8 @@ export async function POST(
       // HOTFIX: server default must be 'pay' (symmetric to client + product model)
       intent: parsed.data.intent ?? 'pay',
       planSku: parsed.data.planSku,
+      promoCode: parsed.data.promoCode ?? null,
+      attribution: parseAttributionCookie(request.cookies.get(ATTRIBUTION_COOKIE)?.value),
     });
 
     return NextResponse.json({ success: true, ...result });

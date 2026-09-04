@@ -1,24 +1,35 @@
 /* ────────────────────────────────────────────────────────────────────────────
- * Canvas-editor WYSIWYG styles (pilot-2).
+ * Canvas-editor WYSIWYG styles.
  *
  * Design tokens + component styles. Brand-aligned with the landing page
  * (emerald-600 accent, light surface, 14px radius).
  *
+ * The top toolbar and PropertiesPanel chrome are plain Tailwind + the
+ * shared `components/ui/*` primitives now (see EditorToolbar.tsx,
+ * PropertiesPanel.tsx) — this file only styles what those don't cover yet:
+ *
  * Sections:
- *   - .canvas-editor-shell      root container, scope for tokens
- *   - .editor-top-cluster       floating top-left / top-right clusters
- *   - .editor-fab               floating action button (opens quick-edit sheet)
+ *   - .canvas-editor-shell      root container (layout only — tokens are on `:root`, see below)
+ *   - .editor-dock, .cp-*       bottom dock (categories + quick-edit) and its sheet contents
  *   - .editor-sheet, .editor-sheet-*  bottom sheet + tabs (quick edit)
- *   - .editor-settings-card     floating settings card (non-text)
- *   - .editor-text-strip        thin floating strip (text style controls)
  *   - .canvas-selection-delete  universal element trash button
- *   - .canvas-inspector-input   shared form input
+ *   - .canvas-inspector-input   shared form input (used by *Section.tsx)
+ *   - .ci-*                     PropertiesPanel field/row/action styling
  *   - .canvas-popover           portal popup container
  * ────────────────────────────────────────────────────────────────────────────
  */
 
-/* ═══ Design tokens — scoped to .canvas-editor-shell ════════════════════════ */
-.canvas-editor-shell {
+/* ═══ Design tokens ═══════════════════════════════════════════════════════
+ * Defined on `:root`, not `.canvas-editor-shell`: sheets (PropertiesPanel,
+ * ElementPalette, EditorSheet) render their content through a Radix Portal
+ * appended to `document.body`, which is a *sibling* of `.canvas-editor-shell`
+ * in the DOM — not a descendant. A custom property scoped to the shell
+ * doesn't cascade into that portaled subtree, so every `var(--ed-*)` inside
+ * a sheet silently resolved to nothing (backgrounds turned transparent,
+ * borders vanished, text fell back to the ambient page color) even though
+ * the components themselves worked fine. Scoping to `:root` fixes every
+ * sheet at once instead of patching each portaled surface individually. */
+:root {
   --ed-bg: #f5f5f7;
   --ed-surface: #ffffff;
   --ed-surface-2: #f0f0f2;
@@ -34,8 +45,21 @@
   --ed-radius-sm: 10px;
   --ed-radius-pill: 999px;
   --ed-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  --ed-shadow-md: 0 6px 20px rgba(0, 0, 0, 0.1);
   --ed-shadow-lg: 0 12px 48px rgba(0, 0, 0, 0.12);
+}
 
+/* Always column: `EditorToolbar` (a real in-flow <header>, not the old
+ * `position: fixed` overlay it used to be) and the rail/canvas/inspector
+ * row are siblings here, so the *shell* must stack them vertically at
+ * every width — the toolbar needs to span full width on top, not sit in
+ * a flex row next to everything else. The row-vs-column switch for the
+ * palette-rail-beside-canvas layout belongs one level down, on the content
+ * row itself (`lg:flex-row` in CanvasEditor.tsx) — a `flex-direction: row`
+ * rule here used to override that and squeeze the toolbar into a narrow
+ * left column the width of its own contents, with the rail/canvas pushed
+ * to its right and clipped off the right edge of the viewport. */
+.canvas-editor-shell {
   background: var(--ed-bg);
   color: var(--ed-text);
   height: 100%;
@@ -44,433 +68,335 @@
   overflow: hidden;
 }
 
-/* ═══ Top floating clusters (pilot-2) ════════════════════════════════════════ */
-.editor-top-cluster {
+/* ═══ Bottom dock ════════════════════════════════════════════════════════
+ * The editor's single control surface for adding content, at every width:
+ * scrollable category chips + a trailing quick-edit button in one floating
+ * rounded bar. Fixed, centred, capped at a comfortable reading width so it
+ * doesn't stretch across a 1920px monitor.
+ *
+ * There is no desktop variant. This replaced a 240px left accordion rail
+ * (≥1024px) plus a separate bottom-right floating FAB — two interaction
+ * models to keep working and keep from colliding with each other. */
+.editor-dock-wrap {
   position: fixed;
-  top: 12px;
-  z-index: 50;
-  display: inline-flex;
-  align-items: center;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 54;
+  display: flex;
+  justify-content: center;
+  padding: 0 max(12px, env(safe-area-inset-left)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-right));
+  /* The wrap only positions the dock — clicks between/around it belong to
+   * the canvas underneath, not to a full-width invisible bar. */
+  pointer-events: none;
+}
+
+.editor-dock {
+  pointer-events: auto;
+  display: flex;
+  align-items: stretch;
   gap: 4px;
-  padding: 5px 6px;
+  width: 100%;
+  /* 42rem could not hold eight categories plus the quick-edit action, so the
+   * last one was always clipped even on a wide screen with room to spare. */
+  max-width: 56rem;
+  padding: 6px;
+  border-radius: var(--ed-radius);
   background: var(--ed-surface);
   border: 1px solid var(--ed-border);
-  border-radius: var(--ed-radius-pill);
-  box-shadow: var(--ed-shadow);
+  box-shadow: var(--ed-shadow-lg);
 }
 
-.editor-top-cluster--left {
-  left: 12px;
+.editor-dock__scroll {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  /* Fade the trailing edge so an overflowing row reads as scrollable. The
+   * scrollbar is hidden, so without this the last category was simply cut off
+   * mid-word ("Меди…") and looked like a layout bug rather than a hint that
+   * more categories exist — the music tab was effectively unreachable. */
+  mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%);
 }
 
-.editor-top-cluster--right {
-  right: 12px;
-  gap: 8px;
-  padding: 5px 6px 5px 10px;
+/* On a desktop-width editor the row fits outright, so no fade and no scroll. */
+@media (min-width: 900px) {
+  .editor-dock__scroll {
+    mask-image: none;
+    -webkit-mask-image: none;
+  }
 }
 
-.editor-cluster-btn {
-  display: inline-flex;
+.editor-dock__scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.editor-dock__divider {
+  flex-shrink: 0;
+  width: 1px;
+  align-self: stretch;
+  margin: 4px 2px;
+  background: var(--ed-border);
+}
+
+/* Quick-edit — same chip geometry as a category so the dock reads as one
+ * row, tinted accent to mark it as the primary action. */
+.editor-dock__action {
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-width: 32px;
-  height: 32px;
-  padding: 0 10px;
-  border: none;
+  gap: 4px;
+  flex-shrink: 0;
+  min-width: 60px;
+  min-height: 52px;
+  padding: 6px 10px;
+  border: 1px solid rgba(22, 163, 74, 0.28);
+  border-radius: var(--ed-radius-sm);
+  background: rgba(22, 163, 74, 0.12);
+  color: var(--ed-accent-strong);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.editor-dock__action:hover {
+  background: rgba(22, 163, 74, 0.2);
+}
+
+.editor-dock__action:active {
+  transform: scale(0.96);
+}
+
+.cp-strip-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex-shrink: 0;
+  min-width: 60px;
+  min-height: 52px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--ed-radius-sm);
   background: transparent;
   color: var(--ed-text-muted);
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 500;
-  border-radius: var(--ed-radius-pill);
-  cursor: pointer;
-  transition: background 150ms ease, color 150ms ease;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.1;
   white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
 }
 
-.editor-cluster-btn--icon {
-  padding: 0;
-  width: 32px;
-  font-size: 16px;
-  line-height: 1;
-}
-
-.editor-cluster-btn:hover:not(:disabled) {
+.cp-strip-chip:hover {
   background: var(--ed-surface-2);
   color: var(--ed-text);
 }
 
-.editor-cluster-btn:disabled {
-  opacity: 0.3;
-  cursor: default;
-}
-
-.editor-cluster-btn--primary {
-  background: var(--ed-accent);
-  color: #ffffff;
-  padding: 0 14px;
-  height: 32px;
-  font-weight: 600;
-}
-
-.editor-cluster-btn--primary:hover:not(:disabled) {
-  background: var(--ed-accent-strong);
-  color: #ffffff;
-}
-
-.editor-cluster-divider {
-  width: 1px;
-  height: 18px;
-  background: var(--ed-border-strong);
-  margin: 0 2px;
-}
-
-/* Stronger divider separates the "exit editor" Back button from the
-   undo/redo pair — they have very different consequences. */
-.editor-cluster-divider--strong {
-  width: 1px;
-  height: 22px;
-  background: var(--ed-border-strong);
-  margin: 0 6px 0 4px;
-}
-
-.editor-cluster-btn--back {
-  color: var(--ed-text);
-  font-weight: 500;
-}
-
-.editor-cluster-btn--back:hover:not(:disabled) {
+.cp-strip-chip[data-active='true'] {
   background: var(--ed-accent-light);
   color: var(--ed-accent-strong);
 }
 
-.editor-save-pill {
-  font-size: 12px;
-  font-weight: 500;
-  padding: 0 10px;
-  height: 32px;
-  display: inline-flex;
-  align-items: center;
-  border-radius: var(--ed-radius-pill);
-  background: var(--ed-surface-2);
-  color: var(--ed-text-muted);
-  border: none;
-  font-family: inherit;
-  cursor: default;
+.cp-strip-chip.is-gold {
+  color: #8b6f1e;
 }
 
-.editor-save-pill.is-saved {
-  color: var(--ed-accent);
-  background: var(--ed-accent-light);
+.cp-strip-chip.is-gold[data-active='true'] {
+  background: rgba(201, 169, 97, 0.14);
 }
 
-.editor-save-pill.is-saving {
-  color: var(--ed-text-muted);
+/* The toolbar and dock both float over the stage at every width now (see
+ * .editor-topbar-wrap and .editor-dock-wrap), so the stage always needs
+ * clearance on both ends to scroll its first/last element clear of them. */
+.canvas-stage-wrap {
+  padding-top: calc(64px + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
 }
 
-.editor-save-pill.is-error {
-  color: #dc2626;
-  background: rgba(220, 38, 38, 0.08);
-  cursor: pointer;
-}
-
-.editor-save-pill.is-idle {
-  color: var(--ed-text-dim);
-}
-
-/* ═══ Settings card (pilot-2) — non-text elements ═══════════════════════════ */
-.editor-settings-backdrop {
+/* ═══ Top controls — floating circles, no shared bar ═════════════════════
+ * Mirrors .editor-dock-wrap's approach: a `position: fixed`, transparent,
+ * `pointer-events: none` positioning row: back/undo/redo grouped in a
+ * loose cluster on the left, Опубликовать on the right. Each button carries
+ * its own circular background — nothing connects them visually. */
+.editor-topbar-wrap {
   position: fixed;
-  inset: 0;
-  background: transparent;
-  border: 0;
-  cursor: default;
-  z-index: 1050;
-}
-
-.editor-settings-card {
-  position: fixed;
-  bottom: 78px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: calc(100vw - 24px);
-  max-width: 480px;
-  max-height: 60dvh;
-  z-index: 1060;
-  background: var(--ed-surface);
-  border: 1px solid var(--ed-border-strong);
-  border-radius: 18px;
-  box-shadow: var(--ed-shadow-lg);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  transition: transform 160ms ease;
-}
-
-.editor-settings-handle {
-  height: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: grab;
-  touch-action: none;
-  flex-shrink: 0;
-}
-
-.editor-settings-handle:active {
-  cursor: grabbing;
-}
-
-.editor-settings-handle-bar {
-  width: 40px;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--ed-border-strong);
-}
-
-.editor-settings-header {
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 55;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 8px 12px 16px;
-  flex-shrink: 0;
+  padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) 0
+    max(10px, env(safe-area-inset-left));
+  pointer-events: none;
 }
 
-.editor-settings-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--ed-text);
-  letter-spacing: 0.01em;
-}
-
-.editor-settings-close {
-  width: 28px;
-  height: 28px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--ed-border);
-  background: var(--ed-surface-2);
-  color: var(--ed-text-muted);
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 12px;
-}
-
-.editor-settings-close:hover {
-  background: var(--ed-surface);
-  color: var(--ed-text);
-}
-
-.editor-settings-body {
-  flex: 1 1 auto;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 0 16px 8px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.editor-settings-field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.editor-settings-label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--ed-text-muted);
-}
-
-.editor-settings-range {
+.editor-topbar-cluster {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.editor-settings-range-value {
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  color: var(--ed-text-muted);
-  min-width: 28px;
-  text-align: right;
-}
-
-.editor-settings-empty {
-  padding: 24px 16px;
-  font-size: 13px;
-  color: var(--ed-text-muted);
-  text-align: center;
-  line-height: 1.5;
-}
-
-.editor-settings-footer {
-  padding: 8px 16px calc(env(safe-area-inset-bottom, 0) + 14px) 16px;
-  border-top: 1px solid var(--ed-border);
-  flex-shrink: 0;
-}
-
-.editor-settings-delete {
-  width: 100%;
+.editor-topbar-btn {
+  pointer-events: auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 10px 12px;
-  border: 1px solid rgba(220, 38, 38, 0.2);
-  background: rgba(220, 38, 38, 0.04);
-  color: #dc2626;
-  border-radius: var(--ed-radius-sm);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: var(--ed-radius-pill);
+  border: 1px solid var(--ed-border);
+  background: color-mix(in srgb, var(--ed-surface) 92%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--ed-text);
+  box-shadow: var(--ed-shadow);
   font-family: inherit;
-  transition: background 150ms ease;
+  cursor: pointer;
+  transition: transform 0.1s ease, background 0.15s ease;
 }
 
-.editor-settings-delete:hover {
-  background: rgba(220, 38, 38, 0.1);
-}
-
-/* ═══ Text strip (pilot-2) — unified style controls for every element
-     type (Bug #4+#5). Same component for text/heading/image/button/etc. ══ */
-.editor-text-strip {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 4px 5px;
+.editor-topbar-btn:hover {
   background: var(--ed-surface);
-  border: 1px solid var(--ed-border-strong);
-  border-radius: var(--ed-radius-pill);
-  box-shadow: var(--ed-shadow-lg);
-  font-family: inherit;
-  max-width: calc(100vw - 16px);
-  height: 40px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
 }
 
-.editor-text-strip::-webkit-scrollbar {
-  display: none;
+.editor-topbar-btn:active {
+  transform: scale(0.94);
 }
 
-/* Bug #6: every button has the same box (width+padding) so the active
-   highlight (background / border-radius) is exactly the size of its
-   icon, never bleeds onto neighbours. */
-.editor-text-strip-btn {
-  box-sizing: border-box;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  padding: 0;
+.editor-topbar-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.editor-topbar-btn:disabled:active {
+  transform: none;
+}
+
+.editor-topbar-btn--publish {
+  width: auto;
+  height: 44px;
+  padding: 0 20px;
   border: none;
-  background: transparent;
-  color: var(--ed-text-muted);
-  border-radius: var(--ed-radius-pill);
-  cursor: pointer;
-  font-size: 13px;
-  line-height: 1;
-  font-family: inherit;
-  flex-shrink: 0;
-  text-decoration: none;
-  transition: background 150ms ease, color 150ms ease;
-}
-
-.editor-text-strip-btn b,
-.editor-text-strip-btn i,
-.editor-text-strip-btn u {
+  background: var(--us-ink, #1f3a2e);
+  color: white;
   font-size: 14px;
-  text-decoration: inherit;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
-.editor-text-strip-btn:hover {
-  background: var(--ed-surface-2);
-  color: var(--ed-text);
+.editor-topbar-btn--publish:hover {
+  background: color-mix(in srgb, var(--us-ink, #1f3a2e) 88%, black);
 }
 
-/* `is-active` used to inherit `min-width: 30px` only — leading to sub-pixel
-   highlight that's "shifted right" against neighbours. Fixed-width button
-   resolves that. */
-.editor-text-strip-btn.is-active {
+/* ═══ Palette sheet contents (shared by the category + sections sheets) ══ */
+.cp-section-body--stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cp-section-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--ed-border);
+  border-radius: var(--ed-radius-sm);
+  background: var(--ed-surface);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.cp-section-card:hover {
+  border-color: var(--ed-accent);
   background: var(--ed-accent-light);
-  color: var(--ed-accent);
 }
 
-.editor-text-strip-btn--danger {
-  color: #dc2626;
-}
-
-.editor-text-strip-btn--danger:hover {
-  background: rgba(220, 38, 38, 0.08);
-  color: #dc2626;
-}
-
-/* The font-size +/− readout — centered with the +/- buttons; same height
-   so the row stays level. */
-.editor-text-strip-readout {
-  display: inline-flex;
+.cp-section-icon {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: flex;
   align-items: center;
   justify-content: center;
-  height: 30px;
-  min-width: 28px;
-  padding: 0 4px;
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
+  font-size: 16px;
+  background: var(--ed-surface-2);
+  border-radius: 8px;
+}
+
+.cp-section-name {
   font-weight: 600;
+  font-size: 13px;
   color: var(--ed-text);
-  border-radius: var(--ed-radius-sm);
-  background: var(--ed-surface-2);
-  flex-shrink: 0;
 }
 
-.editor-text-strip-select {
-  appearance: none;
-  -webkit-appearance: none;
-  background: var(--ed-surface-2);
-  border: none;
-  border-radius: var(--ed-radius-pill);
-  padding: 0 22px 0 10px;
-  height: 30px;
+.cp-section-desc {
   font-size: 11px;
-  font-family: inherit;
-  color: var(--ed-text);
-  outline: none;
-  cursor: pointer;
-  max-width: 110px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23222' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 7px center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex-shrink: 0;
+  color: var(--ed-text-muted);
+  margin-top: 2px;
+  line-height: 1.3;
 }
 
-.editor-text-strip-select--narrow {
-  max-width: 64px;
+.cp-element-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
 }
 
-.editor-text-strip-color {
-  padding: 0 4px;
-  display: inline-flex;
+.cp-element-card {
+  display: flex;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px 6px;
+  border: 1px solid var(--ed-border);
+  border-radius: var(--ed-radius-sm);
+  background: var(--ed-surface);
+  cursor: grab;
+  text-align: center;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
 }
 
-.editor-text-strip-divider {
-  width: 1px;
-  height: 18px;
-  background: var(--ed-border-strong);
-  margin: 0 2px;
-  flex-shrink: 0;
+.cp-element-card:hover {
+  border-color: var(--ed-accent);
+  background: var(--ed-accent-light);
+  transform: translateY(-1px);
 }
+
+.cp-element-card:active {
+  cursor: grabbing;
+  transform: translateY(0);
+}
+
+.cp-element-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.cp-element-label {
+  font-size: 11px;
+  color: var(--ed-text-muted);
+  line-height: 1.2;
+}
+
 
 /* ═══ Shared form input (settings card) ═════════════════════════════════════ */
 .canvas-inspector-input {
@@ -562,6 +488,53 @@ select.canvas-inspector-input {
   cursor: pointer;
 }
 
+.ci-section {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--ed-border);
+}
+
+.ci-section:last-child {
+  border-bottom: none;
+}
+
+.ci-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.ci-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--ed-border);
+  border-radius: var(--ed-radius-sm);
+  background: var(--ed-surface);
+  color: var(--ed-text);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.ci-action-btn:hover {
+  background: var(--ed-surface-2);
+  border-color: var(--ed-accent);
+}
+
+.ci-action-btn.is-danger {
+  color: #dc2626;
+}
+
+.ci-action-btn.is-danger:hover {
+  background: rgba(220, 38, 38, 0.08);
+  border-color: #dc2626;
+}
+
 .ci-checkbox {
   display: flex;
   align-items: center;
@@ -583,6 +556,30 @@ select.canvas-inspector-input {
 .ci-checkbox-label {
   font-size: 13px;
   color: var(--ed-text);
+}
+
+.ci-hint {
+  font-size: 12px;
+  color: var(--ed-text-muted);
+  margin: -2px 0 4px;
+  line-height: 1.4;
+}
+
+.editor-chip {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--ed-border);
+  background: transparent;
+  color: var(--ed-text);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.editor-chip.is-active {
+  border-color: var(--ed-accent);
+  background: color-mix(in srgb, var(--ed-accent) 12%, transparent);
+  font-weight: 600;
 }
 
 /* ═══ Selection chrome trash button (universal) ════════════════════════════ */
@@ -607,6 +604,28 @@ select.canvas-inspector-input {
 
 .canvas-selection-delete:hover {
   background: #dc2626;
+}
+
+.canvas-selection-edit {
+  position: absolute;
+  top: -14px;
+  left: -14px;
+  z-index: 1100;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid rgba(22, 163, 74, 0.32);
+  background: rgba(22, 163, 74, 0.92);
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+}
+
+.canvas-selection-edit:hover {
+  background: var(--ed-accent-strong);
 }
 
 .canvas-selection-lock {
@@ -720,91 +739,12 @@ select.canvas-inspector-input {
   height: 100%;
 }
 
-/* ═══ Device: narrow viewport — slightly more compact ════════════════════════ */
-@media (max-width: 480px) {
-  .editor-top-cluster {
-    top: 8px;
-  }
-  .editor-top-cluster--left {
-    left: 8px;
-  }
-  .editor-top-cluster--right {
-    right: 8px;
-    padding: 4px 4px 4px 8px;
-  }
-  .editor-fab {
-    bottom: 16px;
-    padding: 0 14px;
-    height: 40px;
-    font-size: 12px;
-  }
-  .editor-settings-card {
-    bottom: 68px;
-    max-height: 70dvh;
-  }
-  .editor-cluster-btn--primary {
-    padding: 0 10px;
-    font-size: 12px;
-  }
-}
-
-/* ═══ Quick-edit FAB (pilot-2) ════════════════════════════════════════════════ */
-.editor-fab {
-  position: fixed;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 60;
-
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-
-  height: 44px;
-  padding: 0 16px;
-
-  background: rgba(22, 163, 74, 0.14);
-  color: var(--ed-accent-strong);
-  border: 1px solid rgba(22, 163, 74, 0.28);
-  border-radius: var(--ed-radius-pill);
-
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: 0.01em;
-
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-
-  cursor: pointer;
-  transition: background-color 150ms ease,
-              border-color 150ms ease,
-              transform 120ms ease,
-              box-shadow 150ms ease;
-}
-
-.editor-fab:hover {
-  background: rgba(22, 163, 74, 0.22);
-  border-color: rgba(22, 163, 74, 0.4);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.editor-fab:active {
-  transform: translateX(-50%) scale(0.96);
-}
-
-.editor-fab-label {
-  white-space: nowrap;
-}
-
-/* ─── Saved toast (Bug #2) ────────────────────────────────────────────────── */
+/* ─── Saved toast (Bug #2) ──────────────────────────────────────────────────
+ * Sits just above the dock (~64px tall + 12px wrap padding + safe area). */
 .editor-saved-toast {
   position: fixed;
   left: 50%;
-  bottom: 86px;
+  bottom: calc(92px + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
   z-index: 61;
 
@@ -880,9 +820,20 @@ select.canvas-inspector-input {
   box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.18);
 
   overflow: hidden;
-  animation: editor-sheet-slide-up 240ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  /* 2026-08-18: removed keyframe `editor-sheet-slide-up` — it kept
+   * `transform: translateY(...)` on the sheet element, which
+   * permanently overrode the layout-defined `translateY(...)` for
+   * the drag property, producing a residual vertical offset on
+   * desktop and breaking the centered card layout. Opacity fade is
+   * enough visual feedback for the FAB-triggered open. */
+  opacity: 0;
+  animation: editor-sheet-fade-in 180ms ease-out forwards;
 
-  /* Live drag translation is set inline via style.transform */
+  /* Live drag translation is set via the --editor-sheet-drag-y custom
+   * property (set inline by EditorSheet.tsx). Both mobile (bottom-anchored,
+   * full-width) and desktop (centered bottom card, ≥768px) apply the same
+   * variable so swipe-down works identically across viewports. */
+  transform: translateY(var(--editor-sheet-drag-y, 0px));
   transition: transform 120ms ease, opacity 120ms ease;
 }
 
@@ -1247,6 +1198,37 @@ select.canvas-inspector-input {
   color: var(--ed-text-muted);
 }
 
+.editor-section-reorder {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.editor-section-reorder-btn {
+  width: 22px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--ed-border);
+  border-radius: 4px;
+  background: var(--ed-surface-2);
+  color: var(--ed-text-muted);
+  cursor: pointer;
+  padding: 0;
+}
+
+.editor-section-reorder-btn:hover:not(:disabled) {
+  color: var(--ed-text);
+  border-color: var(--ed-border-strong);
+}
+
+.editor-section-reorder-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
 .editor-toggle {
   flex-shrink: 0;
   width: 44px;
@@ -1289,30 +1271,614 @@ select.canvas-inspector-input {
 }
 
 /* ─── Desktop variant: centered card ───────────────────────────────────────── */
+/* 2026-08-18: redesigned to use `inset:0; margin:auto` for true
+ * centering. Previously `left:50%; transform:translateX(-50%)` conflicted
+ * with the inline `translateY(-drag-y)` transform, leaving a residual
+ * horizontal offset. Now `inset:0; margin:auto` puts the sheet in the
+ * exact center of the viewport (with `max-width` capping width) and the
+ * inline transform only controls the vertical drag offset. */
 @media (min-width: 768px) {
   .editor-sheet {
-    left: 50%;
-    right: auto;
-    width: 480px;
-    max-width: calc(100vw - 32px);
-    bottom: 50%;
-    transform: translate(-50%, 50%);
-    max-height: min(720px, 80dvh);
+    inset: 0;
+    margin: auto;
+    width: 560px;
+    max-width: 560px;
     height: min(720px, 80dvh);
+    max-height: min(720px, 80dvh);
     border-radius: 18px;
     border: 1px solid var(--ed-border-strong);
   }
-  .editor-sheet[style*="translateY"] {
-    transform: translate(calc(-50% + 50% - 50%), calc(50% - 0px));
-  }
 }
 
-@keyframes editor-sheet-slide-up {
-  from { transform: translateY(100%); }
-  to   { transform: translateY(0); }
+@keyframes editor-sheet-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 @keyframes editor-sheet-fade {
   from { opacity: 0; }
   to   { opacity: 1; }
+}
+
+/* ═══ Design tab (Phase B4) ══════════════════════════════════════════════ */
+.editor-design-tab {
+  gap: 20px;
+}
+
+/* Background grid: 4 color swatches in a horizontal row */
+.editor-design-bg-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.editor-design-bg-swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  border: 1.5px solid var(--ed-border);
+  border-radius: var(--ed-radius);
+  background: var(--ed-surface);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  font-size: 10px;
+}
+
+.editor-design-bg-swatch:hover,
+.editor-design-bg-swatch.is-active {
+  border-color: var(--ed-accent);
+  background: var(--ed-accent-light);
+}
+
+.editor-design-bg-swatch__color {
+  display: block;
+  width: 100%;
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid var(--ed-border);
+}
+
+.editor-design-bg-swatch__label {
+  font-size: 10px;
+  color: var(--ed-text-muted);
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* Palette grid: 2-col card layout */
+.editor-design-palette-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.editor-design-palette-card {
+  display: flex;
+  flex-direction: column;
+  border: 1.5px solid var(--ed-border);
+  border-radius: var(--ed-radius);
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.1s;
+  background: var(--ed-surface);
+}
+
+.editor-design-palette-card:hover {
+  border-color: var(--ed-accent);
+  transform: translateY(-1px);
+}
+
+.editor-design-palette-swatch-row {
+  display: flex;
+  height: 28px;
+}
+
+.editor-design-palette-name {
+  display: block;
+  padding: 6px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ed-text);
+  text-align: left;
+}
+
+/* Font pair list */
+.editor-design-font-pairs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.editor-design-font-pair-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--ed-border);
+  border-radius: var(--ed-radius);
+  background: var(--ed-surface);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.editor-design-font-pair-btn:hover {
+  border-color: var(--ed-accent);
+  background: var(--ed-accent-light);
+}
+
+.editor-design-font-pair-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ed-text);
+}
+
+.editor-design-font-pair-apply {
+  font-size: 11px;
+  color: var(--ed-accent);
+  font-weight: 600;
+}
+
+/* ═══ Selection chrome handles (Phase B3) ════════════════════════════════ */
+
+/* Drag surface — element becomes grab-able when selected */
+.canvas-element-drag-surface {
+  cursor: grab;
+}
+
+.canvas-element-drag-surface:active {
+  cursor: grabbing;
+}
+
+/* Resize handles — 10×10px squares at corners and midpoints */
+.canvas-resize-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: white;
+  border: 2px solid var(--ed-accent);
+  border-radius: 3px;
+  z-index: 20;
+  /* Offset: handle center should be at the corner/edge, so shift by -5px */
+  transform: translate(-50%, -50%);
+  pointer-events: all;
+  transition: transform 0.1s;
+}
+
+.canvas-resize-handle:hover {
+  background: var(--ed-accent);
+  transform: translate(-50%, -50%) scale(1.2);
+}
+
+/* Rotate zone — a thin invisible strip above the element */
+.canvas-rotate-zone {
+  position: absolute;
+  width: 1px;
+  /* Tall enough that the 22px grip plus a visible leader line both fit. */
+  height: 46px;
+  left: 50%;
+  transform: translateX(-50%);
+  /* top is set inline (el.y - 36) */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: all;
+  z-index: 20;
+  cursor: grab;
+}
+
+.canvas-rotate-zone:active {
+  cursor: grabbing;
+}
+
+/* Line from rotate zone down to element top */
+.canvas-rotate-line {
+  width: 1px;
+  flex: 1;
+  background: var(--ed-accent);
+  opacity: 0.5;
+}
+
+/* Rotate handle circle */
+.canvas-rotate-handle {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: white;
+  border: 2px solid var(--ed-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--ed-accent);
+  transition: background 0.15s, transform 0.1s;
+  flex-shrink: 0;
+}
+
+.canvas-rotate-zone:hover .canvas-rotate-handle {
+  background: var(--ed-accent);
+  color: white;
+  transform: scale(1.1);
+}
+
+/* ═══ PropertiesPanel — shared field/row styling ════════════════════════ */
+/* The rail/sheet chrome itself is plain Tailwind now (see PropertiesPanel.tsx);
+   these classes style what's inside — the *Section.tsx field rows, which
+   are unchanged from the earlier InspectorPanel split. */
+
+/* Section titles — unscoped so both the desktop rail and the mobile sheet
+   (which share the same InspectorPanel markup) get real styling. */
+.ci-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ed-text-muted);
+  padding: 8px 12px 4px;
+}
+
+.ci-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  gap: 8px;
+}
+
+.ci-row-label {
+  font-size: 12px;
+  color: var(--ed-text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Narrow 2-up grids (e.g. X/Y/W/H/rotation in PositionSection) don't have
+   room for the label-left/input-right row layout — stack label above
+   input instead so the input never gets squeezed past the column edge. */
+.ci-grid-2 .ci-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+.ci-grid-2 .ci-row-label {
+  white-space: normal;
+}
+
+/* ═══ Wizard tab (inside the quick-edit sheet) ═══════════════════════════════
+ * Lives as the first tab of EditorSheetTabs now, alongside Texts/Photos/etc,
+ * so it takes no padding of its own — same as `.editor-sheet-section-stack` —
+ * and relies on the shared sheet/tab wrapper padding instead. */
+.canvas-wizard-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-height: 0;
+}
+
+.canvas-wizard-sheet__subtitle {
+  font-size: 13px;
+  color: var(--ed-text-muted);
+  margin: 0 0 4px;
+  line-height: 1.4;
+}
+
+.canvas-wizard-sheet__form {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.wizard-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wizard-field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.wizard-field-error {
+  font-size: 12px;
+  color: #dc2626;
+  margin: 0;
+}
+
+.canvas-wizard-sheet__footer {
+  padding: 12px 0 0;
+  margin-top: 4px;
+  border-top: 1px solid var(--ed-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+  background: var(--ed-surface);
+}
+
+/* ═══ Mobile-first polish (Phase D) ═══════════════════════════════════════════
+ * Targets phones (<768px). On phones:
+ *   - touch targets are bumped to ≥44px (Apple HIG) for icons in toolbar / FAB
+ *   - Safe-area insets respected for iOS notch / home indicator
+ *   - Bottom-pinned UI clears the home indicator
+ *   - Compact strips in touch-friendly spacings
+ */
+@media (max-width: 768px) {
+  /* Resize handles — slightly bigger on touch devices to avoid fat-finger errors */
+  .canvas-resize-handle {
+    width: 16px;
+    height: 16px;
+    /* Keep centred on the corner — adjust offset for larger size */
+    transform: translate(-50%, -50%);
+  }
+  .canvas-rotate-handle {
+    width: 32px;
+    height: 32px;
+    font-size: 15px;
+  }
+
+  /* Selection delete/edit buttons — bigger hit area on touch */
+  .canvas-selection-delete,
+  .canvas-selection-edit {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+  }
+
+  .canvas-stage-wrap {
+    /* No side padding — the card fills the screen edge to edge on phones
+     * (see the scale-transform in CanvasEditor.tsx). Disable iOS horizontal
+     * overscroll while still allowing scroll-x for any edge case. */
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Editor sheet (bottom sheet) — full-height on phones, drag handle larger */
+  .editor-sheet {
+    max-height: 90dvh;
+  }
+  .editor-sheet-handle {
+    padding: 12px 0;
+  }
+  .editor-sheet-handle-bar {
+    width: 48px;
+    height: 5px;
+  }
+  .editor-sheet-close {
+    width: 40px;
+    height: 40px;
+    top: 8px;
+    right: 8px;
+  }
+
+  /* Wizard sheet — input fields full-width already, just ensure button is touch-friendly */
+  .canvas-wizard-sheet__footer button {
+    min-height: 44px;
+    font-size: 15px;
+  }
+}
+
+/* iOS rubber-band scroll inside sheets — let canvas scroll independently */
+@media (max-width: 768px) and (pointer: coarse) {
+  .editor-sheet-body,
+  .canvas-wizard-sheet__form {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+
+
+/* ── Guest reply reminder ──────────────────────────────────────────────────
+   Replaces a pinned four-action toolbar that sat over the invitation for the
+   whole visit. This appears once, after the guest has scrolled past the hero,
+   and is dismissable for the session. Colours come from the invitation. */
+.qs-reminder-wrap {
+  position: fixed;
+  inset-inline: 0;
+  top: 0;
+  /* Above the free-publish logo badge (z-50) rather than under it, and
+     started below its 52px footprint so the two never share a line. */
+  z-index: 55;
+  display: flex;
+  justify-content: center;
+  padding: calc(62px + env(safe-area-inset-top)) 12px 0;
+  pointer-events: none;
+}
+
+.qs-reminder {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  max-width: 460px;
+  padding: 11px 13px;
+  border-radius: 16px;
+  background: var(--qs-rm-surface);
+  color: var(--qs-rm-text);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 10px 30px rgba(20, 16, 12, 0.16);
+  backdrop-filter: blur(8px);
+  animation: qs-reminder-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes qs-reminder-in {
+  from { opacity: 0; transform: translate3d(0, -14px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qs-reminder { animation: none; }
+}
+
+.qs-reminder__copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.qs-reminder__title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.qs-reminder__body {
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: var(--qs-rm-quiet);
+  margin-top: 2px;
+}
+
+.qs-reminder__cta {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: none;
+  background: var(--qs-rm-accent);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.qs-reminder__close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: var(--qs-rm-quiet);
+  cursor: pointer;
+}
+
+.qs-reminder__close:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+/* Under 380px the copy and the button cannot both fit on one line without the
+   button shrinking to unreadable; the explanation is the part that can go. */
+@media (max-width: 380px) {
+  .qs-reminder__body { display: none; }
+}
+
+/* ─── Layers list ─────────────────────────────────────────────────────────── */
+.editor-layers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.editor-layer-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 4px;
+  background: var(--ed-surface);
+  border: 1px solid var(--ed-border);
+  border-radius: var(--ed-radius);
+}
+
+.editor-layer-row.is-selected {
+  border-color: var(--ed-accent);
+  background: color-mix(in srgb, var(--ed-accent) 7%, var(--ed-surface));
+}
+
+/* A hidden layer still has to be readable — it is the row you came here to find. */
+.editor-layer-row.is-hidden .editor-layer-title,
+.editor-layer-row.is-hidden .editor-layer-type {
+  opacity: 0.5;
+}
+
+.editor-layer-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 4px 2px;
+  background: none;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.editor-layer-title {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ed-text);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-layer-type {
+  font-size: 11px;
+  color: var(--ed-text-muted);
+}
+
+.editor-layer-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: none;
+  color: var(--ed-text-muted);
+  cursor: pointer;
+}
+
+.editor-layer-toggle:hover {
+  background: var(--ed-surface-2);
+  color: var(--ed-text);
+}
+
+/* ─── Size readout on the selected element ────────────────────────────────── */
+
+/*
+ * What the thing you are dragging actually measures.
+ *
+ * Resizing was a guess: the handles moved the outline and nothing ever said how
+ * wide or tall the result was, so matching two photos meant eyeballing them or
+ * opening the properties panel after every drag.
+ */
+.canvas-size-badge {
+  position: absolute;
+  left: 50%;
+  bottom: -26px;
+  transform: translateX(-50%);
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--ed-accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 3;
 }

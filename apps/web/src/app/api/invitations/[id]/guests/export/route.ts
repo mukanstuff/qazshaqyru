@@ -10,9 +10,24 @@ import {
   checkSameOrigin,
 } from '@/lib/shared/api';
 import { buildBanquetExportCsv, type BanquetExportGuest } from '@/lib/guests/restaurant-export';
+import { buildBanquetExportXlsx, type BanquetLocale } from '@/lib/guests/restaurant-export-xlsx';
 import { getInvitationPricing } from '@/lib/invitations/invitation-pricing';
 
-async function buildBanquetCsv(invitationId: string, userId: string) {
+/**
+ * Formats the banquet list is offered in.
+ *
+ * CSV stays because it imports anywhere; xlsx exists because Excel on a
+ * Russian or Kazakh Windows splits on ";" and turns a comma-delimited file
+ * into one unreadable column.
+ */
+type ExportFormat = 'csv' | 'xlsx';
+
+async function buildBanquetExport(
+  invitationId: string,
+  userId: string,
+  format: ExportFormat,
+  locale: BanquetLocale
+) {
   const pricing = await getInvitationPricing(invitationId, userId);
   if (!pricing) {
     throw new ApiError('not_found', 'Приглашение не найдено', 404);
@@ -67,9 +82,19 @@ async function buildBanquetCsv(invitationId: string, userId: string) {
     tableName: g.seating?.table.name ?? null,
   }));
 
-  const csv = buildBanquetExportCsv(invitation.title, rows);
-  const filename = `banquet-${invitation.slug}.csv`;
-  return { csv, filename };
+  if (format === 'xlsx') {
+    return {
+      body: await buildBanquetExportXlsx(invitation.title, rows, locale),
+      filename: `banquet-${invitation.slug}.xlsx`,
+      contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    };
+  }
+
+  return {
+    body: buildBanquetExportCsv(invitation.title, rows),
+    filename: `banquet-${invitation.slug}.csv`,
+    contentType: 'text/csv; charset=utf-8',
+  };
 }
 
 /** POST — CSRF-safe banquet export for restaurant / тойхана. */
@@ -88,11 +113,27 @@ export async function POST(
     const exportRate = await applyRateLimit(request, `export:${ctx.user.id}`, RATE_LIMITS.API_GUEST_EXPORT);
     if (!exportRate.allowed) return rateLimitResponse(exportRate);
 
-    const { csv, filename } = await buildBanquetCsv(id, ctx.user.id);
+    // Anything other than an explicit "xlsx" stays CSV, so existing callers
+    // that post an empty body keep working.
+    const payload = (await request.json().catch(() => null)) as {
+      format?: string;
+      locale?: string;
+    } | null;
+    const format: ExportFormat = payload?.format === 'xlsx' ? 'xlsx' : 'csv';
+    const locale: BanquetLocale = payload?.locale === 'kz' ? 'kz' : 'ru';
 
-    return new NextResponse(csv, {
+    const { body, filename, contentType } = await buildBanquetExport(
+      id,
+      ctx.user.id,
+      format,
+      locale
+    );
+
+    // Wrapped in a Blob because the response body is a string for CSV and
+    // binary for xlsx, and that union does not satisfy BodyInit directly.
+    return new NextResponse(new Blob([body], { type: contentType }), {
       headers: {
-        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Type': contentType,
         'Content-Disposition': `attachment; filename="${filename}"`,
       },
     });

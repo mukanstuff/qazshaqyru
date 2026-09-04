@@ -27,7 +27,7 @@ export function EditorSheetTabPhotos({
   invitationId,
   onDocumentChange,
 }: Props) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   const imageEls = document.elements.filter(
     (e): e is ImageElement => e.type === 'image'
@@ -52,7 +52,7 @@ export function EditorSheetTabPhotos({
     <div className="editor-sheet-section-stack">
       {imageEls.map((el, i) => (
         <div key={el.id} className="editor-sheet-section editor-photo-row">
-          <h3 className="editor-sheet-section-title">Фото {i + 1}</h3>
+          <h3 className="editor-sheet-section-title">{locale === 'ru' ? 'Фото' : 'Сурет'} {i + 1}</h3>
           {el.src && el.src !== '/assets/placeholder.svg' ? (
             <div className="editor-photo-thumb">
               <RemoteMediaImage src={el.src} alt="" fill className="object-cover" />

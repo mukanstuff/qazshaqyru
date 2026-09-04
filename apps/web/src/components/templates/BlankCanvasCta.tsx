@@ -33,8 +33,14 @@ export function BlankCanvasCta({ className }: { className?: string }) {
           </p>
         </div>
 
+        {/*
+          Was `/admin/templates/builder?new=1` — the admin template-authoring
+          tool, behind an isAdmin gate, which created catalog Template rows
+          rather than an invitation. /editor/new makes a draft owned by the
+          person who clicked and opens the ordinary editor.
+        */}
         <LocaleLink
-          href="/admin/templates/builder?new=1"
+          href="/editor/new"
           className="inline-flex min-h-11 items-center gap-2 self-start rounded-full bg-us-cta px-5 py-3 font-body text-sm font-medium text-white shadow-us-sm transition-colors hover:bg-us-cta-hover sm:self-auto"
         >
           <Paintbrush className="h-4 w-4" aria-hidden />

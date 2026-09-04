@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '@/i18n';
 import { HubSheet } from '@/components/hub/HubSheet';
+import { fetchInvitationCanvas, saveInvitationCanvas } from '@/lib/canvas/hub-canvas-client';
+import { applyPlaceholderFields } from '@/lib/canvas/apply-field-placeholders';
 import { resolveHostApiError } from '@/lib/guests/host-api-error';
 
 interface DatesState {
@@ -28,11 +30,15 @@ function toIsoDate(yyyyMmDd: string): string {
 
 /**
  * 2026-08-18 (Phase 2, hub screen): edit date / time / place / address.
- * Backed by the same PATCH /api/invitations/[id] the editor already uses;
- * the countdown widget on the canvas rebuilds on next render.
+ *
+ * Writes directly to the canvas document — the countdown, the venue text
+ * and the map card guests actually see are canvas elements, not the
+ * `Invitation.eventDate` / `eventPlace` columns. Those columns get derived
+ * back from canvas automatically on save (see deriveInvitationFieldsFromCanvas)
+ * so the .ics export and OG image stay in sync too.
  */
 export function HubSheetDates({ open, onClose, invitationId, initial }: Props) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [draft, setDraft] = useState<DatesState>(initial);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<{ kind: 'ok' | 'err'; message: string } | null>(null);
@@ -45,21 +51,31 @@ export function HubSheetDates({ open, onClose, invitationId, initial }: Props) {
     setBusy(true);
     setToast(null);
     try {
-      const res = await fetch(`/api/invitations/${invitationId}`, {
+      const { document, updatedAt } = await fetchInvitationCanvas(invitationId);
+      const next = applyPlaceholderFields(
+        document,
+        {
+          eventDateIso: toIsoDate(draft.eventDate),
+          eventTime: draft.eventTime || undefined,
+          eventPlace: draft.eventPlace || undefined,
+          address: draft.address || undefined,
+        },
+        locale === 'kz' ? 'kz' : 'ru'
+      );
+      await saveInvitationCanvas(invitationId, next, updatedAt);
+
+      // Timezone has no canvas equivalent (it's a display-agnostic document) —
+      // it stays a plain Invitation column, saved alongside the canvas write.
+      const tzRes = await fetch(`/api/invitations/${invitationId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          eventDate: toIsoDate(draft.eventDate),
-          eventTime: draft.eventTime || null,
-          eventPlace: draft.eventPlace || null,
-          address: draft.address || null,
-          eventTimezone: draft.eventTimezone || 'Asia/Almaty',
-        }),
+        body: JSON.stringify({ eventTimezone: draft.eventTimezone || 'Asia/Almaty' }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(resolveHostApiError(data, t, 'invitation.hub.error'));
+      if (!tzRes.ok) {
+        const tzData = await tzRes.json().catch(() => ({}));
+        throw new Error(resolveHostApiError(tzData, t, 'invitation.hub.error'));
       }
+
       setToast({ kind: 'ok', message: t('invitation.hub.datesSheet.saved') });
       window.setTimeout(() => {
         setToast(null);
@@ -114,8 +130,8 @@ export function HubSheetDates({ open, onClose, invitationId, initial }: Props) {
           <div className="hub-field">
             <label className="hub-field-label">{t('invitation.hub.datesSheet.date')}</label>
             <input
-              type="date"
               className="hub-input"
+              type="date"
               value={draft.eventDate}
               onChange={(e) => setDraft((d) => ({ ...d, eventDate: e.target.value }))}
             />
@@ -125,8 +141,8 @@ export function HubSheetDates({ open, onClose, invitationId, initial }: Props) {
           <div className="hub-field">
             <label className="hub-field-label">{t('invitation.hub.datesSheet.time')}</label>
             <input
-              type="time"
               className="hub-input"
+              type="time"
               value={draft.eventTime}
               onChange={(e) => setDraft((d) => ({ ...d, eventTime: e.target.value }))}
             />
@@ -152,6 +168,7 @@ export function HubSheetDates({ open, onClose, invitationId, initial }: Props) {
           onChange={(e) => setDraft((d) => ({ ...d, address: e.target.value }))}
           maxLength={500}
         />
+        <span className="hub-field-hint">{t('invitation.hub.datesSheet.addressHint')}</span>
       </div>
 
       <div className="hub-field">

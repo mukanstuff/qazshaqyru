@@ -25,16 +25,36 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: 'Шаблоны' };
   }
 
-  const [{ locale }, headerStore] = await Promise.all([getI18n(), headers()]);
+  const [{ locale }, headerStore, liveCount] = await Promise.all([
+    getI18n(),
+    headers(),
+    prisma.template.count({
+      where: { isActive: true, category: CATEGORY_ROUTE_MAP[route as CategoryRouteSlug] },
+    }),
+  ]);
   const meta = getCategoryPageMetadata(locale, route, { ru, kz });
   const siteName = 'QazShaqyru';
   const urlLocale = seoLocaleFromHeaders((n) => headerStore.get(n));
   const alternates = buildLanguageAlternates(`/templates/${route}`, urlLocale);
 
   return {
-    title: `${meta.title} | ${siteName}`,
+    // No trailing "| siteName" — the root layout's title.template
+    // ("%s — QazShaqyru") already appends the brand once.
+    title: meta.title,
     description: meta.description,
     alternates,
+    /*
+     * A category with nothing in it must not be indexed.
+     *
+     * Four of the nine categories currently hold zero templates while SEO
+     * landings point straight at them, so search traffic for "приглашение на
+     * беташар" was arriving on an empty shelf. That costs twice: the visitor
+     * bounces, and the domain accumulates thin pages. `follow` is kept so the
+     * links out of the page still pass weight — the page is worthless to index,
+     * not worthless to crawl. It starts being indexed again by itself the
+     * moment a template lands in the category.
+     */
+    robots: liveCount === 0 ? { index: false, follow: true } : undefined,
     openGraph: {
       title: meta.title,
       description: meta.description,

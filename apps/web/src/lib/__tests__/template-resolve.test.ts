@@ -16,9 +16,6 @@ import {
   resolveTemplateBySlug,
   resolveTemplateIdBySlug,
 } from '@/lib/templates/template-resolve';
-import { ALL_TEMPLATE_SLUGS } from '@/lib/templates';
-import { CATALOG_TEMPLATE_SLUGS } from '@/lib/templates/catalog';
-import { quickWizardHref, DEFAULT_QUICK_TEMPLATE } from '@/lib/shared/quick-wizard-url';
 
 beforeEach(() => {
   findFirst.mockReset();
@@ -37,7 +34,7 @@ describe('resolveTemplateBySlug', () => {
 
     expect(findFirst).toHaveBeenCalledWith({
       where: { slug: 'luxe-gold', isActive: true },
-      select: { id: true, slug: true, priceKzt: true, nameRu: true },
+      select: { id: true, slug: true, priceKzt: true, nameRu: true, canvas: true, isCanvasTemplate: true },
     });
     expect(result?.id).toBe('tpl-1');
   });
@@ -49,7 +46,7 @@ describe('resolveTemplateBySlug', () => {
 
     expect(findFirst).toHaveBeenCalledWith({
       where: { slug: 'classic', isActive: true },
-      select: { id: true, slug: true, priceKzt: true, nameRu: true },
+      select: { id: true, slug: true, priceKzt: true, nameRu: true, canvas: true, isCanvasTemplate: true },
     });
     expect(result).toBeNull();
   });
@@ -60,19 +57,12 @@ describe('resolveTemplateBySlug', () => {
   });
 });
 
-describe('template catalog', () => {
-  it('sales catalog is luxe-gold only', () => {
-    expect([...CATALOG_TEMPLATE_SLUGS]).toEqual(['luxe-gold']);
-    expect(ALL_TEMPLATE_SLUGS).toContain('luxe-gold');
-  });
-});
-
-describe('quickWizardHref', () => {
-  it('builds quick wizard URL with default template', () => {
-    expect(quickWizardHref()).toBe(`/create?template=${encodeURIComponent(DEFAULT_QUICK_TEMPLATE)}`);
-  });
-
-  it('encodes template slug per card', () => {
-    expect(quickWizardHref('luxe-gold')).toBe('/create?template=luxe-gold');
-  });
-});
+/**
+ * Two describe blocks were removed here. One asserted that the sales catalog is
+ * "luxe-gold only" — a slug that has never existed in the Template table, while
+ * the live catalog is aq-bata / dala / elegant-gold-wedding-01. The other
+ * asserted quickWizardHref() returns `/create?template=…`, which stopped being
+ * true when the builder switched to `/preview/…`; both were failing and both
+ * described a product that does not exist. URL-builder coverage now lives in
+ * lib/__tests__/quick-wizard-url.test.ts.
+ */

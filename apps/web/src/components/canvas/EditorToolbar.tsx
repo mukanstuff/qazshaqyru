@@ -1,97 +1,82 @@
 'use client';
 
+import { ArrowLeft, Redo2, Undo2 } from 'lucide-react';
 import { useI18n } from '@/i18n';
-import type { SaveState } from './CanvasEditor';
 
-interface ToolbarProps {
+interface EditorToolbarProps {
   canUndo: boolean;
   canRedo: boolean;
   onUndo: () => void;
   onRedo: () => void;
-  saveState: SaveState;
-  lastSaved: Date | null;
-  onSaveNow: () => void;
-  mode: 'user' | 'template-builder';
-  /**
-   * 2026-08-17: in-app "guest view" preview. When true, the canvas
-   * renders clean (no chrome, no selection handles) but the editor
-   * state — selected element, history, autosave — is preserved.
-   * Distinct from editorMode="guest" which is a separate visitor surface.
-   */
-  previewMode: boolean;
-  onTogglePreview: () => void;
+  /** Omit in a host that already renders its own back/save control (e.g.
+   *  the admin template builder) — otherwise this floating circle/pill
+   *  lands in the exact same top-left/top-right corner as that host's own
+   *  button and visually collides with it. */
+  onBack?: () => void;
+  onPublish?: () => void;
 }
 
-function formatAgo(d: Date | null, locale: 'ru' | 'kz') {
-  if (!d) return '';
-  const s = Math.max(0, Math.floor((Date.now() - d.getTime()) / 1000));
-  if (s < 5) return locale === 'ru' ? 'только что' : 'жаңа ғана';
-  if (s < 60) return `${s} с`;
-  const m = Math.floor(s / 60);
-  return `${m} мин`;
-}
-
-export function EditorToolbar(p: ToolbarProps) {
-  const { t, locale } = useI18n();
+/**
+ * Top controls: Back / Undo / Redo on the left, Опубликовать on the right —
+ * each its own floating circle (or pill, for Publish) directly over the
+ * canvas, no shared bar behind them.
+ *
+ * This used to be an in-flow `<header>` with a solid background spanning the
+ * full width — which pushed the canvas down by its height and, on a phone,
+ * read as a second toolbar sitting on top of the invitation instead of
+ * floating over it. It's `position: fixed` now (see `.editor-topbar-wrap`
+ * in canvas-editor.css), laid out the same robust way as the bottom dock:
+ * one flex row does the positioning so nothing needs hand-tuned pixel
+ * offsets — that's exactly what the *previous* floating-buttons attempt got
+ * wrong (`EditorFloatingClusters`, since removed) and why it became an
+ * in-flow bar in the first place. This time the positioning wrapper is
+ * `pointer-events: none` and only the buttons themselves are interactive,
+ * so there's no invisible strip stealing clicks from the canvas underneath.
+ */
+export function EditorToolbar({ canUndo, canRedo, onUndo, onRedo, onBack, onPublish }: EditorToolbarProps) {
+  const { t } = useI18n();
 
   return (
-    <header className="canvas-toolbar">
-      <button className="ct-btn" onClick={p.onUndo} disabled={!p.canUndo} title="Ctrl/Cmd+Z">
-        ↶ {t('invitation.edit.canvas.undo')}
-      </button>
-      <button className="ct-btn" onClick={p.onRedo} disabled={!p.canRedo} title="Ctrl/Cmd+Shift+Z">
-        ↷ {t('invitation.edit.canvas.redo')}
-      </button>
-      <span className="ct-divider" />
-
-      <button
-        className={`ct-btn ${p.previewMode ? 'is-active' : ''}`}
-        onClick={p.onTogglePreview}
-        aria-pressed={p.previewMode}
-      >
-        👁 {t('invitation.edit.canvas.preview')}
-      </button>
-
-      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '12px' }}>
-        {p.mode === 'template-builder' && (
-          <span className="ct-badge">
-            {t('invitation.edit.canvas.templateBuilder')}
-          </span>
-        )}
-        <SaveIndicator state={p.saveState} onClick={p.onSaveNow} locale={locale} lastSaved={p.lastSaved} />
+    <div className="editor-topbar-wrap">
+      <div className="editor-topbar-cluster">
+        {onBack ? (
+          <button
+            type="button"
+            className="editor-topbar-btn"
+            onClick={onBack}
+            aria-label={t('common.back')}
+            title={t('common.back')}
+          >
+            <ArrowLeft size={18} aria-hidden="true" />
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className="editor-topbar-btn"
+          onClick={onUndo}
+          disabled={!canUndo}
+          aria-label={t('invitation.edit.canvas.undo')}
+          title={t('invitation.edit.canvas.undo')}
+        >
+          <Undo2 size={18} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className="editor-topbar-btn"
+          onClick={onRedo}
+          disabled={!canRedo}
+          aria-label={t('invitation.edit.canvas.redo')}
+          title={t('invitation.edit.canvas.redo')}
+        >
+          <Redo2 size={18} aria-hidden="true" />
+        </button>
       </div>
-    </header>
-  );
-}
 
-function SaveIndicator({
-  state,
-  onClick,
-  locale,
-  lastSaved,
-}: {
-  state: SaveState;
-  onClick: () => void;
-  locale: 'ru' | 'kz';
-  lastSaved: Date | null;
-}) {
-  const { t } = useI18n();
-  if (state === 'saving') {
-    return <span className="ct-save-indicator is-saving">⟳ {t('invitation.edit.canvas.saving')}</span>;
-  }
-  if (state === 'error') {
-    return (
-      <button onClick={onClick} className="ct-save-indicator is-error" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-        ⚠ {t('invitation.edit.canvas.saveError')}
-      </button>
-    );
-  }
-  if (state === 'saved') {
-    return (
-      <span className="ct-save-indicator is-saved">
-        ✓ {t('invitation.edit.canvas.saved')} · {formatAgo(lastSaved, locale)}
-      </span>
-    );
-  }
-  return <span className="ct-save-indicator is-idle">{t('invitation.edit.canvas.idle')}</span>;
+      {onPublish ? (
+        <button type="button" className="editor-topbar-btn editor-topbar-btn--publish" onClick={onPublish}>
+          {t('invitation.edit.canvas.publish')}
+        </button>
+      ) : null}
+    </div>
+  );
 }

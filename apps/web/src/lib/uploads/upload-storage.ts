@@ -5,7 +5,8 @@
  * a server-only dependency; importing it at the top of this file would pull
  * Node-only streams into the client bundle.
  */
-import { mkdir, writeFile, stat } from 'fs/promises';
+import { mkdir, writeFile, stat, readdir } from 'fs/promises';
+import { existsSync } from 'fs';
 import { join, resolve } from 'path';
 import {
   assertSafeUploadFilename,
@@ -66,15 +67,28 @@ function getLocalUploadRoot(): string {
     : LOCAL_UPLOAD_ROOT_FALLBACK;
 }
 
+async function getDirectorySizeBytes(dir: string): Promise<number> {
+  if (!existsSync(dir)) return 0;
+  let total = 0;
+  const entries = await readdir(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      total += await getDirectorySizeBytes(fullPath);
+    } else {
+      total += (await stat(fullPath)).size;
+    }
+  }
+  return total;
+}
+
 export async function assertUploadDiskQuota(incomingSize: number): Promise<void> {
   if (getUploadStorageMode() !== 'local') return;
   const quotaMb = parseInt(process.env.UPLOAD_DISK_QUOTA_MB || '0', 10);
   if (!quotaMb) return; // disabled
-  const root = getLocalUploadRoot();
-  // best-effort — don't crash on missing dir; just enforce hard per-file cap
-  void root;
-  const maxFileBytes = quotaMb * 1024 * 1024;
-  if (incomingSize > maxFileBytes) {
+  const quotaBytes = quotaMb * 1024 * 1024;
+  const usedBytes = await getDirectorySizeBytes(getLocalUploadRoot());
+  if (usedBytes + incomingSize > quotaBytes) {
     throw new Error('disk_quota_exceeded');
   }
 }

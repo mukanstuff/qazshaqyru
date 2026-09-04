@@ -11,22 +11,11 @@ import {
   RATE_LIMITS,
 } from '@/lib/shared/api';
 import { getInvitationPricing } from '@/lib/invitations/invitation-pricing';
+import { RESERVED_SLUGS } from '@/lib/invitations/public-slug';
 
-const RESERVED = new Set([
-  'admin',
-  'api',
-  'dashboard',
-  'demo',
-  'i',
-  'login',
-  'r',
-  'templates',
-  'settings',
-  'blog',
-  'mock-payment',
-  'new',
-  'edit',
-]);
+// Reserved slugs live with the slug builder so the publish path and this
+// editor share one list.
+const RESERVED = RESERVED_SLUGS;
 
 const bodySchema = z.object({
   slug: z

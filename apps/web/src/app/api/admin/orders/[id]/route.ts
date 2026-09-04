@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import prisma from '@/lib/shared/db';
-import { ApiError, apiErrorResponse, checkSameOrigin, requireAdmin } from '@/lib/shared/api';
+import {
+  ApiError,
+  apiErrorResponse,
+  checkSameOrigin,
+  requireAdmin,
+  applyRateLimit,
+  rateLimitResponse,
+  RATE_LIMITS,
+} from '@/lib/shared/api';
 import { ManagedOrderStatus } from '@prisma/client';
 
 const patchSchema = z.object({
@@ -26,7 +34,9 @@ export async function PATCH(request: NextRequest, { params }: Props) {
       throw new ApiError('forbidden', 'Неверный origin', 403);
     }
 
-    await requireAdmin();
+    const { user } = await requireAdmin();
+    const rate = await applyRateLimit(request, `admin_order:${user.id}`, RATE_LIMITS.API_ADMIN_MUTATE);
+    if (!rate.allowed) return rateLimitResponse(rate);
 
     const { id } = await params;
     const body = await request.json().catch(() => {

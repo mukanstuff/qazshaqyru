@@ -38,13 +38,23 @@ export default async function AdminTemplateBuilderPage({ searchParams }: Props) 
         // See docs/PRODUCT_MODEL_AND_RULES.md — pay once = full access.
         priceKzt: 3990,
         previewImageUrl: '/assets/placeholder.jpg',
-        isActive: true,
+        // Starts hidden from the public catalog — /templates filters on
+        // isActive, so a template created with this true went live the
+        // instant this request finished, blank canvas and all, before the
+        // admin had drawn a single element. Flip it on from the templates
+        // list once it's actually ready.
+        isActive: false,
         isFeatured: false,
         sortOrder: 100,
         canvas: emptyDoc as unknown as object,
       },
     });
-    templateId = created.id;
+    // Redirect instead of rendering straight through. The URL that created
+    // this row still says `?new=1`, so every refresh / back-navigation to it
+    // used to mint another throwaway Template (that's where the stray
+    // `custom-*` rows in the DB came from). Sending the browser to `?id=` makes
+    // the created row the addressable thing.
+    redirect(`/admin/templates/builder?id=${created.id}`);
   }
 
   return <TemplateBuilderClient templateId={templateId} />;

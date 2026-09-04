@@ -6,8 +6,10 @@ import {
   requireAuth,
   checkSameOrigin,
   applyAuthReadRateLimit,
+  applyRateLimit,
   rateLimitResponse,
   parseJsonBody,
+  RATE_LIMITS,
 } from '@/lib/shared/api';
 import { serializeGuestsForApi } from '@/lib/guests/guest-serialize';
 import { invitationUpdateBodySchema } from '@/lib/invitations/schemas';
@@ -77,6 +79,9 @@ export async function PATCH(
     const { id } = await params;
     const ctx = await requireAuth();
 
+    const rate = await applyRateLimit(request, `inv_update:${ctx.user.id}`, RATE_LIMITS.API_GENERAL);
+    if (!rate.allowed) return rateLimitResponse(rate);
+
     const data = await parseJsonBody(request, invitationUpdateBodySchema);
     const { invitation } = await updateInvitationForUser(ctx.user.id, id, data);
 
@@ -97,6 +102,9 @@ export async function DELETE(
 
     const { id } = await params;
     const ctx = await requireAuth();
+
+    const rate = await applyRateLimit(request, `inv_archive:${ctx.user.id}`, RATE_LIMITS.API_GENERAL);
+    if (!rate.allowed) return rateLimitResponse(rate);
 
     const existing = await prisma.invitation.findFirst({
       where: { id, userId: ctx.user.id },

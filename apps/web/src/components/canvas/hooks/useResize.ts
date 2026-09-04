@@ -7,7 +7,8 @@
  * - Side handles: 'n', 'e', 's', 'w'
  * - ShiftKey aspect-ratio preserving (corner handles only)
  */
-import { useCallback, useRef } from 'react';
+import { useCallback } from 'react';
+import { usePointerSession } from './usePointerSession';
 
 export type ResizeHandle = 'nw' | 'ne' | 'sw' | 'se' | 'n' | 'e' | 's' | 'w';
 
@@ -124,8 +125,7 @@ export function useResize(opts: {
   ) => void;
   getInitial?: (id: string) => { x: number; y: number; w: number; h: number | 'auto' };
 }) {
-  const stateRef = useRef<ResizeState | null>(null);
-  const rafRef = useRef<number | null>(null);
+  const session = usePointerSession<ResizeState>();
 
   const beginResize = useCallback(
     (id: string, handle: ResizeHandle, e: React.PointerEvent) => {
@@ -150,13 +150,9 @@ export function useResize(opts: {
         stageWidthPx: rect.width || 390,
       };
 
-      stateRef.current = state;
       opts.onStart?.(id, handle);
-      (e.target as Element).setPointerCapture?.(e.pointerId);
 
-      const computeCoords = (ev: PointerEvent) => {
-        const s = stateRef.current;
-        if (!s) return null;
+      const computeCoords = (s: ResizeState, ev: PointerEvent) => {
         const dxPx = (ev.clientX - s.startClientX) / s.scale;
         const dyPx = (ev.clientY - s.startClientY) / s.scale;
         return calculateResizeCoords(
@@ -170,43 +166,18 @@ export function useResize(opts: {
         );
       };
 
-      const onMove = (ev: PointerEvent) => {
-        if (!stateRef.current) return;
-        if (rafRef.current != null) return;
-        rafRef.current = requestAnimationFrame(() => {
-          rafRef.current = null;
-          const s = stateRef.current;
-          if (!s) return;
-          const coords = computeCoords(ev);
-          if (coords) {
-            opts.onResize?.(s.id, coords.x, coords.y, coords.w, coords.h, ev);
-          }
-        });
-      };
-
-      const onUp = (ev: PointerEvent) => {
-        const s = stateRef.current;
-        window.removeEventListener('pointermove', onMove);
-        window.removeEventListener('pointerup', onUp);
-        window.removeEventListener('pointercancel', onUp);
-
-        if (s) {
-          const coords = computeCoords(ev);
-          if (coords) {
-            opts.onEnd?.(s.id, coords.x, coords.y, coords.w, coords.h);
-          }
-        }
-
-        stateRef.current = null;
-        if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      };
-
-      window.addEventListener('pointermove', onMove);
-      window.addEventListener('pointerup', onUp);
-      window.addEventListener('pointercancel', onUp);
+      session.begin(e, state, {
+        onMove: (s, ev) => {
+          const coords = computeCoords(s, ev);
+          opts.onResize?.(s.id, coords.x, coords.y, coords.w, coords.h, ev);
+        },
+        onEnd: (s, ev) => {
+          const coords = computeCoords(s, ev);
+          opts.onEnd?.(s.id, coords.x, coords.y, coords.w, coords.h);
+        },
+      });
     },
-    [opts]
+    [opts, session]
   );
 
   return { beginResize };

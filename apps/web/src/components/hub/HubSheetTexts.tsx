@@ -4,17 +4,14 @@ import { useEffect, useState } from 'react';
 import { useI18n } from '@/i18n';
 import { HubSheet } from '@/components/hub/HubSheet';
 import { resolveHostApiError } from '@/lib/guests/host-api-error';
+import { fetchInvitationCanvas, saveInvitationCanvas } from '@/lib/canvas/hub-canvas-client';
+import { applyPlaceholderFields } from '@/lib/canvas/apply-field-placeholders';
 
 interface TextsState {
-  greeting: string;
-  intro: string;
-  details: string;
-  closing: string;
-  dressCode: string;
   groomName: string;
   brideName: string;
-  eventPlace: string;
-  address: string;
+  greeting: string;
+  dressCode: string;
 }
 
 interface Props {
@@ -25,10 +22,12 @@ interface Props {
 }
 
 /**
- * 2026-08-18 (Phase 2, hub screen): quick-edit for the textual content the
- * user cares about most. Per spec item 2: greeting / intro / details /
- * closing / dressCode / couple-names.first / couple-names.second /
- * eventPlace / address. Everything else stays in the canvas editor.
+ * 2026-08-18 (Phase 2, hub screen), rewritten 2026-08-29: quick-edit for the
+ * text content that actually has somewhere to land on the canvas — the
+ * couple's names, the greeting line and the dress code. Everything else
+ * (greeting body / program / footer) never had a canvas element to bind to
+ * on any live template and was dropped rather than kept as a form that
+ * silently wrote to a column nothing renders.
  */
 export function HubSheetTexts({ open, onClose, invitationId, initial }: Props) {
   const { t } = useI18n();
@@ -45,27 +44,14 @@ export function HubSheetTexts({ open, onClose, invitationId, initial }: Props) {
     setBusy(true);
     setToast(null);
     try {
-      const res = await fetch(`/api/invitations/${invitationId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customText: {
-            greeting: draft.greeting,
-            intro: draft.intro,
-            details: draft.details,
-            closing: draft.closing,
-            dressCode: draft.dressCode,
-            groomName: draft.groomName,
-            brideName: draft.brideName,
-            eventPlace: draft.eventPlace,
-            address: draft.address,
-          },
-        }),
+      const { document, updatedAt } = await fetchInvitationCanvas(invitationId);
+      const next = applyPlaceholderFields(document, {
+        groomName: draft.groomName || undefined,
+        brideName: draft.brideName || undefined,
+        greetingText: draft.greeting || undefined,
+        dressCode: draft.dressCode || undefined,
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(resolveHostApiError(data, t, 'invitation.hub.textsSheet.error'));
-      }
+      await saveInvitationCanvas(invitationId, next, updatedAt);
       setToast({ kind: 'ok', message: t('invitation.hub.textsSheet.saved') });
       // Close shortly after success so the user sees the toast.
       window.setTimeout(() => {
@@ -82,24 +68,15 @@ export function HubSheetTexts({ open, onClose, invitationId, initial }: Props) {
     }
   };
 
-  const field = (key: keyof TextsState, label: string, multiline = false) => (
+  const field = (key: keyof TextsState, label: string) => (
     <div className="hub-field">
       <label className="hub-field-label">{label}</label>
-      {multiline ? (
-        <textarea
-          className="hub-textarea"
-          value={draft[key]}
-          onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
-          maxLength={multiline ? 2000 : 500}
-        />
-      ) : (
-        <input
-          className="hub-input"
-          value={draft[key]}
-          onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
-          maxLength={500}
-        />
-      )}
+      <input
+        className="hub-input"
+        value={draft[key]}
+        onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
+        maxLength={500}
+      />
     </div>
   );
 
@@ -137,11 +114,6 @@ export function HubSheetTexts({ open, onClose, invitationId, initial }: Props) {
         </div>
       ) : null}
 
-      {field('greeting', t('invitation.hub.textsSheet.greeting'))}
-      {field('intro', t('invitation.hub.textsSheet.intro'), true)}
-      {field('details', t('invitation.hub.textsSheet.details'), true)}
-      {field('closing', t('invitation.hub.textsSheet.closing'), true)}
-      {field('dressCode', t('invitation.hub.textsSheet.dressCode'))}
       <div className="hub-date-row">
         <div style={{ flex: 1 }}>
           {field('groomName', t('invitation.hub.textsSheet.firstName'))}
@@ -150,8 +122,8 @@ export function HubSheetTexts({ open, onClose, invitationId, initial }: Props) {
           {field('brideName', t('invitation.hub.textsSheet.secondName'))}
         </div>
       </div>
-      {field('eventPlace', t('invitation.hub.textsSheet.eventPlace'))}
-      {field('address', t('invitation.hub.textsSheet.address'))}
+      {field('greeting', t('invitation.hub.textsSheet.greeting'))}
+      {field('dressCode', t('invitation.hub.textsSheet.dressCode'))}
     </HubSheet>
   );
 }

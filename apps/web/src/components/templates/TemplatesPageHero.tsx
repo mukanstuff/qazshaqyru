@@ -17,7 +17,6 @@ interface TemplatesPageHeroProps {
 interface CompactHeroProps {
   /** Compact breadcrumb-only hero (used by /templates). */
   variant: 'compact';
-  eyebrow: string;
   breadcrumb: { label: string; href?: string }[];
   current: string;
   stats: StatPill[];
@@ -60,7 +59,7 @@ function FullHero({ overline, title, subtitle, stats }: TemplatesPageHeroProps) 
   );
 }
 
-function CompactHero({ eyebrow, breadcrumb, current, stats, rightSlot }: CompactHeroProps) {
+function CompactHero({ breadcrumb, current, stats, rightSlot }: CompactHeroProps) {
   return (
     <section className="border-b border-us-border/60 bg-[#fcfcfb]">
       <div className="us-container flex flex-col gap-3 py-4 md:flex-row md:items-center md:justify-between md:gap-6">
@@ -83,8 +82,6 @@ function CompactHero({ eyebrow, breadcrumb, current, stats, rightSlot }: Compact
             ))}
             <li className="font-body font-medium text-us-ink">{current}</li>
           </ol>
-          <span className="hidden text-us-ink-muted/40 md:inline">·</span>
-          <span className="font-body text-xs uppercase tracking-widest text-us-accent">{eyebrow}</span>
         </nav>
 
         <div className="flex items-center gap-3">

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 70" width="240" height="70" fill="none" stroke="#000" stroke-width="1.6" stroke-linecap="round">
+  <!-- Divider: paired ram's horns rising from a broken rule. -->
+  <defs>
+    <g id="h">
+      <path d="M0,0 C0,-16 5,-28 17,-33 C29,-38 41,-31 41,-20 C41,-12 35,-6 27,-6 C20,-6 15,-11 15,-18 C15,-23 19,-26 23,-26 C26,-26 28,-24 28,-21"/>
+    </g>
+  </defs>
+  <g transform="translate(120,58)"><use href="#h"/><use href="#h" transform="scale(-1,1)"/></g>
+  <path d="M8,58 L74,58 M166,58 L232,58"/>
+  <circle cx="120" cy="58" r="2.6" fill="#000" stroke="none"/>
+</svg>

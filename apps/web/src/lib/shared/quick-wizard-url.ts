@@ -1,35 +1,18 @@
-import { DEFAULT_TEMPLATE_SLUG } from '@/lib/templates/catalog';
-
-export const DEFAULT_QUICK_TEMPLATE = DEFAULT_TEMPLATE_SLUG;
-
-/** Primary create path — QuickWizard → canvas editor. */
-export function liveEditorHref(
-  templateSlug: string = DEFAULT_QUICK_TEMPLATE,
-  invitationId?: string,
-): string {
-  if (invitationId) {
-    return `/invitations/${encodeURIComponent(invitationId)}/canvas`;
-  }
-  return `/create?template=${encodeURIComponent(templateSlug)}`;
-}
-
 /**
- * Direct catalog → editor entry (toi.com.kz style).
- * `/editor/[templateKey]` opens the canvas editor at a stable URL with no
- * /invitations/{uuid}/canvas hop. Server creates a draft on first visit,
- * cookie binds the user to the same draft on subsequent visits.
+ * URL builders for the catalog → editor path.
+ *
+ * Every function here used to default its `templateSlug` argument to
+ * `DEFAULT_TEMPLATE_SLUG` (`luxe-gold`), a slug with no row in the Template
+ * table. A call with no argument silently produced a link to a template that
+ * does not exist — which is exactly how the landing page ended up pointing at
+ * `/i/demo?layout=luxe-gold`. The slug is now a required argument, so the
+ * compiler rejects the call instead of the user hitting a dead page.
+ *
+ * `liveEditorHref` and `newInvitationRedirectHref` were removed along with the
+ * `/invitations/new` route they served: nothing called either of them.
  */
-export function editorHref(templateSlug: string = DEFAULT_QUICK_TEMPLATE): string {
+
+/** Catalog card → canvas editor. Server creates the draft on first visit. */
+export function editorHref(templateSlug: string): string {
   return `/editor/${encodeURIComponent(templateSlug)}`;
-}
-
-/** Create/start from a template — goes through demo preview, then wizard → canvas. */
-export function quickWizardHref(templateSlug: string = DEFAULT_QUICK_TEMPLATE): string {
-  return `/preview/${encodeURIComponent(templateSlug)}`;
-}
-
-/** Legacy `/invitations/new` → quick wizard path. */
-export function newInvitationRedirectHref(template?: string | null): string {
-  if (!template) return '/templates';
-  return quickWizardHref(template);
 }

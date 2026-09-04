@@ -1,5 +1,4 @@
 import type { FontFamily } from './constants';
-import { FLAGSHIP_TEMPLATE_SLUGS } from './constants';
 
 export type LayoutType =
   | 'fullbleed'
@@ -9,26 +8,6 @@ export type LayoutType =
   | 'luxury-editorial'
   | 'dark-lux'
   | 'kazakh-scroll';
-
-export type FlagshipTemplateSlug = (typeof FLAGSHIP_TEMPLATE_SLUGS)[number];
-
-export type FlagshipCornerKey = 'tl' | 'tr' | 'bl' | 'br';
-
-/** Per-flagship decoration tuning — distinct composition, not palette-swap. */
-export interface FlagshipDecorProfile {
-  coverOpacity?: number;
-  cornerBlend?: 'multiply' | 'normal' | 'screen' | 'soft-light';
-  cornerOpacity?: number;
-  cornerScale?: number;
-  hideCorners?: FlagshipCornerKey[];
-  centerEmblem?: string;
-  overlayGlow?: string;
-  vignetteOpacity?: number;
-  grainOpacity?: number;
-  scrollRevealDirection?: 'up' | 'left' | 'right';
-  heroKenBurns?: boolean;
-  sectionStaggerMs?: number;
-}
 
 export type MotionProfile =
   | 'tpl-motion-rose'

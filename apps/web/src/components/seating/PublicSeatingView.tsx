@@ -2,6 +2,13 @@
 
 import { useMemo, useState } from 'react';
 import { useI18n } from '@/i18n';
+import {
+  HALL_W,
+  HALL_H,
+  DEFAULT_TABLE,
+  isHallObject,
+  normalizeTableShape,
+} from '@/lib/guests/seating-layout';
 
 interface PublicSeatingTable {
   id: string;
@@ -19,15 +26,11 @@ interface PublicSeatingTable {
 }
 
 interface Props {
-  invitationId: string;
   tables: PublicSeatingTable[];
   highlightGuestId?: string;
 }
 
-const STAGE_W = 800;
-const STAGE_H = 520;
-
-export function PublicSeatingView({ invitationId, tables, highlightGuestId }: Props) {
+export function PublicSeatingView({ tables, highlightGuestId }: Props) {
   const { t } = useI18n();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -39,10 +42,27 @@ export function PublicSeatingView({ invitationId, tables, highlightGuestId }: Pr
 
   const selected = tables.find((tbl) => tbl.id === selectedId) ?? null;
 
-  const totalSeated = tables.reduce((n, tbl) => n + tbl.guests.length, 0);
-  const totalCapacity = tables.reduce((n, tbl) => n + tbl.capacity, 0);
+  // Fixtures share the list with tables but are neither seats nor tables.
+  const seatable = useMemo(
+    () => tables.filter((tbl) => !isHallObject(normalizeTableShape(tbl.shape))),
+    [tables]
+  );
+  // Fixtures painted first so tables sit on top of them.
+  const ordered = useMemo(
+    () =>
+      [...tables].sort(
+        (a, b) =>
+          Number(isHallObject(normalizeTableShape(b.shape))) -
+          Number(isHallObject(normalizeTableShape(a.shape)))
+      ),
+    [tables]
+  );
 
-  if (tables.length === 0) {
+  const totalSeated = seatable.reduce((n, tbl) => n + tbl.guests.length, 0);
+  const totalCapacity = seatable.reduce((n, tbl) => n + tbl.capacity, 0);
+
+  // A hall holding only a stage is not a seating plan yet.
+  if (seatable.length === 0) {
     return (
       <div className="rounded-2xl border border-us-ink/8 bg-white p-8 text-center">
         <p className="text-base text-us-ink">{t('seating.public.emptyTitle')}</p>
@@ -64,34 +84,64 @@ export function PublicSeatingView({ invitationId, tables, highlightGuestId }: Pr
         </div>
       )}
 
-      <div className="relative w-full overflow-hidden rounded-2xl border border-us-ink/8 bg-gradient-to-br from-white to-us-ink/2"
-        style={{ aspectRatio: `${STAGE_W} / ${STAGE_H}` }}
+      <div
+        className="relative w-full overflow-hidden rounded-2xl border border-us-ink/8 bg-gradient-to-br from-white to-us-ink/2"
+        style={{ aspectRatio: `${HALL_W} / ${HALL_H}` }}
       >
-        {tables.map((tbl) => {
+        {ordered.map((tbl) => {
           const isMy = tbl.id === myTableId;
           const isSelected = tbl.id === selectedId;
-          const x = tbl.x ?? 40;
-          const y = tbl.y ?? 40;
-          const w = tbl.w ?? 120;
-          const h = tbl.h ?? 120;
-          const color = tbl.tableColor ?? '#10b981';
-          const shape = tbl.shape ?? 'round';
+          const x = tbl.x ?? 0;
+          const y = tbl.y ?? 0;
+          const w = tbl.w ?? DEFAULT_TABLE.w;
+          const h = tbl.h ?? DEFAULT_TABLE.h;
+          const color = tbl.tableColor ?? DEFAULT_TABLE.color;
+          const shape = normalizeTableShape(tbl.shape);
+          // The editor writes 'rect'; this used to test for 'square', so every
+          // rectangular table was drawn as a circle on the guest page.
+          const shapeClass = shape === 'round' ? 'rounded-full' : 'rounded-2xl';
 
-          const shapeClass = shape === 'square' ? 'rounded-2xl' : 'rounded-full';
+          /*
+           * Stage, dance floor, bar, entrance.
+           *
+           * A guest looking for "стол 7" needs to know which end of the room
+           * that is, so the fixtures are drawn — flat, behind the tables, and
+           * not clickable, because there is nobody seated at the entrance.
+           */
+          if (isHallObject(shape)) {
+            return (
+              <div
+                key={tbl.id}
+                aria-hidden="true"
+                className="absolute z-0 flex items-center justify-center rounded-xl border border-dashed border-us-ink/25 bg-us-ink/5"
+                style={{
+                  left: `${(x / HALL_W) * 100}%`,
+                  top: `${(y / HALL_H) * 100}%`,
+                  width: `${(w / HALL_W) * 100}%`,
+                  height: `${(h / HALL_H) * 100}%`,
+                  transform: tbl.rotation ? `rotate(${tbl.rotation}deg)` : undefined,
+                }}
+              >
+                <span className="px-1 text-center text-[11px] font-semibold uppercase tracking-[0.08em] text-us-ink/60">
+                  {tbl.name}
+                </span>
+              </div>
+            );
+          }
 
           return (
             <button
               key={tbl.id}
               type="button"
               onClick={() => setSelectedId(tbl.id === selectedId ? null : tbl.id)}
-              className={`absolute flex flex-col items-center justify-center shadow-sm transition-all ${shapeClass} ${
+              className={`absolute z-10 flex flex-col items-center justify-center shadow-sm transition-all ${shapeClass} ${
                 isSelected ? 'ring-2 ring-us-ink' : 'ring-1 ring-us-ink/15'
               } ${isMy ? 'ring-2 ring-us-accent' : ''}`}
               style={{
-                left: `${(x / STAGE_W) * 100}%`,
-                top: `${(y / STAGE_H) * 100}%`,
-                width: `${(w / STAGE_W) * 100}%`,
-                height: `${(h / STAGE_H) * 100}%`,
+                left: `${(x / HALL_W) * 100}%`,
+                top: `${(y / HALL_H) * 100}%`,
+                width: `${(w / HALL_W) * 100}%`,
+                height: `${(h / HALL_H) * 100}%`,
                 backgroundColor: color,
                 transform: tbl.rotation ? `rotate(${tbl.rotation}deg)` : undefined,
               }}
@@ -110,7 +160,7 @@ export function PublicSeatingView({ invitationId, tables, highlightGuestId }: Pr
         <p className="font-display text-base text-us-ink">
           {t('seating.public.summary', {
             seated: String(totalSeated),
-            tables: String(tables.length),
+            tables: String(seatable.length),
             capacity: String(totalCapacity),
           })}
         </p>

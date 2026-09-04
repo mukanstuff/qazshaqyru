@@ -8,8 +8,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { getCurrentSession } from '@/lib/shared/api';
-import { ApiError } from '@/lib/shared/api';
+import {
+  requireAuth,
+  checkSameOrigin,
+  applyRateLimit,
+  rateLimitResponse,
+  RATE_LIMITS,
+  ApiError,
+  apiErrorResponse,
+} from '@/lib/shared/api';
 import { switchInvitationTemplate } from '@/lib/invitations/switch-template';
 
 const bodySchema = z.object({
@@ -21,32 +28,29 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await getCurrentSession();
-  if (!session) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  }
-
-  const { id } = await params;
-  const raw = await request.json().catch(() => ({}));
-  const parsed = bodySchema.safeParse(raw);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: 'invalid_body', details: parsed.error.flatten() },
-      { status: 400 },
-    );
-  }
-
   try {
+    if (!checkSameOrigin(request)) {
+      throw new ApiError('forbidden', 'Неверный origin', 403);
+    }
+
+    const ctx = await requireAuth();
+    const rate = await applyRateLimit(request, ctx.user.id, RATE_LIMITS.API_INVITATION_CREATE);
+    if (!rate.allowed) return rateLimitResponse(rate);
+
+    const { id } = await params;
+    const raw = await request.json().catch(() => ({}));
+    const parsed = bodySchema.safeParse(raw);
+    if (!parsed.success) {
+      throw new ApiError('validation_error', 'Ошибка валидации', 400, parsed.error.flatten());
+    }
+
     const result = await switchInvitationTemplate({
       invitationId: id,
-      userId: session.user.id,
+      userId: ctx.user.id,
       templateId: parsed.data.templateId,
     });
     return NextResponse.json(result);
-  } catch (err) {
-    if (err instanceof ApiError) {
-      return NextResponse.json({ error: err.code, message: err.message }, { status: err.status });
-    }
-    throw err;
+  } catch (error) {
+    return apiErrorResponse(error as Error, 'Switch template');
   }
 }

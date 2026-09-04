@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import prisma from '@/lib/shared/db';
-import { ApiError, apiErrorResponse, requireAuth, checkSameOrigin } from '@/lib/shared/api';
+import {
+  ApiError,
+  apiErrorResponse,
+  requireAuth,
+  checkSameOrigin,
+  applyRateLimit,
+  rateLimitResponse,
+  RATE_LIMITS,
+} from '@/lib/shared/api';
 
 const updateUserSchema = z.object({
   name: z.string().min(1).max(100).optional(),
@@ -15,6 +23,10 @@ export async function PATCH(request: NextRequest) {
     }
 
     const ctx = await requireAuth();
+
+    const rate = await applyRateLimit(request, `user_update:${ctx.user.id}`, RATE_LIMITS.API_GENERAL);
+    if (!rate.allowed) return rateLimitResponse(rate);
+
     const data = await request.json().catch(() => {
       throw new ApiError('invalid_json', 'Некорректный JSON', 400);
     });

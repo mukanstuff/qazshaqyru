@@ -50,8 +50,8 @@ describe('resolveEntitlements', () => {
   });
 
   it('uses paid template flag for full access expectations', () => {
-    expect(resolvePaidTemplateOrder(true, null)).toBe(true);
-    expect(resolvePaidTemplateOrder(false, null)).toBe(false);
+    expect(resolvePaidTemplateOrder(14900, 14900)).toBe(true);
+    expect(resolvePaidTemplateOrder(0, 14900)).toBe(false);
   });
 
   it('uses invitation unlock only as legacy migration input', () => {

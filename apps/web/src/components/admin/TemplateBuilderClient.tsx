@@ -16,6 +16,7 @@ export function TemplateBuilderClient({ templateId }: Props) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [doc, setDoc] = useState<InvitationCanvasDocument | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [nameRu, setNameRu] = useState('');
   const [nameKz, setNameKz] = useState('');
   const [category, setCategory] = useState('wedding');
@@ -25,29 +26,39 @@ export function TemplateBuilderClient({ templateId }: Props) {
   const [priceKzt, setPriceKzt] = useState(3990);
   const [saving, setSaving] = useState(false);
 
+  // Load once per templateId. This deliberately does NOT depend on `toast`:
+  // the failure paths below set local state instead of firing a toast, so the
+  // effect has a single stable dependency. (It used to list `toast`, which —
+  // while the Toaster provider was mis-mounted and handing out a fresh no-op
+  // object every render — re-ran this fetch on every render forever.)
   useEffect(() => {
     let alive = true;
     fetch(`/api/admin/templates/${templateId}`)
       .then((r) => r.json())
       .then((data) => {
-        if (alive && data.success && data.document) {
+        if (!alive) return;
+        if (data.success && data.document) {
           setDoc(data.document);
           setNameRu(data.template?.nameRu || '');
           setNameKz(data.template?.nameKz || '');
           setCategory(data.template?.category || 'wedding');
           setPriceKzt(data.template?.priceKzt || 3990);
-          setLoading(false);
         } else {
-          toast({ title: 'Ошибка загрузки шаблона', variant: 'destructive' });
+          setLoadError(data.message || 'Шаблон не найден');
         }
       })
       .catch(() => {
-        toast({ title: 'Ошибка загрузки шаблона', variant: 'destructive' });
+        if (alive) setLoadError('Не удалось загрузить шаблон');
+      })
+      // Previously only the success branch cleared `loading`, so any failure
+      // left the page stuck on the loading text forever.
+      .finally(() => {
+        if (alive) setLoading(false);
       });
     return () => {
       alive = false;
     };
-  }, [templateId, toast]);
+  }, [templateId]);
 
   const handleSave = async (currentDoc: InvitationCanvasDocument) => {
     setSaving(true);
@@ -77,50 +88,57 @@ export function TemplateBuilderClient({ templateId }: Props) {
     }
   };
 
-  if (loading || !doc) {
+  if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#1b1419] text-zinc-400">
-        Загрузка конструктора шаблона…
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-us-ivory text-us-ink-muted">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-us-accent border-t-transparent" />
+        <p className="text-sm">Загрузка конструктора шаблона…</p>
       </div>
     );
   }
 
+  if (!doc) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-us-ivory px-6 text-center">
+        <p className="font-display text-lg text-us-ink">Не удалось открыть конструктор</p>
+        <p className="text-sm text-us-ink-muted">{loadError ?? 'Шаблон не найден'}</p>
+        <Button variant="outline" size="sm" onClick={() => router.push('/admin/templates')}>
+          ← К списку шаблонов
+        </Button>
+      </div>
+    );
+  }
+
+  const fieldClass =
+    'rounded-lg border border-us-border bg-us-surface px-2.5 py-1.5 text-xs text-us-ink placeholder:text-us-ink-muted focus:outline-none focus:ring-2 focus:ring-us-accent/30';
+
   return (
-    <div className="flex min-h-screen flex-col bg-[#1b1419]">
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-800 bg-zinc-900/90 px-6 py-3 text-zinc-100">
+    <div className="flex min-h-screen flex-col bg-us-ivory">
+      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-us-border bg-us-surface px-6 py-3">
         <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-zinc-400 hover:text-white"
-            onClick={() => router.push('/admin/templates')}
-          >
+          <Button variant="ghost" size="sm" onClick={() => router.push('/admin/templates')}>
             ← К списку
           </Button>
-          <span className="font-display text-sm font-bold text-[#c9a961]">
+          <span className="font-display text-sm font-bold text-us-accent-strong">
             Режим создания шаблона
           </span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <input
             type="text"
             value={nameRu}
             onChange={(e) => setNameRu(e.target.value)}
             placeholder="Название (RU)"
-            className="rounded border border-zinc-700 bg-zinc-800 px-2.5 py-1 text-xs text-white"
+            className={fieldClass}
           />
           <input
             type="text"
             value={nameKz}
             onChange={(e) => setNameKz(e.target.value)}
             placeholder="Название (KZ)"
-            className="rounded border border-zinc-700 bg-zinc-800 px-2.5 py-1 text-xs text-white"
+            className={fieldClass}
           />
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="rounded border border-zinc-700 bg-zinc-800 px-2.5 py-1 text-xs text-white"
-          >
+          <select value={category} onChange={(e) => setCategory(e.target.value)} className={fieldClass}>
             <option value="wedding">Свадьба (wedding)</option>
             <option value="toy">Той (toy)</option>
             <option value="betashar">Беташар (betashar)</option>
@@ -136,14 +154,9 @@ export function TemplateBuilderClient({ templateId }: Props) {
             value={priceKzt}
             onChange={(e) => setPriceKzt(Number(e.target.value))}
             placeholder="Цена ₸"
-            className="w-20 rounded border border-zinc-700 bg-zinc-800 px-2.5 py-1 text-xs text-white"
+            className={`w-20 ${fieldClass}`}
           />
-          <Button
-            size="sm"
-            className="bg-[#c9a961] text-zinc-950 font-bold hover:bg-[#b8956b]"
-            disabled={saving}
-            onClick={() => void handleSave(doc)}
-          >
+          <Button size="sm" disabled={saving} onClick={() => void handleSave(doc)}>
             {saving ? 'Сохраняется...' : 'Сохранить шаблон'}
           </Button>
         </div>
