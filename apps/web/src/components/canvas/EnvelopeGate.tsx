@@ -317,7 +317,7 @@ export function EnvelopeGate({ document: doc, onOpen }: Props) {
   const handleOpen = () => {
     if (opening) return;
     setOpening(true);
-    window.setTimeout(onOpen, reduceMotion ? 200 : 820);
+    window.setTimeout(onOpen, reduceMotion ? 200 : 1020);
   };
 
   // A filmed opening wins whenever the template supplies one and the browser
@@ -356,8 +356,21 @@ export function EnvelopeGate({ document: doc, onOpen }: Props) {
         gap: 28,
         padding: 24,
         background: design.backdrop,
-        opacity: opening && reduceMotion ? 0 : 1,
-        transition: 'opacity 260ms ease',
+        /*
+         * The backdrop dissolves too, not just the envelope.
+         *
+         * The envelope faded out on its own (440–820ms) while this full-screen
+         * plate stayed at opacity 1, and then the whole gate unmounted in one
+         * frame at 820ms. So the last thing the guest saw was a solid colour
+         * snapping to the invitation — a cut, on the one transition the entire
+         * first impression rests on. Fading the plate on the same clock lets
+         * the invitation come up through it.
+         */
+        opacity: opening ? 0 : 1,
+        transition: reduceMotion
+          ? 'opacity 180ms ease'
+          : 'opacity 460ms ease 560ms',
+        pointerEvents: opening ? 'none' : undefined,
       }}
     >
       {/* Perspective on the wrapper so the flap opens in 3D instead of
