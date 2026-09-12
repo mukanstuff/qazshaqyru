@@ -14,12 +14,22 @@ import { normalizePhone, validatePhone } from '@/lib/auth';
 export const OPEN_RSVP_MAX_NEW_GUESTS_PER_INVITATION = 600;
 
 export type OpenRsvpPhoneValidation =
-  | { ok: true; normalized: string }
-  | { ok: false; code: 'required' | 'invalid' };
+  | { ok: true; normalized: string | null }
+  | { ok: false; code: 'invalid' };
 
+/**
+ * The phone number is optional, on every invitation.
+ *
+ * It used to be mandatory here because this is how a self-registering guest is
+ * identified and deduped. That is a convenience for the owner, not something
+ * to demand from a guest before they are allowed to say they are coming, and
+ * the product rule is that no invitation ever requires a phone number. A blank
+ * one is accepted; a number that IS filled in still has to be a real one,
+ * because a typo silently breaks the owner's reminders.
+ */
 export function validateOpenRsvpPhone(phone: string | undefined): OpenRsvpPhoneValidation {
   if (!phone?.trim()) {
-    return { ok: false, code: 'required' };
+    return { ok: true, normalized: null };
   }
   const normalized = normalizePhone(phone);
   if (!validatePhone(normalized)) {

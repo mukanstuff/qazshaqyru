@@ -216,6 +216,26 @@ function collectDocumentFonts(doc: InvitationCanvasDocument): FontFamily[] {
   return out;
 }
 
+/**
+ * Widgets that must not be operable while the host is editing.
+ *
+ * These carry real controls — a reply form, a wish box, a map, a player — and
+ * in the editor they answered the host instead of selecting the element. You
+ * could tap «Тілек қалдыру», get the wish inputs AND the selection frame at the
+ * same time, or send an RSVP and be thanked for it: "рахмет! жауабыңыз
+ * сақталды" on a page nobody had published. Their content is made inert so a
+ * click reaches the canvas and selects the block, which is what a click on a
+ * block in an editor means.
+ */
+const INERT_WHILE_EDITING = new Set<CanvasElement['type']>([
+  'rsvp-form',
+  'wishes',
+  'map',
+  'music',
+  'gift',
+  'qr',
+]);
+
 function elementStyle(el: CanvasElement, mode: 'editor' | 'guest'): CSSProperties {
   // Pinned elements (floating music toggle, "write a wish" button) leave the
   // document flow on the guest page and stick to a viewport corner. In the
@@ -225,6 +245,43 @@ function elementStyle(el: CanvasElement, mode: 'editor' | 'guest'): CSSPropertie
   if (el.pinned) {
     const { corner, offsetX, offsetY } = el.pinned;
     const [vertical, horizontal] = corner.split('-') as ['top' | 'bottom', 'left' | 'right'];
+
+    /*
+     * In the editor the corner is the corner of the STAGE VIEWPORT, not of the
+     * document.
+     *
+     * `position: absolute` with `bottom: 20px` anchors to the bottom of the
+     * canvas — which is 5600px down, so the floating music button sat at the
+     * very end of the page, looking like a block someone had dropped there.
+     * `fixed` cannot be used: the stage is scaled and scrolled, and a fixed
+     * child escapes it.
+     *
+     * Sticky does exactly what is wanted and needs no extra layer. The element
+     * has no flow siblings (everything else on the canvas is absolute), so its
+     * flow position is the top of the canvas, and a sticky offset then holds it
+     * at a fixed distance from the top of the scrollport for the whole scroll.
+     * `--stage-vh` is the scrollport's own height, published by CanvasEditor.
+     */
+    if (mode === 'editor') {
+      const boxHeight = typeof el.h === 'number' ? el.h : 48;
+      return {
+        position: 'sticky',
+        top:
+          vertical === 'bottom'
+            ? `calc(var(--stage-vh, 100dvh) - ${offsetY + boxHeight}px)`
+            : `${offsetY}px`,
+        width: 'fit-content',
+        // Sticky is in flow, so the side comes from the margins rather than
+        // from left/right.
+        marginLeft: horizontal === 'left' ? `${offsetX}px` : 'auto',
+        marginRight: horizontal === 'right' ? `${offsetX}px` : 'auto',
+        ...(typeof el.h === 'number' ? { height: `${el.h}px` } : {}),
+        zIndex: el.zIndex,
+        opacity: el.hidden ? 0 : undefined,
+        pointerEvents: el.hidden ? 'none' : undefined,
+      } as CSSProperties;
+    }
+
     return {
       // Guest: fixed to the viewport, so it stays reachable while scrolling.
       // Editor: anchored to the same corner of the *stage* instead. It must
@@ -233,7 +290,7 @@ function elementStyle(el: CanvasElement, mode: 'editor' | 'guest'): CSSPropertie
       // host to drag it somewhere that would have no effect. `fixed` cannot be
       // used here because the editor stage is scaled and scrolled, and a fixed
       // child would escape it entirely.
-      position: mode === 'guest' ? 'fixed' : 'absolute',
+      position: 'fixed',
       [vertical]: `${offsetY}px`,
       // The design is a fixed-width card centred in the viewport (see
       // CanvasGuestPage's `max-w-[600px] mx-auto`); on a wide desktop window
@@ -246,7 +303,7 @@ function elementStyle(el: CanvasElement, mode: 'editor' | 'guest'): CSSPropertie
       // authored offset (hugging the corner, same as before); on a desktop
       // window it grows past the card's margin and the button clears it,
       // without ever measuring the card's rendered width in JS.
-      [horizontal]: mode === 'guest' ? `max(${offsetX}px, 3.4vw)` : `${offsetX}px`,
+      [horizontal]: `max(${offsetX}px, 3.4vw)`,
       width: typeof el.h === 'number' ? undefined : 'auto',
       ...(typeof el.h === 'number' ? { height: `${el.h}px` } : {}),
       zIndex: el.zIndex,
@@ -345,15 +402,30 @@ export const CanvasRenderer = forwardRef<HTMLDivElement, CanvasRendererProps>(fu
   const stageRef = useRef<HTMLDivElement | null>(null);
   const ioRef = useRef<IntersectionObserver | null>(null);
 
-  // Guest animation observer (20% visibility threshold).
+  // Entrance observer. Runs for the guest and, once per load, for the host.
   useEffect(() => {
-    if (mode !== 'guest') return;
     if (forceAnimations) return;
     const root = stageRef.current;
     if (!root) return;
 
     // Cleanup previous
     ioRef.current?.disconnect();
+
+    /*
+     * No observer, no hidden elements.
+     *
+     * Every animated element starts at opacity 0 and this observer is what
+     * brings it back, so an environment without IntersectionObserver would
+     * render the invitation as an empty page. Reveal everything instead — the
+     * entrance is the part worth losing.
+     */
+    if (typeof IntersectionObserver !== 'function') {
+      root.querySelectorAll<HTMLElement>('.canvas-anim').forEach((el) => {
+        el.classList.add('is-visible', 'is-settled');
+      });
+      return;
+    }
+
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((e) => {
@@ -378,7 +450,30 @@ export const CanvasRenderer = forwardRef<HTMLDivElement, CanvasRendererProps>(fu
     );
     root.querySelectorAll<HTMLElement>('.canvas-anim').forEach((el) => io.observe(el));
     ioRef.current = io;
-    return () => io.disconnect();
+
+    /*
+     * The editor's safety net.
+     *
+     * An entrance that never fires leaves its element at opacity 0, and in the
+     * editor that is not a missed flourish but a block the host cannot see or
+     * find. The stage is scrolled and scaled inside its own container, and an
+     * element can sit outside the viewport for the whole session, so after the
+     * first pass everything still hidden is simply revealed.
+     */
+    let net: number | undefined;
+    if (mode === 'editor') {
+      net = window.setTimeout(() => {
+        root.querySelectorAll<HTMLElement>('.canvas-anim:not(.is-visible)').forEach((el) => {
+          el.classList.add('is-visible', 'is-settled');
+          io.unobserve(el);
+        });
+      }, 2200);
+    }
+
+    return () => {
+      io.disconnect();
+      if (net) window.clearTimeout(net);
+    };
   }, [mode, forceAnimations, doc]);
 
   /**
@@ -577,14 +672,22 @@ export const CanvasRenderer = forwardRef<HTMLDivElement, CanvasRendererProps>(fu
           onTextPatch: onTextPatch ? (patch) => onTextPatch(el.id, patch) : undefined,
           stopNativeActions: mode === 'editor' && !!onSelect,
         });
-        // Entrance animations are a guest-page effect. In the editor the
-        // observer that reveals them never runs, so applying the classes there
-        // pins every animated element at opacity 0 — the host opens the editor
-        // and sees only the background, with the text present in the DOM but
-        // invisible. `forceAnimations` is the explicit "preview" toggle.
-        const animated = mode === 'guest' || forceAnimations;
+        /*
+         * Entrances run everywhere; looping motion only on the guest page.
+         *
+         * The editor used to drop the entrance classes altogether, because the
+         * observer that reveals them did not run there and every animated
+         * element would have been pinned at opacity 0 — the host opens the
+         * editor and sees only the background. The observer runs in the editor
+         * now, with a fallback that reveals anything it missed, so the host
+         * sees the invitation arrive once, the way a guest will.
+         *
+         * Idle loops stay off while editing: you cannot place an element that
+         * will not hold still.
+         */
+        const idleAllowed = mode === 'guest' || forceAnimations;
         const cls = cn(
-          animated ? animClass(el.animation) : undefined,
+          animClass(el.animation),
           selectedId === el.id ? 'canvas-selected' : undefined
         );
         // Idle motion wraps the element's own content, never the editor shell:
@@ -592,16 +695,22 @@ export const CanvasRenderer = forwardRef<HTMLDivElement, CanvasRendererProps>(fu
         // rotates away from the thing it resizes is unusable. In the editor the
         // loop is off entirely for the same reason — you cannot place an
         // element that will not hold still.
-        const idleCls = animated ? idleClass(el.idle) : '';
+        const idleCls = idleAllowed ? idleClass(el.idle) : '';
+        const live =
+          mode === 'editor' && INERT_WHILE_EDITING.has(el.type) ? (
+            <div style={{ pointerEvents: 'none' }}>{inner}</div>
+          ) : (
+            inner
+          );
         const content = idleCls ? (
           <div
             className={idleCls}
             style={{ ['--idle-duration' as string]: `${el.idle!.duration}s` }}
           >
-            {inner}
+            {live}
           </div>
         ) : (
-          inner
+          live
         );
         const shell = renderEditorShell
           ? renderEditorShell(el, content, canvasWidth, {

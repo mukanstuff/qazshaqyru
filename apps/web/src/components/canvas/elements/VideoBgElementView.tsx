@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import type { VideoBgElement } from '@/lib/canvas/types';
 
 /**
@@ -30,6 +30,66 @@ export function VideoBgElementView({
   mode?: 'editor' | 'guest';
 }) {
   const src = el.src || '';
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  /*
+   * Keep the clip running.
+   *
+   * A muted autoplaying background video does not stay playing. Chrome pauses
+   * it when the tab goes to the background and does not always resume; after
+   * long enough it reclaims the decoder outright and the element comes back
+   * with readyState 0, i.e. a still frame that never moves again. Reported on
+   * this page after the tab had been left open for hours.
+   *
+   * So: play it while it is on screen, pause it while it is not (which is also
+   * why a page with several clips does not melt a phone), and reload it if the
+   * browser has thrown the data away.
+   */
+  useEffect(() => {
+    const node = videoRef.current;
+    if (!node || !src) return;
+
+    let onScreen = true;
+
+    const resume = () => {
+      if (!onScreen || document.hidden) return;
+      if (node.readyState === 0) node.load();
+      if (node.paused) {
+        const played = node.play();
+        if (played && typeof played.catch === 'function') played.catch(() => {});
+      }
+    };
+
+    const observer =
+      typeof IntersectionObserver === 'function'
+        ? new IntersectionObserver(
+            ([entry]) => {
+              onScreen = entry.isIntersecting;
+              if (onScreen) resume();
+              else if (!node.paused) node.pause();
+            },
+            { rootMargin: '120px' },
+          )
+        : null;
+    observer?.observe(node);
+
+    document.addEventListener('visibilitychange', resume);
+    node.addEventListener('pause', resume);
+    node.addEventListener('stalled', resume);
+    node.addEventListener('suspend', resume);
+    // Backstop for the cases none of the events above cover — a decoder
+    // reclaimed silently leaves the element paused with no event at all.
+    const beat = window.setInterval(resume, 5000);
+
+    return () => {
+      observer?.disconnect();
+      document.removeEventListener('visibilitychange', resume);
+      node.removeEventListener('pause', resume);
+      node.removeEventListener('stalled', resume);
+      node.removeEventListener('suspend', resume);
+      window.clearInterval(beat);
+    };
+  }, [src]);
 
   if (!src) {
     // An empty slot needs a handle in the editor and must paint nothing at
@@ -64,6 +124,7 @@ export function VideoBgElementView({
       }}
     >
       <video
+        ref={videoRef}
         src={src}
         poster={el.posterSrc || undefined}
         autoPlay

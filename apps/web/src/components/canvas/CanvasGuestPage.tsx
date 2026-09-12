@@ -67,7 +67,12 @@ export function CanvasGuestPage({
   guestToken = null,
   openRsvp = true,
 }: Props) {
+  // Two flags, not one: `envelopeOpen` means the invitation may paint itself,
+  // `gateRemoved` means the envelope layer above it is gone. They are separated
+  // so the gate can dissolve over a page that is already there — see the
+  // handover comment in EnvelopeGate.
   const [envelopeOpen, setEnvelopeOpen] = useState(false);
+  const [gateRemoved, setGateRemoved] = useState(false);
 
   const docWithDefaults = useMemo(() => {
     if (canvas) return parseCanvasOrEmpty(canvas);
@@ -91,13 +96,28 @@ export function CanvasGuestPage({
 
   if (!docWithDefaults) return null;
 
-  if (docWithDefaults.envelopeEnabled && !envelopeOpen) {
-    return (
-      <EnvelopeGate document={docWithDefaults} onOpen={() => setEnvelopeOpen(true)} />
-    );
-  }
+  const gateEnabled = Boolean(docWithDefaults.envelopeEnabled);
+  const gate = gateEnabled && !gateRemoved ? (
+    <EnvelopeGate
+      document={docWithDefaults}
+      onOpen={() => setEnvelopeOpen(true)}
+      onFinished={() => setGateRemoved(true)}
+    />
+  ) : null;
 
+  /*
+   * One tree, two slots, in this order on purpose.
+   *
+   * The invitation does not mount until the envelope hands over: mounting it
+   * early would run every entrance animation behind a closed envelope, and the
+   * guest would open it onto a page that had already finished arriving. But the
+   * envelope layer has to keep its place in the tree across that change, or
+   * React unmounts and remounts it mid-dissolve and the clip starts again — so
+   * the page slot renders `false` until it is time, rather than being absent.
+   */
   return (
+    <>
+      {(!gateEnabled || envelopeOpen) && (
     <div className="min-h-screen bg-white">
       <div className="mx-auto max-w-[600px] relative">
         {/*
@@ -140,5 +160,8 @@ export function CanvasGuestPage({
         removeHref={isOwner && invitationId ? `/invitations/${invitationId}` : undefined}
       />
     </div>
+      )}
+      {gate}
+    </>
   );
 }

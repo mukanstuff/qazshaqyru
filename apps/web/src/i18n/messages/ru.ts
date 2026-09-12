@@ -656,6 +656,7 @@ export const ru = {
       heroAttendanceHint: 'из {expected} гостей',
       heroAttendanceHintNoExpected: 'пока никто не ответил',
       heroSlugLabel: 'Ссылка для гостей',
+      heroShareCta: 'Отправить гостям',
       nextStep: {
         label: 'Следующий шаг',
         publishTitle: 'Опубликуйте приглашение',
@@ -848,14 +849,7 @@ export const ru = {
         firstName: 'Имя (жених / первые)',
         secondName: 'Имя (невеста / вторые)',
       },
-      designSheet: {
-        title: 'Оформление',
-        subtitle: 'Шрифты и цвета приглашения',
-        cancel: 'Отмена',
-        open: 'Открыть',
-        body: 'Цвета, шрифты, декор, порядок блоков и точные позиции — в редакторе.',
-      },
-    },
+},
     sent: {
       sent: 'Готово',
       copy: 'Копировать',

@@ -4,7 +4,6 @@ import { useState, useCallback } from 'react';
 
 export type HubSheetKey =
   | 'share'
-  | 'design'
   | 'texts'
   | 'dates'
   | 'music'

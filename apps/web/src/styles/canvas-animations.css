@@ -20,6 +20,23 @@
 }
 
 /*
+ * The editor's last resort.
+ *
+ * `.canvas-anim` starts at opacity 0 and only an actually-running animation
+ * brings it back. That is fine on a guest page and dangerous in the editor: if
+ * the animation never runs — the tab was in the background while the editor
+ * loaded, the element never entered the viewport — the host is left looking at
+ * a canvas with blocks missing from it. This drops the animation entirely and
+ * leaves the element in its finished state.
+ */
+.canvas-anim.is-settled {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+  clip-path: none !important;
+}
+
+/*
  * Travel and duration are measured against the reference services, not
  * guessed. toi runs one gesture at 760ms over 30px; shaqyru24's cards run
  * slideInLeft/slideInRight at THREE seconds over 50px, in opposing

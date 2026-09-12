@@ -659,6 +659,7 @@ export const kz: Translations = {
       heroAttendanceHint: '{expected} қонақтың ішінен',
       heroAttendanceHintNoExpected: 'әзірге ешкім жауап берген жоқ',
       heroSlugLabel: 'Қонақтарға арналған сілтеме',
+      heroShareCta: 'Қонақтарға жіберу',
       nextStep: {
         label: 'Келесі қадам',
         publishTitle: 'Шақыруды жариялаңыз',
@@ -851,14 +852,7 @@ export const kz: Translations = {
         firstName: 'Аты (күйеу / бірінші)',
         secondName: 'Аты (қалыңдық / екінші)',
       },
-      designSheet: {
-        title: 'Безендіру',
-        subtitle: 'Шақыру шрифттері мен түстері',
-        cancel: 'Болдырмау',
-        open: 'Ашу',
-        body: 'Түстер, шрифттер, безендіру, блоктар реті мен нақты орындар — редакторда.',
-      },
-    },
+},
     sent: {
       sent: 'Дайын',
       copy: 'Көшіру',

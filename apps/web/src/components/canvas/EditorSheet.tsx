@@ -21,28 +21,33 @@ interface Props {
  * its own pointer-drag close gesture, duplicating what the primitive now
  * does for every sheet in the app.
  *
- * Non-modal for the same reason the inspector is: everything inside it edits
- * the canvas it is sitting on, and you have to be able to see the canvas.
+ * On a phone it is a bottom sheet. On a desktop it used to dock into the
+ * bottom-LEFT corner with nothing behind it — 384px of panel floating over the
+ * page next to a canvas it did not overlap, which reads as a panel that has
+ * come loose rather than one that was placed. It is now a centred card over a
+ * dimmed page, which is what it behaves like: the wizard, the texts and the
+ * photo picker are forms, and a form is a thing you finish and close.
+ *
+ * The element inspector is the opposite case and keeps the corner dock: it
+ * restyles the element you selected, so covering that element would defeat it.
  */
 export function EditorSheet({ open, onClose, children, className, title }: Props) {
   const { t } = useI18n();
 
+  // Modal, because the backdrop is a Radix overlay and Radix renders one only
+  // for a modal dialog. That also brings the focus trap and the escape key,
+  // both of which a centred form wants.
   return (
-    <Sheet modal={false} open={open} onOpenChange={(next) => !next && onClose()}>
+    <Sheet modal open={open} onOpenChange={(next) => !next && onClose()}>
       <SheetContent
         side="bottom"
-        overlay={false}
+        overlay
         data-canvas-sheet="quick-edit"
         className={cn(
-          // Same reasoning as PropertiesPanel: this sheet edits the canvas
-          // behind it — texts, photos, music, colours — so it must not dim,
-          // blur, block or fully cover it.
           'flex max-h-[58dvh] flex-col',
-          'sm:inset-x-auto sm:bottom-6 sm:left-6 sm:max-h-[80dvh] sm:w-full sm:max-w-sm sm:translate-x-0 sm:rounded-2xl sm:border',
+          'sm:inset-0 sm:m-auto sm:h-fit sm:max-h-[82dvh] sm:w-[min(440px,calc(100vw-48px))] sm:max-w-none sm:translate-x-0 sm:rounded-2xl sm:border',
           className,
         )}
-        onInteractOutside={(e) => e.preventDefault()}
-        onPointerDownOutside={(e) => e.preventDefault()}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <SheetTitle className="sr-only">{title ?? t('invitation.edit.canvas.fab.title')}</SheetTitle>

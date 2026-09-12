@@ -191,7 +191,9 @@ function band(ctx: SectionContext, y: number, w = 118, flip = false): ElementSpe
       x: (100 - w) / 2,
       y,
       w,
-      h: 52,
+      // 1370x168 in a 460-wide box. An ornament box that does not match the
+      // file's aspect wastes space at best and used to crop it at worst.
+      h: 56,
       src: A.band,
       alt: '',
       objectFit: 'contain',
@@ -240,7 +242,8 @@ function filigree(ctx: SectionContext, y: number, w = 46, opacity = 0.7): Elemen
       x: (100 - w) / 2,
       y,
       w,
-      h: 34,
+      // 1332x318, i.e. 4.19:1 — the box follows the file.
+      h: Math.round(((w / 100) * 390) / 4.19),
       src: A.filigree,
       alt: '',
       objectFit: 'contain',
@@ -667,7 +670,31 @@ export function saukeleRsvp(): SectionBuilder {
   return (ctx): SectionResult => ({
     elements: [
       panel(ctx, 20, 760),
-      corner(ctx, 26, { side: 'left', w: 22, opacity: 0.3 }),
+      /*
+       * The corner belongs to the panel, not to the page.
+       *
+       * `corner()` hangs its ornament 4% off the page edge, which is right for
+       * a section that bleeds and wrong here: half the motif was cut by the
+       * screen and the other half sat on the paper beside the plate, reading
+       * as a leftover fragment rather than a corner. The panel runs 6..94, so
+       * the ornament sits on its corner.
+       */
+      {
+        type: 'image',
+        props: {
+          x: 7,
+          y: 27,
+          w: 18,
+          h: 70,
+          src: A.corner,
+          alt: '',
+          objectFit: 'contain',
+          borderRadius: 0,
+          tint: silver(ctx),
+          opacity: 0.3,
+        },
+        animate: false,
+      },
       head(ctx, { kz: 'Қатысуыңызды растаңыз', ru: 'Подтвердите присутствие' }, 96),
       body(
         ctx,

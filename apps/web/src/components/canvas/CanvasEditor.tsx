@@ -604,12 +604,14 @@ export function CanvasEditor(props: CanvasEditorProps) {
    * dim or block the canvas), but on a phone they still occupy the bottom half
    * of the screen. Selecting an element near the fold and opening its panel
    * would therefore still hide it. This scrolls the stage so the selection
-   * sits in the strip that stays visible — and only when the sheet actually
-   * overlaps the stage horizontally, which on desktop (sheet parked
-   * bottom-left, stage centred) it does not.
+   * sits in the strip that stays visible — and only when the panel actually
+   * overlaps the stage horizontally.
+   *
+   * Inspector only. Quick edit is a centred modal now, so there is no strip
+   * left to scroll the selection into and nothing behind it can be touched.
    */
   useEffect(() => {
-    if (!(inspectorOpen || quickEditOpen) || !selectedId) return;
+    if (!inspectorOpen || !selectedId) return;
     const wrap = stageWrapRef.current;
     if (!wrap) return;
 
@@ -619,7 +621,7 @@ export function CanvasEditor(props: CanvasEditorProps) {
       const node = wrap.querySelector<HTMLElement>(
         `[data-selected-id="${CSS.escape(selectedId)}"]`,
       );
-      const sheet = window.document.querySelector<HTMLElement>('[data-canvas-sheet]');
+      const sheet = window.document.querySelector<HTMLElement>('[data-canvas-sheet="inspector"]');
       if (!node || !sheet) return;
 
       const sheetRect = sheet.getBoundingClientRect();
@@ -643,7 +645,26 @@ export function CanvasEditor(props: CanvasEditorProps) {
     }, 320);
 
     return () => window.clearTimeout(timer);
-  }, [inspectorOpen, quickEditOpen, selectedId]);
+  }, [inspectorOpen, selectedId]);
+
+  /*
+   * Publish the stage's own viewport height.
+   *
+   * Pinned chrome — the floating music toggle — sticks to a corner of what the
+   * host can currently see, and CSS has no unit for "the height of this
+   * scrollport". Without it the control anchors to the bottom of the document
+   * instead, 5600px down. See the pinned branch of elementStyle.
+   */
+  useEffect(() => {
+    const wrap = stageWrapRef.current;
+    if (!wrap) return;
+    const publish = () => wrap.style.setProperty('--stage-vh', `${wrap.clientHeight}px`);
+    publish();
+    if (typeof ResizeObserver !== 'function') return;
+    const ro = new ResizeObserver(publish);
+    ro.observe(wrap);
+    return () => ro.disconnect();
+  }, []);
 
   const handleBack = useCallback(() => {
     if (typeof window !== 'undefined' && window.history.length > 1) {

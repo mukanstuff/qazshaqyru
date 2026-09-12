@@ -9,11 +9,7 @@ import { ProgramElementView } from '../ProgramElementView';
 import { OrnamentElementView } from '../OrnamentElementView';
 import { LottieElementView } from '../LottieElementView';
 import { VideoBgElementView } from '../VideoBgElementView';
-import type {
-  ProgramElement,
-  OrnamentElement,
-  VideoBgElement,
-} from '@/lib/canvas/types';
+import type { ProgramElement, OrnamentElement } from '@/lib/canvas/types';
 
 describe('Functional element views', () => {
   it('exports valid component functions for all functional element types', () => {
@@ -29,6 +25,12 @@ describe('Functional element views', () => {
     expect(typeof VideoBgElementView).toBe('function');
   });
 
+  /*
+   * VideoBgElementView is deliberately not in this list any more: it holds a
+   * ref and an effect that keep a background clip playing (Chrome pauses one
+   * in a background tab and eventually reclaims its decoder), so it cannot be
+   * called as a plain function. The views below still can.
+   */
   it('renders stateless views without React hook context', () => {
     const programEl: ProgramElement = {
       id: 'prog-1',
@@ -67,20 +69,5 @@ describe('Functional element views', () => {
     const ornNode = OrnamentElementView({ el: ornamentEl });
     expect(ornNode).toBeDefined();
 
-    const videoEl: VideoBgElement = {
-      id: 'vid-1',
-      type: 'video-bg',
-      src: '',
-      x: 0,
-      y: 0,
-      w: 100,
-      h: 100,
-      rotation: 0,
-      zIndex: 1,
-      locked: false,
-      hidden: false,
-    };
-    const vidNode = VideoBgElementView({ el: videoEl });
-    expect(vidNode).toBeDefined();
   });
 });

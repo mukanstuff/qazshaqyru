@@ -115,40 +115,7 @@ export default function PublicInvitationClient({
         </div>
       )}
 
-      {mode === 'loading' && (
-        <div
-          className="flex min-h-screen items-center justify-center bg-us-ivory"
-          aria-busy
-          aria-label={t('public.loading')}
-        >
-          <div className="flex flex-col items-center gap-3">
-            {/* Pulsing card skeleton — mirrors the invitation card shape */}
-            <div className="relative overflow-hidden rounded-2xl border border-us-border bg-white shadow-us-md" style={{ width: 'min(420px, 90vw)', height: '320px' }}>
-              {/* Hero area */}
-              <div className="h-44 w-full animate-pulse bg-gradient-to-b from-[#e8ddc8] to-[#faf6ef]" />
-              {/* Card body */}
-              <div className="flex flex-col items-center gap-3 p-6">
-                <div className="h-3 w-20 animate-pulse rounded-full bg-[#e0d4c0]" />
-                <div className="mt-1 h-8 w-40 animate-pulse rounded-full bg-[#e0d4c0]" />
-                <div className="mt-1 h-4 w-32 animate-pulse rounded-full bg-[#ede6d8]" />
-                <div className="mt-1 h-4 w-48 animate-pulse rounded-full bg-[#ede6d8]" />
-              </div>
-              {/* Shimmer overlay */}
-              <div
-                className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite]"
-                style={{
-                  background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)',
-                }}
-              />
-            </div>
-            <style>{`
-              @keyframes shimmer {
-                100% { transform: translateX(250%); }
-              }
-            `}</style>
-          </div>
-        </div>
-      )}
+      {mode === 'loading' && <PublicLoadingHold label={t('public.loading')} />}
       {mode === 'error' && (
         <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-us-ivory px-6 text-center">
           <LogoMark size={28} />
@@ -171,6 +138,50 @@ export default function PublicInvitationClient({
           openRsvp={openRsvpFromApi}
         />
       )}
+    </div>
+  );
+}
+
+/**
+ * What a guest sees while the invitation is being fetched.
+ *
+ * This used to be a pulsing 420x320 rounded card with a hero block and four
+ * grey bars, and no invitation in this product has ever looked like that: they
+ * are full-bleed, 390px wide, and most of them open behind an envelope. A
+ * skeleton is a promise about the shape of what is coming, so a wrong one is
+ * worse than none — and this was the first thing a guest saw of somebody's
+ * wedding.
+ *
+ * What is left is the paper the app is made of and the mark, and even that
+ * waits 250ms: most loads finish inside that, and a loading state that flashes
+ * for two frames is noise on its own.
+ */
+function PublicLoadingHold({ label }: { label: string }) {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setVisible(true), 250);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  return (
+    <div
+      className="flex min-h-screen items-center justify-center bg-us-ivory"
+      aria-busy
+      aria-label={label}
+    >
+      <span
+        className={`text-us-accent transition-opacity duration-700 ${visible ? 'opacity-60' : 'opacity-0'}`}
+        style={{ animation: visible ? 'publicHoldBreath 2.2s ease-in-out infinite' : undefined }}
+      >
+        <LogoMark size={34} />
+      </span>
+      <style>{`
+        @keyframes publicHoldBreath {
+          0%, 100% { opacity: 0.32; }
+          50% { opacity: 0.72; }
+        }
+      `}</style>
     </div>
   );
 }

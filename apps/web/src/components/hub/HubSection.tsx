@@ -22,6 +22,15 @@ interface Props {
   count?: number;
   icon: ReactNode;
   onClick?: () => void;
+  /**
+   * Navigate instead of opening a sheet.
+   *
+   * A row whose only job is to go somewhere should go there. «Безендіру» used
+   * to open a sheet that said "colours, fonts and decor are in the editor" and
+   * offered Cancel and Open — a dialog whose entire content was the name of
+   * the place the row already pointed at.
+   */
+  href?: string;
   locked?: boolean;
   negative?: boolean;
   disabled?: boolean;
@@ -42,21 +51,19 @@ export function HubSection({
   count,
   icon,
   onClick,
+  href,
   locked = false,
   negative = false,
   disabled = false,
 }: Props) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled || locked}
-      className={cn(
-        'hub-section',
-        locked && 'hub-section--locked',
-        negative && 'hub-section--negative'
-      )}
-    >
+  const className = cn(
+    'hub-section',
+    locked && 'hub-section--locked',
+    negative && 'hub-section--negative'
+  );
+
+  const inner = (
+    <>
       <span className="hub-section-icon">
         {locked ? <Lock size={18} aria-hidden="true" /> : icon}
       </span>
@@ -75,6 +82,20 @@ export function HubSection({
       <span className="hub-section-chevron" aria-hidden="true">
         <ChevronRight size={18} />
       </span>
+    </>
+  );
+
+  if (href && !locked && !disabled) {
+    return (
+      <a href={href} className={className}>
+        {inner}
+      </a>
+    );
+  }
+
+  return (
+    <button type="button" onClick={onClick} disabled={disabled || locked} className={className}>
+      {inner}
     </button>
   );
 }

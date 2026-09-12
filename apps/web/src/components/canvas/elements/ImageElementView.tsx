@@ -210,20 +210,30 @@ export function ImageElementView({ el }: { el: ImageElement }) {
           maskPosition: el.tile ? 'top center' : 'center',
           WebkitMaskPosition: el.tile ? 'top center' : 'center',
           /*
-           * A gutter, not `contain`.
+           * `contain` inside a 2px gutter.
            *
-           * `contain` sizes the mask so it touches the box on two sides. The
-           * tint is painted as a background across that whole box, and where
-           * the mask meets the edge the compositor has no transparent texel to
-           * blend towards — so a hairline of the tint colour is left on the
-           * box outline. Rotate the ornament and that hairline becomes a
-           * clearly visible diamond on the page, which is what every medallion
-           * in the first build of «Інжу» was sitting inside. 94% leaves a
-           * margin the sampler can fall to, and costs three per cent of the
-           * ornament's drawn size.
+           * This used to be `94%`, which is a WIDTH: the height then follows
+           * the file's aspect and an ornament in a box of a different aspect
+           * is cut by its own box. The ою band shipped that way — a 1370x168
+           * file in a 460x56 box came out 94% wide and 105px tall, so the top
+           * and bottom of every motif were sliced off, on every screen of the
+           * page.
+           *
+           * The gutter is what `94%` was really for: `contain` alone makes the
+           * mask touch the box on two sides, and the tint painted behind it
+           * leaves a hairline along that edge — a visible diamond around every
+           * rotated medallion in the first build of «Інжу». Insetting the mask
+           * box by 2px gives the sampler a transparent margin to fall to
+           * without tying the ornament's height to its width.
            */
-          maskSize: tileSize ?? (el.objectFit === 'cover' ? 'cover' : '94%'),
-          WebkitMaskSize: tileSize ?? (el.objectFit === 'cover' ? 'cover' : '94%'),
+          padding: 2,
+          boxSizing: 'border-box',
+          maskOrigin: 'content-box',
+          WebkitMaskOrigin: 'content-box',
+          maskClip: 'content-box',
+          WebkitMaskClip: 'content-box',
+          maskSize: tileSize ?? (el.objectFit === 'cover' ? 'cover' : 'contain'),
+          WebkitMaskSize: tileSize ?? (el.objectFit === 'cover' ? 'cover' : 'contain'),
           // `maskFade` already spent maskImage on a gradient; the two cannot
           // both own the property, and the silhouette is the one that matters.
           maskComposite: undefined,

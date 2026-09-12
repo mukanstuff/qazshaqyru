@@ -21,7 +21,7 @@ import { RSVP_STATUSES, validateRsvpStatus } from '@/lib/guests/rsvp-status';
 const openRsvpSchema = z.object({
   slug: z.string().min(1).max(100),
   name: z.string().min(1).max(100),
-  phone: z.string().min(1).max(20),
+  phone: z.string().max(20).optional(),
   status: z.enum(RSVP_STATUSES),
   dietaryRestrictions: z.string().max(500).optional(),
   message: z.string().max(1000).optional(),
@@ -63,11 +63,7 @@ export async function POST(request: NextRequest) {
 
     const phoneCheck = validateOpenRsvpPhone(phone);
     if (!phoneCheck.ok) {
-      const msg =
-        phoneCheck.code === 'required'
-          ? 'Укажите номер телефона для подтверждения'
-          : 'Некорректный номер телефона';
-      throw new ApiError('invalid_phone', msg, 400);
+      throw new ApiError('invalid_phone', 'Некорректный номер телефона', 400);
     }
     const phoneNormalized = phoneCheck.normalized;
 
@@ -130,11 +126,29 @@ export async function POST(request: NextRequest) {
       // invitation, so it doesn't serialize unrelated invitations.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${invitation.id}))`;
 
-      let guest = await tx.guest.findFirst({
-        where: { invitationId: invitation.id, phone: phoneNormalized },
-      });
+      /*
+       * Identity without a number.
+       *
+       * The phone was what this route deduped on, and it is no longer required
+       * — so a guest who leaves it blank is matched by name instead. Name
+       * matching is weaker: two Айгүл in one guest list collapse into one row.
+       * That is the accepted cost of not demanding a phone number from someone
+       * who only wants to say they are coming; a guest who does give one is
+       * still matched exactly.
+       */
+      let guest = phoneNormalized
+        ? await tx.guest.findFirst({
+            where: { invitationId: invitation.id, phone: phoneNormalized },
+          })
+        : await tx.guest.findFirst({
+            where: {
+              invitationId: invitation.id,
+              phone: null,
+              name: { equals: name.trim(), mode: 'insensitive' },
+            },
+          });
 
-      if (guest && guest.name.trim().toLowerCase() !== normalizedName) {
+      if (guest && phoneNormalized && guest.name.trim().toLowerCase() !== normalizedName) {
         throw new ApiError(
           'phone_name_mismatch',
           'Этот номер уже зарегистрирован под другим именем. Проверьте данные или свяжитесь с организатором.',

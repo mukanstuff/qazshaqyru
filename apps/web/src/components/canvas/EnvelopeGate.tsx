@@ -10,8 +10,17 @@ import { fontStack } from '@/components/canvas/elements/fontStack';
 
 interface Props {
   document: InvitationCanvasDocument;
+  /** The page may show itself: this layer is now only a dissolve over it. */
   onOpen: () => void;
+  /** The dissolve has finished and this layer can be unmounted. */
+  onFinished: () => void;
 }
+
+/** How long the filmed gate takes to dissolve off the invitation. */
+const FILM_FADE_MS = 520;
+/** The drawn gate starts its dissolve here and ends it FADE_MS later. */
+const DRAWN_REVEAL_MS = 560;
+const DRAWN_FADE_MS = 460;
 
 const LABELS = {
   ru: { open: 'Открыть приглашение' },
@@ -90,6 +99,7 @@ function FilmedGate({
   accent,
   font,
   onOpen,
+  onFinished,
   onUnavailable,
 }: {
   src: string;
@@ -101,19 +111,44 @@ function FilmedGate({
   accent: string;
   font: string;
   onOpen: () => void;
+  onFinished: () => void;
   onUnavailable: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [done, setDone] = useState(false);
   const handedOver = useRef(false);
+  const revealed = useRef(false);
 
   const handOver = () => {
     if (handedOver.current) return;
     handedOver.current = true;
+    /*
+     * Dissolve first, mount second.
+     *
+     * The old handover faded this layer out and only then told the parent to
+     * mount the invitation, and the parent rendered nothing until it heard —
+     * so the clip's last frame faded to the app's white, the white sat there,
+     * and the page arrived in a hard cut.
+     *
+     * Order matters more than it looks. Mounting the page in the same commit
+     * that flips this layer's opacity makes the browser drop the transition
+     * entirely: measured, computed opacity went 1 -> 0 with no intermediate
+     * value, because the style change was coalesced with a long render. So the
+     * fade is started on its own, against a free main thread, and the page is
+     * mounted a frame later — underneath a layer that is already dissolving.
+     */
     setDone(true);
-    // Let the clip's last frame sit for a beat and cross-fade into the page.
-    window.setTimeout(onOpen, 420);
+    const reveal = () => {
+      if (revealed.current) return;
+      revealed.current = true;
+      onOpen();
+    };
+    requestAnimationFrame(() => requestAnimationFrame(reveal));
+    // rAF does not run in a background tab: a guest who taps and switches away
+    // must still come back to an opened invitation.
+    window.setTimeout(reveal, 250);
+    window.setTimeout(onFinished, FILM_FADE_MS + 80);
   };
 
   const start = () => {
@@ -129,9 +164,14 @@ function FilmedGate({
         onUnavailable();
       });
     }
-    // A clip that stalls must not strand the guest. Its own duration is not
-    // known reliably before metadata arrives, so this is a flat ceiling.
-    window.setTimeout(handOver, 9000);
+    // A clip that stalls must not strand the guest. The templates' openings
+    // run 3-4s; nine seconds of staring at a frozen envelope was the ceiling
+    // before, and on a slow connection that is what the guest got.
+    const el2 = videoRef.current;
+    const ceiling = el2 && Number.isFinite(el2.duration) && el2.duration > 0
+      ? el2.duration * 1000 + 1200
+      : 6000;
+    window.setTimeout(handOver, ceiling);
   };
 
   return (
@@ -142,7 +182,8 @@ function FilmedGate({
         zIndex: 50,
         background: '#000',
         opacity: done ? 0 : 1,
-        transition: 'opacity 400ms ease',
+        transition: `opacity ${FILM_FADE_MS}ms ease`,
+        pointerEvents: done ? 'none' : undefined,
       }}
     >
       <video
@@ -153,6 +194,19 @@ function FilmedGate({
         playsInline
         preload="auto"
         onEnded={handOver}
+        /*
+         * Hand over half a second early.
+         *
+         * `onOpen` mounts the entire invitation, and that mount is not free —
+         * starting it only once the clip has ended left the guest looking at a
+         * frozen open envelope while the page built itself. Starting it under
+         * the last frames costs nothing visually: the envelope is still on
+         * screen, and the dissolve begins the moment the clip stops.
+         */
+        onTimeUpdate={(e) => {
+          const el = e.currentTarget;
+          if (Number.isFinite(el.duration) && el.duration - el.currentTime <= 0.5) handOver();
+        }}
         onError={onUnavailable}
         style={{
           width: '100%',
@@ -234,7 +288,7 @@ function FilmedGate({
   );
 }
 
-export function EnvelopeGate({ document: doc, onOpen }: Props) {
+export function EnvelopeGate({ document: doc, onOpen, onFinished }: Props) {
   const locale = doc.locale ?? 'ru';
   const t = LABELS[locale];
   const [opening, setOpening] = useState(false);
@@ -317,7 +371,10 @@ export function EnvelopeGate({ document: doc, onOpen }: Props) {
   const handleOpen = () => {
     if (opening) return;
     setOpening(true);
-    window.setTimeout(onOpen, reduceMotion ? 200 : 1020);
+    // Same handover as the filmed gate: the page shows itself when the
+    // dissolve starts, and this layer is removed once it has finished.
+    window.setTimeout(onOpen, reduceMotion ? 140 : DRAWN_REVEAL_MS);
+    window.setTimeout(onFinished, reduceMotion ? 220 : DRAWN_REVEAL_MS + DRAWN_FADE_MS + 60);
   };
 
   // A filmed opening wins whenever the template supplies one and the browser
@@ -335,6 +392,7 @@ export function EnvelopeGate({ document: doc, onOpen }: Props) {
         accent={design.accent}
         font={design.font}
         onOpen={onOpen}
+        onFinished={onFinished}
         onUnavailable={() => setFilmUnavailable(true)}
       />
     );

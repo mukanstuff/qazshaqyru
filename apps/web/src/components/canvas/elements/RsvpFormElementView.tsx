@@ -32,11 +32,12 @@ const LABELS = {
     success: '✓ Рахмет! Ваш ответ сохранён.',
     namePlaceholder: 'Ваше имя',
     phonePlaceholder: 'Номер телефона (+7...)',
+    phoneOptionalPlaceholder: 'Телефон — по желанию',
     dietaryPlaceholder: 'Пожелания по еде (необязательно)',
     attending: 'Приду',
     attendingPlusOne: 'Приду с гостем',
     notAttending: 'Не смогу',
-    errorMissingFields: 'Заполните имя и телефон',
+    errorMissingFields: 'Укажите имя',
     errorSubmit: 'Ошибка отправки',
     errorSubmitFallback: 'Ошибка отправки RSVP',
     submit: 'Отправить',
@@ -58,11 +59,12 @@ const LABELS = {
     success: '✓ Рахмет! Жауабыңыз сақталды.',
     namePlaceholder: 'Атыңыз',
     phonePlaceholder: 'Телефон нөмірі (+7...)',
+    phoneOptionalPlaceholder: 'Телефон — қаласаңыз',
     dietaryPlaceholder: 'Тамаққа қатысты тілек (міндетті емес)',
     attending: 'Келемін',
     attendingPlusOne: 'Серіктесіммен келемін',
     notAttending: 'Келе алмаймын',
-    errorMissingFields: 'Атыңыз бен телефонды толтырыңыз',
+    errorMissingFields: 'Атыңызды жазыңыз',
     errorSubmit: 'Жіберу қатесі',
     errorSubmitFallback: 'RSVP жіберу қатесі',
     submit: 'Жіберу',
@@ -224,7 +226,9 @@ export function RsvpFormElementView({
       return;
     }
 
-    if (!slug || !name.trim() || !phone.trim()) {
+    // Name only. The number is optional on every invitation — see
+    // validateOpenRsvpPhone — so the form must not gate on it either.
+    if (!slug || !name.trim()) {
       setError(t.errorMissingFields);
       return;
     }
@@ -236,7 +240,7 @@ export function RsvpFormElementView({
         body: JSON.stringify({
           slug,
           name: name.trim(),
-          phone: phone.trim(),
+          phone: phone.trim() || undefined,
           dietaryRestrictions: dietary.trim() || undefined,
           // Was `status === 'attending_plus_one' ? 'attending' : status` — the
           // form showed "Приду с гостем" and then threw the companion away on
@@ -371,23 +375,18 @@ export function RsvpFormElementView({
                 }}
               />
               {/*
-                The phone is not optional on this path, whatever `askPhone`
-                says.
+                The number is asked for, never demanded.
 
-                Open RSVP identifies a guest by their number: /api/rsvp/open
-                validates it, dedupes on it, and the owner's reminders are sent
-                to it. The endpoint rejects a request without one. Meanwhile the
-                template kit sets `askPhone: false` on every RSVP block it
-                builds, so the field was not drawn — and the submit handler
-                below still demanded a non-empty phone. A guest typed their
-                name, pressed «Жіберу» and got "fill in name and phone" with no
-                phone field on the screen, for ever. `askPhone` is honoured
-                where it is meaningful: on a personal link the guest is already
-                identified and no fields are drawn at all.
+                Open RSVP identifies a self-registering guest by their phone
+                and the owner's reminders are sent to it, so the field is worth
+                showing — but the product rule is that no invitation requires
+                one. `askPhone` is honoured where it is meaningful: on a
+                personal link the guest is already identified and no fields are
+                drawn at all.
               */}
               <input
                 type="tel"
-                placeholder={t.phonePlaceholder}
+                placeholder={t.phoneOptionalPlaceholder}
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 style={{

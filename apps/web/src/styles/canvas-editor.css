@@ -1677,105 +1677,52 @@ select.canvas-inspector-input {
 
 
 
-/* ── Guest reply reminder ──────────────────────────────────────────────────
-   Replaces a pinned four-action toolbar that sat over the invitation for the
-   whole visit. This appears once, after the guest has scrolled past the hero,
-   and is dismissable for the session. Colours come from the invitation. */
-.qs-reminder-wrap {
+/* ── Guest reply nudge ────────────────────────────────────────────────────
+   A single pill in the invitation's own accent, bottom centre, shown only
+   while the guest is past the opening screen and the reply block is NOT on
+   screen. It was a card with a heading, a sentence, a button and a close
+   control pinned to the top of the page — which is shaqyru24's own
+   `pb-form-reminder` almost line for line, including the two lines of copy.
+   The job is to give a way to answer without scrolling the whole invitation;
+   that needs one word, and nothing that has to be dismissed. */
+.qs-nudge-wrap {
   position: fixed;
   inset-inline: 0;
-  top: 0;
-  /* Above the free-publish logo badge (z-50) rather than under it, and
-     started below its 52px footprint so the two never share a line. */
+  bottom: 0;
   z-index: 55;
   display: flex;
   justify-content: center;
-  padding: calc(62px + env(safe-area-inset-top)) 12px 0;
+  /* Clear of the free-publish badge, which is pinned bottom-centre at 12px
+     and is about 34px tall. */
+  padding: 0 12px calc(62px + env(safe-area-inset-bottom));
   pointer-events: none;
 }
 
-.qs-reminder {
+.qs-nudge {
   pointer-events: auto;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 9px;
-  width: 100%;
-  max-width: 460px;
-  padding: 11px 13px;
-  border-radius: 16px;
-  background: var(--qs-rm-surface);
-  color: var(--qs-rm-text);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  box-shadow: 0 10px 30px rgba(20, 16, 12, 0.16);
-  backdrop-filter: blur(8px);
-  animation: qs-reminder-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  gap: 7px;
+  padding: 11px 20px;
+  border-radius: 999px;
+  border: none;
+  background: var(--qs-nudge-accent);
+  color: var(--qs-nudge-on-accent);
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(20, 16, 12, 0.22);
+  animation: qs-nudge-in 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-@keyframes qs-reminder-in {
-  from { opacity: 0; transform: translate3d(0, -14px, 0); }
+@keyframes qs-nudge-in {
+  from { opacity: 0; transform: translate3d(0, 16px, 0); }
   to { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .qs-reminder { animation: none; }
-}
-
-.qs-reminder__copy {
-  min-width: 0;
-  flex: 1;
-}
-
-.qs-reminder__title {
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.25;
-}
-
-.qs-reminder__body {
-  font-size: 11.5px;
-  line-height: 1.35;
-  color: var(--qs-rm-quiet);
-  margin-top: 2px;
-}
-
-.qs-reminder__cta {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  border: none;
-  background: var(--qs-rm-accent);
-  color: #fff;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.qs-reminder__close {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  border: none;
-  background: transparent;
-  color: var(--qs-rm-quiet);
-  cursor: pointer;
-}
-
-.qs-reminder__close:hover {
-  background: rgba(0, 0, 0, 0.06);
-}
-
-/* Under 380px the copy and the button cannot both fit on one line without the
-   button shrinking to unreadable; the explanation is the part that can go. */
-@media (max-width: 380px) {
-  .qs-reminder__body { display: none; }
+  .qs-nudge { animation: none; }
 }
 
 /* ─── Layers list ─────────────────────────────────────────────────────────── */

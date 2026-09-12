@@ -18,6 +18,7 @@ import {
   UtensilsCrossed,
   Archive,
   Lock,
+  Send,
 } from 'lucide-react';
 import { useI18n } from '@/i18n';
 import { formatEventDateLine } from '@/lib/shared/kazakh-datetime';
@@ -28,7 +29,6 @@ import { usePendingOrder } from '@/components/hub/usePendingOrder';
 import { HubNextStep } from '@/components/hub/HubNextStep';
 import { HubPendingPay } from '@/components/hub/HubPendingPay';
 import { HubReviewPrompt } from '@/components/hub/HubReviewPrompt';
-import { HubSheetDesign } from '@/components/hub/HubSheetDesign';
 import { HubSheetTexts } from '@/components/hub/HubSheetTexts';
 import { HubSheetDates } from '@/components/hub/HubSheetDates';
 import { HubSheetMusic } from '@/components/hub/HubSheetMusic';
@@ -219,9 +219,17 @@ export function HubSectionList(props: HubSectionListProps) {
     }
   }, [promoCode, props.invitationId, t]);
 
-  // ── Free-tier publish (no payment, watermarked) ────────────────────────
-  const publishFree = useCallback(async () => {
-    setBusy('publishFree');
+  /*
+   * Publish. Not "publish free" — the same call is the publish action for a
+   * paid invitation too.
+   *
+   * `intent: 'publish'` puts the invitation live with whatever entitlements it
+   * already has: a watermark while it is unpaid, none once it is paid. The
+   * name said otherwise, and a paid owner with a draft was never offered it —
+   * see the hero CTA below.
+   */
+  const publish = useCallback(async () => {
+    setBusy('publish');
     setError(null);
     try {
       await checkoutInvitationClient(props.invitationId, { intent: 'publish' });
@@ -381,20 +389,31 @@ export function HubSectionList(props: HubSectionListProps) {
         ) : null}
 
         {/* The public /i/[slug] link 404s for anyone but the owner until the
-            invitation is actually published (see assertCanPublishInvitation
-            — publishing itself requires payment). Sharing it earlier would
-            hand guests a dead link, so the CTA guides the owner toward
-            whichever step unlocks it instead of pretending it's ready. */}
+            invitation is actually published. Publishing is free, so what the
+            CTA offers is the step that is actually missing: publish it, or —
+            once it is live — send it. */}
         {canShare ? (
+          /* Its own label, not the list row's. The row is called «Как гости
+             увидят» because it doubles as the preview before publication; as
+             the main action of a published invitation that reads as "look at
+             it again", when the thing to do is send it. */
           <button type="button" className="hub-hero-cta" onClick={() => openSheet('share')}>
             <Share2 size={16} aria-hidden="true" />
-            {t('invitation.hub.sectionShareTitle')}
+            {t('invitation.hub.heroShareCta')}
           </button>
         ) : props.fullAccess ? (
-          <Link href={props.editHref} className="hub-hero-cta">
-            <Palette size={16} aria-hidden="true" />
+          /* Paid, still a draft. This button said «Опубликовать» and opened
+             the editor — the one state where the hub had no publish action at
+             all, for the customer who had already paid for it. */
+          <button
+            type="button"
+            className="hub-hero-cta"
+            onClick={publish}
+            disabled={busy === 'publish'}
+          >
+            <Send size={16} aria-hidden="true" />
             {t('invitation.hub.publishCta')}
-          </Link>
+          </button>
         ) : pendingOrder ? (
           /* A payment is already in flight. Showing the plain "Оплатить" button
              here invites a second payment for the same invitation. */
@@ -409,7 +428,7 @@ export function HubSectionList(props: HubSectionListProps) {
               type="button"
               className="hub-hero-cta"
               onClick={upgrade}
-              disabled={busy === 'upgrade' || busy === 'publishFree'}
+              disabled={busy === 'upgrade' || busy === 'publish'}
             >
               <Lock size={16} aria-hidden="true" />
               {t('invitation.hub.lockedCta')} · {formatKzt(props.priceKzt || 3990)} ₸
@@ -417,16 +436,16 @@ export function HubSectionList(props: HubSectionListProps) {
             <button
               type="button"
               className="hub-hero-cta-secondary"
-              onClick={publishFree}
-              disabled={busy === 'upgrade' || busy === 'publishFree'}
+              onClick={publish}
+              disabled={busy === 'upgrade' || busy === 'publish'}
             >
-              {t('invitation.hub.publishFreeCta')}
+              {t('invitation.hub.publishCta')}
             </button>
             {/* The watermark used to be crammed into the button label —
                 "Опубликовать бесплатно (с водяным знаком)" — which reads as a
                 warning on the control itself. Same fact, stated once, next to
                 the button instead of inside it. */}
-            <p className="hub-hero-cta-note">{t('invitation.hub.publishFreeNote')}</p>
+            <p className="hub-hero-cta-note">{t('invitation.hub.publishNote')}</p>
             <PromoCodeField invitationId={props.invitationId} onApplied={setPromoCode} />
           </div>
         )}
@@ -468,7 +487,11 @@ export function HubSectionList(props: HubSectionListProps) {
         status={props.status}
         guests={props.guests}
         guestCount={props.guestCount}
-        onPublish={props.fullAccess ? publishFree : upgrade}
+        /* The step is "publish", so the button publishes. It used to open the
+           payment sheet for an unpaid owner, which made the card a third
+           request for money wearing the label of the next step — and
+           publishing is free. */
+        onPublish={publish}
         onOpenGuests={() => openSheet('guests')}
         onOpenReminders={() => openSheet('reminders')}
         onOpenSeating={() => router.push(`${basePath}/seating`)}
@@ -490,7 +513,7 @@ export function HubSectionList(props: HubSectionListProps) {
             icon={<Palette size={18} aria-hidden="true" />}
             title={t('invitation.hub.sectionDesignTitle')}
             description={t('invitation.hub.sectionDesignDesc')}
-            onClick={() => openSheet('design')}
+            href={props.editHref}
           />
           <HubSection
             icon={<Type size={18} aria-hidden="true" />}
@@ -685,11 +708,6 @@ export function HubSectionList(props: HubSectionListProps) {
         published={canShare}
         open={activeSheet === 'share'}
         onClose={closeSheet}
-      />
-      <HubSheetDesign
-        open={activeSheet === 'design'}
-        onClose={closeSheet}
-        editHref={props.editHref}
       />
       <HubSheetTexts
         open={activeSheet === 'texts'}
