@@ -9,6 +9,7 @@ export function ShapeElementView({ el }: { el: ShapeElement }) {
     border: el.stroke ? `${el.strokeWidth || 1}px solid ${el.stroke}` : 'none',
     opacity: el.opacity ?? 1,
     boxSizing: 'border-box',
+    borderRadius: el.radius ? el.radius : undefined,
   };
   if (el.shape === 'circle') {
     return <div style={{ ...base, borderRadius: '50%' }} />;

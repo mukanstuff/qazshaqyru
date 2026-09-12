@@ -194,7 +194,7 @@ function buildVenueSection(startY: number, ctx: SectionContext): CanvasElement[]
   const el4: CanvasElement = {
     id: uid(), type: 'map',
     x: 5, y: startY + 130, w: 90, h: 180,
-    zoom: 14, showStaticOnly: false, accentColor: ctx.accent,
+    showStaticOnly: false, accentColor: ctx.accent,
     rotation: 0, zIndex: 1, locked: false, hidden: false,
   };
   return [el2, el3, el1, el4];

@@ -1101,7 +1101,7 @@ export function closing(options: ClosingOptions = {}): SectionBuilder {
  * Floating music toggle. Pinned to the viewport rather than the page, so it
  * stays reachable while the guest scrolls.
  */
-export function floatingMusic(): SectionBuilder {
+export function floatingMusic(options: { variant?: 'pill' | 'dial'; corner?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' } = {}): SectionBuilder {
   return (ctx): SectionResult => ({
     elements: [
       {
@@ -1109,8 +1109,12 @@ export function floatingMusic(): SectionBuilder {
         props: {
           x: 74,
           y: 0,
-          w: 22,
-          h: 48,
+          // The dial is a 76px circle and the pill is a 48px bar. Leaving the
+          // box at the pill's height clipped the dial's label ring, which then
+          // overflowed upward out of the pinned box instead of drawing around
+          // the button.
+          w: options.variant === 'dial' ? 20 : 22,
+          h: options.variant === 'dial' ? 78 : 48,
           accentColor: ctx.theme.accent,
           autoPlayMuted: true,
           zIndex: 9990,
@@ -1118,7 +1122,8 @@ export function floatingMusic(): SectionBuilder {
           // the bottom-right, and a template element there lands on top of them.
           // 92px used to clear a pinned action bar that no longer exists; the
           // pill now sits where a floating control belongs.
-          pinned: { corner: 'bottom-left', offsetX: 16, offsetY: 20 },
+          ...(options.variant ? { variant: options.variant } : {}),
+          pinned: { corner: options.corner ?? 'bottom-left', offsetX: 16, offsetY: 20 },
         },
       },
     ],

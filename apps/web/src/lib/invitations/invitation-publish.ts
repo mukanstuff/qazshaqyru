@@ -70,7 +70,7 @@ export async function publishInvitationIfDraft(invitationId: string): Promise<st
 export async function publishInvitation(invitationId: string, userId: string): Promise<void> {
   const existing = await prisma.invitation.findFirst({
     where: { id: invitationId, userId },
-    select: { id: true, status: true, customText: true, eventType: true },
+    select: { id: true, slug: true, title: true, status: true, customText: true, eventType: true },
   });
   if (!existing) {
     throw new ApiError('not_found', 'Приглашение не найдено', 404);
@@ -83,8 +83,29 @@ export async function publishInvitation(invitationId: string, userId: string): P
 
   const customText = defaultOpenRsvpOnPublish(existing.customText, existing.eventType);
 
+  /*
+   * Promote the draft slug here too.
+   *
+   * This is the second publish path in the file and it did not read `slug` at
+   * all, so anything published through it kept `draft-<nanoid>` as its public
+   * address and guests received a link with the word "draft" in it. It has no
+   * callers today — every live publish goes through `publishInvitationIfDraft`
+   * from checkout — but a second implementation that silently behaves
+   * differently from the first is how that bug gets shipped the day someone
+   * wires this one up. One published row in the dev database still carries a
+   * `draft-` slug.
+   */
+  const slug = isGeneratedDraftSlug(existing.slug)
+    ? await buildPublicSlug(prisma, existing.title, existing.slug, RESERVED_SLUGS)
+    : existing.slug;
+
   await prisma.invitation.update({
     where: { id: invitationId },
-    data: { status: 'published', publishedAt: new Date(), customText },
+    data: {
+      status: 'published',
+      publishedAt: new Date(),
+      customText,
+      ...(slug !== existing.slug ? { slug } : {}),
+    },
   });
 }

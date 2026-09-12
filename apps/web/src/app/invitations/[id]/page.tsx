@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
 import prisma from '@/lib/shared/db';
@@ -10,13 +11,33 @@ import {
 } from '@/lib/guests/headcount';
 import { HubSectionList } from '@/components/hub/HubSectionList';
 import { SiteHeader } from '@/components/shared/SiteHeader';
-import { SiteCompactFooter } from '@/components/shared/SiteCompactFooter';
+import { CabinetFooter } from '@/components/shared/CabinetFooter';
 import type { HubGuest } from '@/components/hub/useHubGuests';
 import { parseCanvasOrEmpty } from '@/lib/canvas/validation';
 import { deriveHubTextDefaults, deriveMusicUrl } from '@/lib/canvas/derive-invitation-fields';
 import { getI18n } from '@/i18n/server';
+import { isOpenRsvpEnabled } from '@/lib/guests/open-rsvp-config';
 
 export const dynamic = 'force-dynamic';
+
+/*
+ * Name the tab after the invitation being managed.
+ *
+ * The hub declared no metadata, so its tab carried the site's marketing title —
+ * identical to /dashboard's and /settings' — which is useless to anyone
+ * managing two celebrations in two tabs. `noIndex` states what is already true
+ * of a page behind a session.
+ */
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const invitation = await prisma.invitation.findUnique({
+    where: { id: params.id },
+    select: { title: true },
+  });
+  return {
+    title: invitation?.title?.trim() || undefined,
+    robots: { index: false, follow: false },
+  };
+}
 
 interface Props {
   params: { id: string };
@@ -180,6 +201,7 @@ export default async function InvitationEditorPage({ params, searchParams }: Pro
         guests={hubGuests}
         fullAccess={fullAccess}
         priceKzt={pricing?.priceKzt ?? 3990 /* fallback only */}
+        openRsvp={isOpenRsvpEnabled(invitation.customText, invitation.eventType)}
         // Trust the DB over the query param — a stray `?published=1` (old
         // editor links, a replayed/bookmarked URL) must never claim success
         // for an invitation that is still actually a draft.
@@ -193,7 +215,7 @@ export default async function InvitationEditorPage({ params, searchParams }: Pro
         alreadyReviewed={invitation.serviceReviews.length > 0}
         ownerDisplayName={ctx.user?.name ?? ''}
       />
-      <SiteCompactFooter />
+      <CabinetFooter />
     </>
   );
 }

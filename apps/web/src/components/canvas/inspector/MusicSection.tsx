@@ -30,7 +30,7 @@ export function MusicSection({
           placeholder="https://… или загрузить свою"
         />
       </Field>
-      <Field label={t.color + ' (акцент)'}>
+      <Field label={t.colorAccent}>
         <SwatchColorPicker value={el.accentColor} onChange={(c) => onUpdate({ accentColor: c })} />
       </Field>
       <label className="ci-checkbox">
@@ -41,24 +41,12 @@ export function MusicSection({
         />
         {t.musicAutoplay}
       </label>
-      <div className="ci-section" style={{ marginTop: '8px' }}>
-        <span className="ci-row-label" style={{ display: 'block', marginBottom: '6px' }}>{t.trackList}</span>
-        <textarea
-          rows={3}
-          value={(el.trackList || []).map((tr) => `${tr.title}|${tr.src}`).join('\n')}
-          onChange={(e) => {
-            const lines = e.target.value.split('\n').filter(Boolean);
-            const trackList = lines.map((line, i) => {
-              const [title, src] = line.split('|');
-              return { id: `${i}-${(src || '').slice(0, 6)}`, title: title || '', src: src || '' };
-            });
-            onUpdate({ trackList });
-          }}
-          className="canvas-inspector-textarea is-block"
-          placeholder={'Трек 1|https://…\nТрек 2|https://…'}
-          style={{ height: '80px' }}
-        />
-      </div>
+      {/* The playlist editor is gone. It parsed `Название|ссылка` lines into a
+          `trackList` and saved them, and the player reads `audioSrc` and
+          nothing else — there is no next-track control anywhere in the
+          product. A host could type out a whole programme of music and the
+          page would play none of it. One track is what the player supports,
+          and the field above is where it goes. */}
     </Section>
   );
 }

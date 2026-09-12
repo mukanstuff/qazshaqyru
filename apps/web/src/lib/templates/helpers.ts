@@ -1,26 +1,19 @@
 import { FONT_FAMILIES } from './constants';
-import { TEMPLATE_CONFIGS } from './configs';
 import type { TemplateConfig } from './types';
 
-/** Catalog preview: local preview.jpg → DB value → cover hero (avoid bokeh hero in cards). */
-export function getTemplatePreviewUrl(slug: string, dbPreview?: string | null): string {
-  const cfg = TEMPLATE_CONFIGS[slug];
-  if (cfg) {
-    return `/assets/templates/${slug}/preview.jpg`;
-  }
-
-  if (dbPreview?.trim()) return dbPreview.trim();
-  return '';
-}
-
-export const ALL_TEMPLATE_SLUGS = Object.keys(TEMPLATE_CONFIGS);
-
-export function getTemplate(slug: string): TemplateConfig | undefined {
-  return TEMPLATE_CONFIGS[slug];
-}
-
-export function resolveTemplateKey(key: string): TemplateConfig | undefined {
-  return TEMPLATE_CONFIGS[key];
+/**
+ * The catalogue card's preview image.
+ *
+ * This used to consult `TEMPLATE_CONFIGS` first and, on a hit, return
+ * `/assets/templates/<slug>/preview.jpg` — a path no template has ever had.
+ * The lookup table has been an empty object `{}` for a long time, so the branch
+ * never fired and the bug stayed invisible: the first template ever added to
+ * that table would have lost its card image. The table and the four helpers
+ * that only read it are gone; the preview is the column on the row, which is
+ * what `scripts/make-previews.ts` writes.
+ */
+export function getTemplatePreviewUrl(_slug: string, dbPreview?: string | null): string {
+  return dbPreview?.trim() ?? '';
 }
 
 /** Get the public URL for an asset, or null if not configured */

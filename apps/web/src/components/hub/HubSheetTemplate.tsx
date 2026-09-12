@@ -9,7 +9,20 @@ interface TemplateCard {
   id: string;
   slug: string;
   nameRu: string;
+  nameKz: string | null;
   previewImageUrl: string | null;
+}
+
+/**
+ * The card's name in the reader's language.
+ *
+ * The sheet rendered `nameRu` unconditionally, so a Kazakh host picking a new
+ * design saw «Элегантное золото» in an otherwise Kazakh screen — even though
+ * the row carries `nameKz: "Талғампаз алтын"`. The hub's own section meta had
+ * the locale check; this list did not.
+ */
+function cardName(tpl: TemplateCard, locale: string): string {
+  return (locale === 'kz' ? tpl.nameKz : tpl.nameRu) || tpl.nameRu;
 }
 
 interface Props {
@@ -30,7 +43,7 @@ export function HubSheetTemplate({
   invitationId,
   currentTemplateKey,
 }: Props) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [templates, setTemplates] = useState<TemplateCard[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -147,12 +160,12 @@ export function HubSheetTemplate({
                 <div className="hub-tpl-thumb">
                   {tpl.previewImageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={tpl.previewImageUrl} alt={tpl.nameRu} loading="lazy" />
+                    <img src={tpl.previewImageUrl} alt={cardName(tpl, locale)} loading="lazy" />
                   ) : (
-                    <span>{tpl.nameRu}</span>
+                    <span>{cardName(tpl, locale)}</span>
                   )}
                 </div>
-                <div className="hub-tpl-name">{tpl.nameRu}</div>
+                <div className="hub-tpl-name">{cardName(tpl, locale)}</div>
                 {isCurrent ? (
                   <div className="hub-tpl-current-badge">{t('invitation.hub.templateSheet.current')}</div>
                 ) : null}

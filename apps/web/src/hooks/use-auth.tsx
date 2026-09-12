@@ -29,6 +29,19 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/**
+ * Set once the browser has committed to leaving the page.
+ *
+ * The session request is then aborted by the navigation itself, which is not
+ * something to report and not something to draw conclusions from.
+ */
+let leavingPage = false;
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', () => {
+    leavingPage = true;
+  });
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -47,9 +60,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(null);
       }
     } catch (error) {
-      console.error('Session refresh error:', error);
-      setUser(null);
-      setSession(null);
+      /*
+       * A request that never arrived is not a signed-out user.
+       *
+       * This branch used to clear the user on any thrown error, and leaving a
+       * page mid-request throws `TypeError: Failed to fetch` — so an ordinary
+       * click from /templates to /templates/wedding logged an error and wiped
+       * the client's idea of who is signed in, on a session that was perfectly
+       * valid. Only an answer from the server decides that; a dropped
+       * connection leaves the last known state alone.
+       */
+      if (!leavingPage) {
+        console.warn('Session refresh failed, keeping last known state:', error);
+      }
     } finally {
       setLoading(false);
     }

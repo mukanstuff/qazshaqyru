@@ -65,15 +65,17 @@ export async function GET(_req: Request, { params }: Ctx) {
     // This makes the public guest experience always canvas-first.
     let hasCanvas = !!inv.canvas;
 
-    if (!hasCanvas) {
-      const templatePrice = inv.templateId
-        ? (await prisma.template.findUnique({ where: { id: inv.templateId }, select: { priceKzt: true } }))?.priceKzt ?? null
-        : null;
+    // One template lookup per request. The seeding branch below and the
+    // fullAccess computation after it each ran their own identical
+    // `template.findUnique`, so an invitation without a canvas paid for two.
+    const templatePrice = inv.templateId
+      ? (await prisma.template.findUnique({ where: { id: inv.templateId }, select: { priceKzt: true } }))?.priceKzt ?? null
+      : null;
+    const priceKzt = resolvePublicationPriceKzt(templatePrice);
+    const hasPaidOrder = resolvePaidTemplateOrder(totalPaidKzt, priceKzt);
 
-      const priceKzt = resolvePublicationPriceKzt(templatePrice);
-      const hasPaid = resolvePaidTemplateOrder(totalPaidKzt, priceKzt);
-
-      if (hasPaid) {
+    if (!hasCanvas && hasPaidOrder) {
+      {
         // Seed canvas so guest page and editor are consistent.
         // We use a light tx here (public read path).
         await prisma.$transaction(async (tx: any) => {
@@ -92,12 +94,6 @@ export async function GET(_req: Request, { params }: Ctx) {
       }
     }
 
-    // Compute fullAccess for the guest renderer (no watermark for paid)
-    const templatePrice = inv.templateId
-      ? (await prisma.template.findUnique({ where: { id: inv.templateId }, select: { priceKzt: true } }))?.priceKzt ?? null
-      : null;
-    const priceKzt = resolvePublicationPriceKzt(templatePrice);
-    const hasPaidOrder = resolvePaidTemplateOrder(totalPaidKzt, priceKzt);
     const showWatermark =
       inv.status === 'published' &&
       shouldShowPublishWatermark({ priceKzt, hasPaidOrder, fullAccess: hasPaidOrder });
@@ -128,7 +124,16 @@ export async function GET(_req: Request, { params }: Ctx) {
       openRsvp: isOpenRsvpEnabled(inv.customText, inv.eventType),
     });
   } catch (err) {
-    // Graceful fallback for migration / transient errors
-    return NextResponse.json({ canvas: null });
+    /*
+     * Report a failure as a failure.
+     *
+     * This used to answer 200 with `{ canvas: null }` for any thrown error,
+     * which the guest page reads as "this invitation has no design" and turns
+     * into «Приглашение недоступно». A database hiccup therefore told the
+     * guests of a paying customer that the invitation does not exist, and the
+     * 200 kept the incident out of every error metric.
+     */
+    console.error('Public canvas route failed', err);
+    return NextResponse.json({ error: 'server_error' }, { status: 500 });
   }
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { MusicPlayerElement } from '@/lib/canvas/types';
 import { Pause, Play, Volume2, VolumeX } from 'lucide-react';
 import { CURATED_MUSIC_URLS } from '@/lib/uploads/media-url';
@@ -67,6 +67,91 @@ export function MusicPlayerElementView({
    */
   const accent = el.accentColor || '#6b1d3a';
   const textColor = accent;
+  const ringId = useId().replace(/:/g, '');
+
+  /*
+   * The dial.
+   *
+   * A pill labelled "Әуен" is a web control; every invitation in this market
+   * floats a round one instead, and the label rides a ring around it. The ring
+   * turns only while the track is playing, so the control states what it is
+   * doing without a second icon: still means silent.
+   *
+   * Mute is deliberately absent here. On a pill there is room for three
+   * targets; on a 76px dial a second one is a mis-tap, and pause already
+   * gives the guest the one thing they want when the music is unwelcome.
+   */
+  if (el.variant === 'dial') {
+    const label = el.title || (isKz ? 'Өлең қосу' : 'Включить музыку');
+    const ring = `${label} · ${label} · `;
+    return (
+      <div
+        style={{
+          position: 'relative',
+          width: 76,
+          height: 76,
+          cursor: 'pointer',
+          color: textColor,
+        }}
+        onClick={togglePlay}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            togglePlay();
+          }
+        }}
+        title={playing ? (isKz ? 'Кідірту' : 'Пауза') : label}
+      >
+        <audio ref={audioRef} src={src} preload="none" loop />
+        <svg
+          viewBox="0 0 76 76"
+          width={76}
+          height={76}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            animation: playing ? 'canvas-music-dial 18s linear infinite' : 'none',
+          }}
+          aria-hidden
+        >
+          <defs>
+            <path
+              id={`ring-${ringId}`}
+              d="M 38,38 m -30,0 a 30,30 0 1,1 60,0 a 30,30 0 1,1 -60,0"
+              fill="none"
+            />
+          </defs>
+          <text
+            fill={textColor}
+            style={{ fontSize: 8, letterSpacing: '0.22em', textTransform: 'uppercase' }}
+          >
+            <textPath href={`#ring-${ringId}`} startOffset="0">
+              {ring}
+            </textPath>
+          </text>
+        </svg>
+        <span
+          style={{
+            position: 'absolute',
+            inset: 13,
+            borderRadius: '50%',
+            border: `1px solid ${accent}59`,
+            backgroundColor: 'rgba(255,255,255,0.72)',
+            backdropFilter: 'blur(6px)',
+            WebkitBackdropFilter: 'blur(6px)',
+            boxShadow: '0 6px 18px rgba(58,42,28,0.16)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {playing ? <Pause size={18} aria-hidden /> : <Play size={18} aria-hidden />}
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div

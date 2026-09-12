@@ -227,6 +227,45 @@ export interface InvitationCanvasDocument {
    *  editor mode (the host always sees the invitation directly). */
   envelopeEnabled?: boolean;
 
+  /**
+   * A filmed envelope instead of a drawn one.
+   *
+   * Both reference services open on an envelope screen and both draw it in
+   * CSS — as did ours, with a gradient flap and a gradient seal, while a
+   * photographed wax seal sat unused in the repository. This is the frame that
+   * gets screenshotted into the WhatsApp group, so it is worth a real one:
+   * the guest taps, a short clip of an actual envelope opening plays once, and
+   * the page is revealed when it ends.
+   *
+   * Optional in every part. With no `videoSrc` the gate falls back to the
+   * drawn envelope, as it does under `prefers-reduced-motion` or when the
+   * browser refuses to play.
+   */
+  envelope?: {
+    /** Plays once on tap. */
+    videoSrc?: string;
+    /** First frame, shown immediately while the video loads. */
+    posterSrc?: string;
+    /**
+     * CSS `object-position` for the clip, e.g. `'18% center'`.
+     *
+     * The gate is full bleed, so a 9:16 clip on a taller handset is cropped
+     * left and right. A generated envelope is rarely dead centre in its own
+     * frame — the first one measured out at x 30-610 of 720, which a centred
+     * `cover` clips on the left — and this is what moves the window onto it.
+     */
+    focus?: string;
+    /**
+     * The colour of the button, and of anything else the gate paints.
+     *
+     * Explicit, because the alternative is guessing and guessing broke: the
+     * gate read a colour off the first heading it could find, so the moment it
+     * was pointed at the couple's own line — ivory, because it sits on a
+     * photograph — the button became ivory on ivory and its label vanished.
+     */
+    accent?: string;
+  };
+
   /** Guest page auto-scrolls slowly on its own instead of requiring the
    *  guest to scroll manually. Cancelled permanently the moment the guest
    *  scrolls/touches themselves, and skipped entirely under
@@ -277,6 +316,26 @@ export interface InvitationCanvasDocument {
 // the Google Fonts css2 API (checked for a `/* cyrillic */` unicode-range
 // block, not guessed) on 2026-08-26; re-verify before adding any new entry.
 export type FontFamily =
+  // Self-hosted, licensed by the owner and subset by scripts/subset-fonts.mjs.
+  // These are not on Google Fonts and never will be; see kz-fonts.css.
+  | 'Oranienbaum'
+  | 'Copperplate'
+  | 'Andantino'
+  | 'Lavanderia'
+  | 'DomainDisplay'
+  | 'CeraBlack'
+  | 'Monolog'
+  | 'Corinthia'
+  // Added 2026-09-07 — the faces the reference services actually set:
+  // Shelley is the script on toi's flagship wedding card, Monumenta its
+  // display serif, Romul the all-caps antiqua shaqyru24 sets its values in,
+  // Ametist and GoodVibes the display faces on their best sellers. Kazakh
+  // coverage checked by reading each file's cmap, not by trusting its name.
+  | 'Shelley'
+  | 'Monumenta'
+  | 'Romul'
+  | 'Ametist'
+  | 'GoodVibes'
   // 5 original
   | 'Montserrat'
   | 'Cormorant'
@@ -333,6 +392,31 @@ export interface TextProps {
   underline?: boolean;
   uppercase?: boolean;
   textShadow?: { x: number; y: number; blur: number; color: string };
+  /**
+   * Set the line along a circular arc instead of a straight baseline.
+   *
+   * The device both reference services use for a repeated motto curving around
+   * a round photograph — "wedding day · wedding day ·" following the frame.
+   * A straight line of type is a caption; a curved one is part of the frame,
+   * and it is the cheapest way to make a layout stop looking like a stack of
+   * boxes.
+   *
+   * Rendered as SVG `<textPath>`, because CSS cannot set type on a curve.
+   */
+  curve?: {
+    /** Degrees of arc the text spans. 360 wraps the full circle. */
+    sweepDeg: number;
+    /**
+     * Run the type along the underside of the circle, where it reads upright
+     * at the bottom of the frame rather than upside down.
+     */
+    flip?: boolean;
+    /**
+     * Radius as a percent of the element's half-width. Below 100 the type sits
+     * inside the box, which is what leaves room for the glyphs to overhang.
+     */
+    radiusPct?: number;
+  };
 }
 
 // ----- Concrete element types ----------------------------------------------
@@ -351,6 +435,16 @@ export interface ImageElement extends BaseElement {
   src: string;
   alt?: string;
   objectFit: 'cover' | 'contain' | 'fill';
+  /**
+   * Repeat the artwork instead of fitting one copy to the box.
+   *
+   * For a printed border running the height of a page: one seamless tile,
+   * repeated. Without it the only way to get a long band was to pre-render
+   * the tile ten times into a second file — which is why
+   * `oyu-band-x10.png` exists next to `oyu-band-tile.png`, and why it is
+   * still the wrong length for any page that is not exactly ten tiles tall.
+   */
+  tile?: 'x' | 'y' | 'both';
   borderRadius: number;
   /**
    * Silhouette the photo is cut into.
@@ -362,6 +456,19 @@ export interface ImageElement extends BaseElement {
    * needs a large radius on the top corners and none on the bottom.
    */
   maskShape?: 'rect' | 'arch' | 'circle' | 'oval' | 'oyu';
+  /**
+   * A shaped bottom edge where the picture meets the page.
+   *
+   * A wave or an arc is honest geometry — it does not claim the screen is made
+   * of anything. A torn-paper edge was tried and removed: rendered as a vector
+   * it has no fibre, no thickness and no shadow from a curled edge, so it reads
+   * as a jagged cut-out impersonating paper. Half-done skeuomorphism looks
+   * worse than a straight line.
+   *
+   * Mutually exclusive with `maskShape` — a silhouette already decides every
+   * edge the picture has.
+   */
+  edgeShape?: 'wave' | 'arc';
   /**
    * Feather the picture's own edges into the page, in percent of its width or
    * height per side.
@@ -408,8 +515,18 @@ export interface ImageElement extends BaseElement {
    * Implemented as `mask-image` plus a background colour rather than a
    * `filter`, because filters cannot reach an arbitrary hue from black.
    */
+  /**
+   * Whole-element transparency.
+   *
+   * Shapes and video backgrounds had this and images did not, so a template
+   * asking for a photograph bleached back to a ground — the way the reference
+   * cards run type over a picture — was silently ignored: the value never
+   * reached the schema, and the picture rendered at full strength. 16 of the
+   * 26 measured reference documents carry an opacity below 1 on a component,
+   * most of them images.
+   */
+  opacity?: number;
   tint?: string;
-  linkHref?: string;
 }
 
 export type ButtonAction =
@@ -441,6 +558,16 @@ export interface ShapeElement extends BaseElement {
   type: 'shape';
   shape: ShapeKind;
   fill?: string;
+  /**
+   * Corner radius for `rect`, in px.
+   *
+   * A rounded panel holding the text is the load-bearing element of every
+   * card in this market — the page is a flat colour and each section sits on
+   * a lighter rounded surface inset from the edges. `rect` could only draw a
+   * hard-cornered box, so templates here had no panels at all and read as a
+   * stack of full-bleed strips.
+   */
+  radius?: number;
   stroke?: string;
   strokeWidth?: number;
   opacity?: number;
@@ -523,6 +650,15 @@ export interface RsvpFormElement extends BaseElement {
   textColor: string;
   accentColor: string;
   askPlusOne: boolean;
+  /**
+   * Ask for a phone number. Defaults to true only because every stored
+   * document predates the flag; new templates set it false.
+   *
+   * The reference best-seller asks for nothing but the answer itself, and a
+   * phone field is the commonest place a guest gives up — the host already
+   * has the number, since that is how the link was sent.
+   */
+  askPhone?: boolean;
   askDietary: boolean;
   askChildren: boolean;
   /** Alternate RSVP channel: shows a "Reply via WhatsApp" button opening a
@@ -564,10 +700,7 @@ export interface ProgramElement extends BaseElement {
 export interface MapElement extends BaseElement {
   type: 'map';
   address?: string;
-  lat?: number;
-  lng?: number;
   markerTitle?: string;
-  zoom?: number;
   showStaticOnly?: boolean;
   buttonLabel?: string;
   accentColor?: string;
@@ -579,7 +712,15 @@ export interface MusicPlayerElement extends BaseElement {
   title?: string;
   autoPlayMuted?: boolean;
   accentColor: string;
-  trackList?: { id: string; title: string; src: string }[];
+  /**
+   * How the control is drawn.
+   *
+   * `pill` is the original chrome. `dial` is a round play button with the
+   * label set on a ring turning around it — the shape both reference services
+   * float over their invitations, and the one that reads as part of the card
+   * rather than as an app control bolted onto it.
+   */
+  variant?: 'pill' | 'dial';
 }
 
 export interface GiftBlockElement extends BaseElement {
@@ -616,6 +757,14 @@ export interface VideoBgElement extends BaseElement {
   posterSrc?: string;
   overlayColor?: string;
   opacity?: number;
+  /**
+   * Loop forever, or play once and hold the last frame.
+   *
+   * Defaults to looping, which is right for a texture running behind a
+   * section and wrong for anything that resolves — a clip that resolves and
+   * then snaps back to its first frame reads as a glitch.
+   */
+  loop?: boolean;
 }
 
 export interface OrnamentElement extends BaseElement {

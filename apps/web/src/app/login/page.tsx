@@ -1,9 +1,21 @@
+import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import LoginForm from './login-form';
+import { getI18n } from '@/i18n/server';
 import { sanitizeRedirectPath } from '@/lib/shared/redirect';
 import { isGoogleOAuthEnabled } from '@/lib/auth/google-env';
 
 export const dynamic = 'force-dynamic';
+
+/*
+ * The tab said "Той мен үйлену тойына онлайн шақыру — …" here too: the route
+ * declared no metadata, so it inherited the site's marketing title. Same
+ * defect as /dashboard and /settings had.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t('auth.loginTitleV2') };
+}
 
 interface Props {
   searchParams: Promise<{ redirect?: string; google_error?: string }>;

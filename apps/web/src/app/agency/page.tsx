@@ -18,7 +18,10 @@ export async function generateMetadata(): Promise<Metadata> {
   const urlLocale = seoLocaleFromHeaders((n) => headerStore.get(n));
   return {
     title: t('site.meta.agency'),
-    description: t('site.meta.agencyDescription'),
+    // The price comes from the plan catalogue, not from the string: it was
+    // typed into both translations, so a price change would have left the
+    // search snippet quoting a figure the checkout no longer charges.
+    description: t('site.meta.agencyDescription', { price: formatKzt(PLAN_CATALOG.agency.priceKzt) }),
     alternates: buildLanguageAlternates('/agency', urlLocale),
   };
 }

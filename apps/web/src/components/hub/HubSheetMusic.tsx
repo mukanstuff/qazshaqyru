@@ -188,7 +188,9 @@ export function HubSheetMusic({ open, onClose, invitationId, initialUrl }: Props
           onChange={(e) => setUrl(e.target.value)}
           placeholder="https://…mp3"
         />
-        <span className="hub-field-hint">{t('invitation.hub.musicSheet.subtitle')}</span>
+        {/* The sheet's own subtitle already says this, two inches above. It was
+            printed a second time under the field, so the sheet read "the track
+            that plays when the page opens" twice in one screen. */}
       </div>
 
       {initialUrl ? (

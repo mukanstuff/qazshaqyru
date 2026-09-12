@@ -21,6 +21,16 @@ interface CompactHeroProps {
   current: string;
   stats: StatPill[];
   rightSlot?: ReactNode;
+  /**
+   * The page's `h1`.
+   *
+   * The compact hero shipped with a breadcrumb, two counter pills and no
+   * heading at all, so `/templates` and every `/templates/<category>` page had
+   * no `h1` in the document — on the pages that sell. Both reference services
+   * lead with one: toi «Шаблоны приглашений на той», shaqyru24 «Үлгіні
+   * таңдаңыз».
+   */
+  heading?: string;
 }
 
 type Props = TemplatesPageHeroProps | CompactHeroProps;
@@ -59,9 +69,14 @@ function FullHero({ overline, title, subtitle, stats }: TemplatesPageHeroProps) 
   );
 }
 
-function CompactHero({ breadcrumb, current, stats, rightSlot }: CompactHeroProps) {
+function CompactHero({ breadcrumb, current, stats, rightSlot, heading }: CompactHeroProps) {
   return (
     <section className="border-b border-us-border/60 bg-[#fcfcfb]">
+      {heading ? (
+        <div className="us-container pt-5">
+          <h1 className="font-display text-2xl leading-tight text-us-ink md:text-3xl">{heading}</h1>
+        </div>
+      ) : null}
       <div className="us-container flex flex-col gap-3 py-4 md:flex-row md:items-center md:justify-between md:gap-6">
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
           <ol className="flex flex-wrap items-center gap-x-1.5 gap-y-1 font-body">

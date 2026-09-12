@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type {
   CanvasElement,
   CoupleNamesElement,
@@ -66,11 +66,180 @@ const CONNECTOR_GLYPH: Record<CoupleNamesElement['connector'], string> = {
   'и': 'и',
 };
 
+/**
+ * The filmed envelope.
+ *
+ * A real clip of a real envelope opening, played once, full bleed. Both
+ * reference services draw this screen in CSS and so did we — a gradient flap
+ * and a gradient disc for the seal — which is exactly the "imitation" the
+ * drawn version below can never stop being.
+ *
+ * Every failure path ends in the invitation opening anyway: the guest has
+ * already tapped, so a clip that will not load or will not play must not be
+ * allowed to trap them on a poster frame. `ended` normally hands over; the
+ * timeout covers a stalled clip, and `onError`/a rejected `play()` hand back
+ * to the drawn gate before the tap ever happens.
+ */
+function FilmedGate({
+  src,
+  poster,
+  focus,
+  names,
+  date,
+  label,
+  accent,
+  font,
+  onOpen,
+  onUnavailable,
+}: {
+  src: string;
+  poster?: string;
+  focus?: string;
+  names?: string;
+  date?: string;
+  label: string;
+  accent: string;
+  font: string;
+  onOpen: () => void;
+  onUnavailable: () => void;
+}) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [done, setDone] = useState(false);
+  const handedOver = useRef(false);
+
+  const handOver = () => {
+    if (handedOver.current) return;
+    handedOver.current = true;
+    setDone(true);
+    // Let the clip's last frame sit for a beat and cross-fade into the page.
+    window.setTimeout(onOpen, 420);
+  };
+
+  const start = () => {
+    const el = videoRef.current;
+    if (!el) return onUnavailable();
+    setPlaying(true);
+    const played = el.play();
+    if (played && typeof played.catch === 'function') {
+      played.catch(() => {
+        // Autoplay policy or a codec the browser will not take. Fall back to
+        // the drawn envelope rather than leaving a dead poster on screen.
+        setPlaying(false);
+        onUnavailable();
+      });
+    }
+    // A clip that stalls must not strand the guest. Its own duration is not
+    // known reliably before metadata arrives, so this is a flat ceiling.
+    window.setTimeout(handOver, 9000);
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 50,
+        background: '#000',
+        opacity: done ? 0 : 1,
+        transition: 'opacity 400ms ease',
+      }}
+    >
+      <video
+        ref={videoRef}
+        src={src}
+        poster={poster}
+        muted
+        playsInline
+        preload="auto"
+        onEnded={handOver}
+        onError={onUnavailable}
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          objectPosition: focus || 'center',
+          display: 'block',
+        }}
+      />
+      {/* Scrim under the type only — the clip is the point, so it is not
+          dimmed while it plays. */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: 'none',
+          background:
+            'linear-gradient(180deg, rgba(0,0,0,0.18) 0%, transparent 26%, transparent 52%, rgba(0,0,0,0.58) 100%)',
+          opacity: playing ? 0 : 1,
+          transition: 'opacity 500ms ease',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          insetInline: 0,
+          bottom: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 18,
+          padding: '0 24px 54px',
+          textAlign: 'center',
+          color: '#fff',
+          opacity: playing ? 0 : 1,
+          transition: 'opacity 380ms ease',
+          pointerEvents: playing ? 'none' : 'auto',
+        }}
+      >
+        {names ? (
+          <p
+            style={{
+              margin: 0,
+              fontFamily: font,
+              // A script needs more size than a sans to read at the same
+              // weight, and this line is the whole point of the screen.
+              fontSize: 38,
+              lineHeight: 1.15,
+              textShadow: '0 2px 18px rgba(0,0,0,0.5)',
+            }}
+          >
+            {names}
+          </p>
+        ) : null}
+        {date ? (
+          <p style={{ margin: 0, fontSize: 15, opacity: 0.85, letterSpacing: '0.08em' }}>{date}</p>
+        ) : null}
+        <button
+          type="button"
+          onClick={start}
+          data-testid="envelope-open"
+          style={{
+            appearance: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            borderRadius: 999,
+            padding: '14px 32px',
+            background: accent,
+            color: '#fff',
+            fontSize: 15,
+            fontWeight: 600,
+            boxShadow: '0 10px 30px rgba(0,0,0,0.4)',
+          }}
+        >
+          {label}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function EnvelopeGate({ document: doc, onOpen }: Props) {
   const locale = doc.locale ?? 'ru';
   const t = LABELS[locale];
   const [opening, setOpening] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
+  const [filmUnavailable, setFilmUnavailable] = useState(false);
 
   useEffect(() => {
     setReduceMotion(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -93,10 +262,17 @@ export function EnvelopeGate({ document: doc, onOpen }: Props) {
 
     // Accent and display font are borrowed from the design's own headings, so
     // the envelope belongs to the template rather than to the app's brand.
-    const heading = doc.elements.find(
-      (el) => el.type === 'couple-names' || el.type === 'heading',
-    );
+    // The couple's own line first, then any heading. Picking "the first
+    // heading" meant the gate borrowed its face and colour from whatever
+    // happened to be marked up as one — on this template the date, set in the
+    // figure face — so the envelope screen and the invitation behind it were
+    // in different typography.
+    const heading =
+      doc.elements.find((el) => el.type === 'couple-names') ??
+      doc.elements.find((el) => el.placeholderKey === 'groomName') ??
+      doc.elements.find((el) => el.type === 'heading');
     const accent =
+      doc.envelope?.accent ||
       (heading && 'color' in heading ? (heading.color as string | undefined) : undefined) ||
       '#8a6a3b';
     // `couple-names` calls the field `font`; text and headings call it
@@ -117,10 +293,20 @@ export function EnvelopeGate({ document: doc, onOpen }: Props) {
   const couple = findCouple(doc);
   const first = couple?.first?.trim();
   const second = couple?.second?.trim();
+  // `couple-names` is its own element type and no template in the catalogue
+  // uses it, so the pair normally has to be read off the two tagged text
+  // elements instead. Without this the gate printed a button and nothing else.
+  const taggedGroom = placeholder(doc, 'groomName');
+  const taggedBride = placeholder(doc, 'brideName');
   const names =
     first && second
       ? `${first} ${CONNECTOR_GLYPH[couple!.connector] ?? '&'} ${second}`
-      : (first ?? placeholder(doc, 'coupleNames') ?? placeholder(doc, 'heroTitle'));
+      : taggedGroom && taggedBride
+        ? `${taggedGroom} & ${taggedBride}`
+        : (first ??
+          taggedGroom ??
+          placeholder(doc, 'coupleNames') ??
+          placeholder(doc, 'heroTitle'));
   const date = placeholder(doc, 'eventDate');
   // Initials come only from a real pair of names, never from a title.
   const initials =
@@ -133,6 +319,26 @@ export function EnvelopeGate({ document: doc, onOpen }: Props) {
     setOpening(true);
     window.setTimeout(onOpen, reduceMotion ? 200 : 820);
   };
+
+  // A filmed opening wins whenever the template supplies one and the browser
+  // is willing. Everything below this line is the drawn fallback.
+  const film = doc.envelope?.videoSrc;
+  if (film && !reduceMotion && !filmUnavailable) {
+    return (
+      <FilmedGate
+        src={film}
+        poster={doc.envelope?.posterSrc}
+        focus={doc.envelope?.focus}
+        names={names}
+        date={date}
+        label={t.open}
+        accent={design.accent}
+        font={design.font}
+        onOpen={onOpen}
+        onUnavailable={() => setFilmUnavailable(true)}
+      />
+    );
+  }
 
   const paper = '#fffdf7';
   const animate = opening && !reduceMotion;

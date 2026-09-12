@@ -18,7 +18,6 @@ import {
   UtensilsCrossed,
   Archive,
   Lock,
-  Loader2,
 } from 'lucide-react';
 import { useI18n } from '@/i18n';
 import { formatEventDateLine } from '@/lib/shared/kazakh-datetime';
@@ -27,6 +26,7 @@ import { HubSheetShare } from '@/components/hub/HubSheetShare';
 import { HubSheetManualPay } from '@/components/hub/HubSheetManualPay';
 import { usePendingOrder } from '@/components/hub/usePendingOrder';
 import { HubNextStep } from '@/components/hub/HubNextStep';
+import { HubPendingPay } from '@/components/hub/HubPendingPay';
 import { HubReviewPrompt } from '@/components/hub/HubReviewPrompt';
 import { HubSheetDesign } from '@/components/hub/HubSheetDesign';
 import { HubSheetTexts } from '@/components/hub/HubSheetTexts';
@@ -92,6 +92,8 @@ export interface HubSectionListProps {
   // Pricing / plan
   fullAccess: boolean;
   priceKzt: number;
+  /** Whether answering from the plain public link is currently allowed. */
+  openRsvp: boolean;
 
   // Post-publish / payment banners (replaces the old full-screen PostPublishShareScreen)
   showPublishedBanner?: boolean;
@@ -396,25 +398,11 @@ export function HubSectionList(props: HubSectionListProps) {
         ) : pendingOrder ? (
           /* A payment is already in flight. Showing the plain "Оплатить" button
              here invites a second payment for the same invitation. */
-          <div className="hub-pending-pay">
-            <p className="hub-pending-pay-title">
-              <Loader2 size={14} className="hub-pending-pay-spinner" aria-hidden="true" />
-              {t('invitation.hub.pendingPayTitle')}
-            </p>
-            <p className="hub-pending-pay-desc">{t('invitation.hub.pendingPayDesc')}</p>
-            <p className="hub-pending-pay-order">
-              {t('invitation.hub.pendingPayOrder', { id: pendingOrder.id.slice(0, 8) })}
-            </p>
-            <button
-              type="button"
-              className="hub-btn"
-              style={{ marginTop: 8 }}
-              onClick={upgrade}
-              disabled={busy === 'upgrade'}
-            >
-              {t('invitation.hub.pendingPayReopen')}
-            </button>
-          </div>
+          <HubPendingPay
+            orderId={pendingOrder.id}
+            onReopen={upgrade}
+            busy={busy === 'upgrade'}
+          />
         ) : (
           <div className="hub-hero-cta-group">
             <button
@@ -481,7 +469,6 @@ export function HubSectionList(props: HubSectionListProps) {
         guests={props.guests}
         guestCount={props.guestCount}
         onPublish={props.fullAccess ? publishFree : upgrade}
-        publishPriceKzt={props.fullAccess ? null : props.priceKzt}
         onOpenGuests={() => openSheet('guests')}
         onOpenReminders={() => openSheet('reminders')}
         onOpenSeating={() => router.push(`${basePath}/seating`)}
@@ -583,11 +570,15 @@ export function HubSectionList(props: HubSectionListProps) {
           <HubSection
             icon={<Share2 size={18} aria-hidden="true" />}
             title={t('invitation.hub.sectionShareTitle')}
+            /* Never locked. Before publication it opens the preview rather
+               than the link; see HubSheetShare. This row is the answer to
+               "what am I paying for", so locking it was backwards. */
             description={
-              canShare ? t('invitation.hub.sectionShareDesc') : t('invitation.hub.sectionShareLockedDesc')
+              canShare
+                ? t('invitation.hub.sectionShareDesc')
+                : t('invitation.hub.sectionSharePreviewDesc')
             }
-            locked={!canShare}
-            onClick={canShare ? () => openSheet('share') : undefined}
+            onClick={() => openSheet('share')}
           />
 
           {props.fullAccess ? (
@@ -622,16 +613,30 @@ export function HubSectionList(props: HubSectionListProps) {
                 {t('invitation.hub.lockedTitle')}
               </p>
               <p className="hub-locked-card-desc">{t('invitation.hub.lockedDesc')}</p>
-              <button
-                type="button"
-                className="hub-btn hub-btn--primary"
-                style={{ marginTop: 10 }}
-                onClick={upgrade}
-                disabled={busy === 'upgrade'}
-              >
-                {t('invitation.hub.lockedCta')} ·{' '}
-                {formatKzt(props.priceKzt || 3990)} ₸
-              </button>
+              {/*
+                A payment in flight replaces the price here too.
+                Publishing is free, so an invitation can be published and unpaid
+                at the same time — and in that state the hero shows the share
+                button, not the pending notice, so this card was the only thing
+                on the screen talking about money and it kept asking for it.
+              */}
+              {pendingOrder ? (
+                <HubPendingPay
+                  orderId={pendingOrder.id}
+                  onReopen={upgrade}
+                  busy={busy === 'upgrade'}
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="hub-btn hub-btn--primary"
+                  style={{ marginTop: 10 }}
+                  onClick={upgrade}
+                  disabled={busy === 'upgrade'}
+                >
+                  {t('invitation.hub.lockedCta')} · {formatKzt(props.priceKzt || 3990)} ₸
+                </button>
+              )}
             </div>
           ) : null}
 
@@ -677,6 +682,7 @@ export function HubSectionList(props: HubSectionListProps) {
         invitationId={props.invitationId}
         invitationSlug={slugSaved}
         invitationTitle={props.invitationTitle}
+        published={canShare}
         open={activeSheet === 'share'}
         onClose={closeSheet}
       />
@@ -726,6 +732,7 @@ export function HubSectionList(props: HubSectionListProps) {
         invitationId={props.invitationId}
         invitationSlug={slugSaved}
         initialGuests={props.guests}
+        openRsvp={props.openRsvp}
       />
     </div>
   );

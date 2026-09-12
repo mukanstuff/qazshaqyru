@@ -37,6 +37,10 @@ export default function PublicInvitationClient({
   const [showWatermarkFromApi, setShowWatermarkFromApi] = useState(false);
   // Whether a guest without a personal ?guest= token may answer at all.
   const [openRsvpFromApi, setOpenRsvpFromApi] = useState(true);
+  // The document itself, handed to CanvasGuestPage so it does not re-request
+  // what this component has just downloaded.
+  const [canvas, setCanvas] = useState<unknown>(null);
+  const [owner, setOwner] = useState<{ isOwner: boolean; id: string | null }>({ isOwner: false, id: null });
   const shareUrl =
     typeof window !== 'undefined' ? `${window.location.origin}/i/${slug}` : `/i/${slug}`;
 
@@ -65,6 +69,8 @@ export default function PublicInvitationClient({
           // 2026-07-30 PRODUCT RULE: canvas OR fullAccess (paid template) → canvas renderer (clean, no watermark).
           // Legacy only for ancient unpaid rows without canvas ever seeded.
           if (hasCanvas || isFullAccess) {
+            setCanvas(data.canvas ?? null);
+            setOwner({ isOwner: !!data.isOwner, id: typeof data.id === 'string' ? data.id : null });
             setFullAccessFromApi(isFullAccess);
             setShowWatermarkFromApi(!!data.showWatermark);
             setOpenRsvpFromApi(data.openRsvp !== false);
@@ -156,6 +162,9 @@ export default function PublicInvitationClient({
         <CanvasGuestPage
           slug={slug}
           shareUrl={shareUrl}
+          canvas={canvas}
+          isOwner={owner.isOwner}
+          invitationId={owner.id}
           fullAccess={fullAccessFromApi}
           showWatermark={showWatermarkFromApi}
           guestToken={guestToken}

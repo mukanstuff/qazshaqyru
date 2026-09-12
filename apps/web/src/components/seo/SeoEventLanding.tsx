@@ -168,11 +168,19 @@ export async function SeoEventLanding({ landingKey }: { landingKey: SeoLandingKe
           </LandingTemplateStrip>
         ) : null}
 
-        {L.sections.map((section) => (
-          <section key={section.h2} className="space-y-4">
+        {/* Keyed by position, not by content.
+            `key={p.slice(0, 48)}` keyed a paragraph on its own first 48
+            characters, and this copy repeats openings: in the Kazakh set one
+            48-character prefix occurs ten times across the file. Two of those
+            inside one section gave React two children with the same key, which
+            is the console warning that showed up on every occasion landing.
+            These lists are static and never reorder, so the index is a correct
+            and stable key. */}
+        {L.sections.map((section, sIdx) => (
+          <section key={`${sIdx}-${section.h2}`} className="space-y-4">
             <h2 className="font-display text-2xl text-us-ink md:text-3xl">{section.h2}</h2>
-            {section.paragraphs.map((p) => (
-              <p key={p.slice(0, 48)} className="font-body text-base leading-relaxed text-us-ink-muted">
+            {section.paragraphs.map((p, pIdx) => (
+              <p key={pIdx} className="font-body text-base leading-relaxed text-us-ink-muted">
                 <LinkifyPaths text={p} />
               </p>
             ))}
@@ -184,8 +192,8 @@ export async function SeoEventLanding({ landingKey }: { landingKey: SeoLandingKe
             {faqHeading}
           </h2>
           <div className="divide-y divide-us-border border-y border-us-border">
-            {L.faqs.map((faq) => (
-              <details key={faq.question} className="group py-4">
+            {L.faqs.map((faq, fIdx) => (
+              <details key={`${fIdx}-${faq.question}`} className="group py-4">
                 <summary className="cursor-pointer list-none font-display text-lg text-us-ink marker:content-none [&::-webkit-details-marker]:hidden">
                   {faq.question}
                 </summary>

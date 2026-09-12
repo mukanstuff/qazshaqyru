@@ -47,7 +47,7 @@ export function GiftSection({
           placeholder="4400 4301 …"
         />
       </Field>
-      <Field label={t.color + ' (акцент)'}>
+      <Field label={t.colorAccent}>
         <SwatchColorPicker value={el.accentColor} onChange={(c) => onUpdate({ accentColor: c })} />
       </Field>
       <label className="ci-checkbox">

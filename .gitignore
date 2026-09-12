@@ -35,3 +35,17 @@ __pycache__/
 .design-sync/node_modules
 apps/web/.ds-entry.ts
 apps/web/.ds-compiled.css
+
+# Source assets that are inputs, not deliverables.
+# The font library is 111 MB of .ttf/.otf originals that `scripts/subset-fonts.mjs`
+# turns into the ~400 KB of woff2 actually served from public/fonts/web. The image
+# dumps are the raw generator output that gets cropped and composited into
+# public/assets/templates. Neither belongs in git history; both stay on disk.
+apps/web/assets-src/fonts-library/
+apps/web/assets-src/generated-*/
+
+# Exported Claude Code transcripts (script.py output). Conversation logs, not
+# product code — and they carry whatever keys were pasted into a chat.
+claude_chats_export/
+combined_all_chats.md
+script.py

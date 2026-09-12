@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Check, Copy, Download, Link2, MessageCircle, Pencil, RefreshCw, Trash2 } from 'lucide-react';
 import { useI18n } from '@/i18n';
 import { HubSheet } from '@/components/hub/HubSheet';
@@ -13,6 +13,8 @@ interface Props {
   invitationId: string;
   invitationSlug: string;
   initialGuests: HubGuest[];
+  /** Whether answering from the plain public link is currently allowed. */
+  openRsvp: boolean;
 }
 
 function rsvpLabel(status: string | null, t: (key: string) => string): string | null {
@@ -24,8 +26,47 @@ function rsvpLabel(status: string | null, t: (key: string) => string): string | 
   return null;
 }
 
-export function HubSheetGuests({ open, onClose, invitationId, invitationSlug, initialGuests }: Props) {
+export function HubSheetGuests({
+  open,
+  onClose,
+  invitationId,
+  invitationSlug,
+  initialGuests,
+  openRsvp,
+}: Props) {
   const { t, locale } = useI18n();
+  const [openRsvpOn, setOpenRsvpOn] = useState(openRsvp);
+  const [openRsvpBusy, setOpenRsvpBusy] = useState(false);
+
+  useEffect(() => {
+    if (open) setOpenRsvpOn(openRsvp);
+  }, [open, openRsvp]);
+
+  /*
+   * The only control for this flag in the product.
+   *
+   * It lives here, behind the guest list, because closing the common link
+   * only makes sense once personal links exist — and it is deliberately not
+   * reachable before payment, since an unpaid invitation has no other way to
+   * receive an answer.
+   */
+  const toggleOpenRsvp = async (next: boolean) => {
+    setOpenRsvpBusy(true);
+    const previous = openRsvpOn;
+    setOpenRsvpOn(next);
+    try {
+      const res = await fetch(`/api/invitations/${invitationId}/open-rsvp`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ openRsvp: next }),
+      });
+      if (!res.ok) throw new Error('failed');
+    } catch {
+      setOpenRsvpOn(previous);
+    } finally {
+      setOpenRsvpBusy(false);
+    }
+  };
   const hub = useHubGuests(invitationId, initialGuests);
 
   const invites = useGuestInviteLinks(invitationId);
@@ -143,6 +184,23 @@ export function HubSheetGuests({ open, onClose, invitationId, invitationSlug, in
           {t(`invitation.hub.guestsSheet.${invites.error}`)}
         </div>
       ) : null}
+
+      <label className="hub-checkbox-row">
+        <input
+          type="checkbox"
+          checked={openRsvpOn}
+          disabled={openRsvpBusy}
+          onChange={(e) => void toggleOpenRsvp(e.target.checked)}
+        />
+        <span>
+          <span className="hub-field-label">{t('invitation.hub.guestsSheet.openRsvpLabel')}</span>
+          <span className="hub-hint" style={{ display: 'block', marginTop: 2 }}>
+            {openRsvpOn
+              ? t('invitation.hub.guestsSheet.openRsvpOnHint')
+              : t('invitation.hub.guestsSheet.openRsvpOffHint')}
+          </span>
+        </span>
+      </label>
 
       <div className="hub-field-label" style={{ marginBottom: 4 }}>
         {t('invitation.hub.guestsSheet.links')}

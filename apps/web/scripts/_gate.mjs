@@ -1,0 +1,16 @@
+import { chromium } from '@playwright/test';
+const [url, out] = process.argv.slice(2);
+const b = await chromium.launch();
+const p = await b.newPage({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 2 });
+await p.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
+await p.waitForTimeout(5000);
+await p.screenshot({ path: out.replace('.png', '-closed.png') });
+const btn = p.locator('button', { hasText: /ашу|Открыть/ }).first();
+await btn.click({ force: true });
+await p.waitForTimeout(1600);
+await p.screenshot({ path: out.replace('.png', '-mid.png') });
+await p.waitForTimeout(1500);
+await p.screenshot({ path: out.replace('.png', '-late.png') });
+console.log('done');
+await b.close();
+process.exit(0);

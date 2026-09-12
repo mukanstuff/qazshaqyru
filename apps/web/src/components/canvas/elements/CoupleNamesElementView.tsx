@@ -1,35 +1,12 @@
 import type { CSSProperties } from 'react';
 import type { CoupleNamesElement } from '@/lib/canvas/types';
 import { fontStack } from './TextElementView';
-
-/**
- * Split a name into per-letter spans for `animation.type = 'letters'`.
- *
- * The stagger index continues across both names and the connector, so the pair
- * assembles as one phrase left to right rather than as two words racing each
- * other. Spaces keep their width but are not animated — a lone animated space
- * reads as a stutter.
- */
-function Letters({ text, from }: { text: string; from: number }) {
-  let i = from;
-  return (
-    <>
-      {Array.from(text).map((ch, idx) => {
-        if (ch === ' ') return <span key={idx}>&nbsp;</span>;
-        const index = i++;
-        return (
-          <span
-            key={idx}
-            className="canvas-letter"
-            style={{ ['--letter-index' as string]: index }}
-          >
-            {ch}
-          </span>
-        );
-      })}
-    </>
-  );
-}
+// The splitter lives in ./Letters so text and heading elements can use the
+// same entrance; this view used to own the only copy of it, which is why
+// `letters` was inert on every element type a template actually uses. The
+// stagger index continues across both names and the connector, so the pair
+// assembles as one phrase left to right rather than as two words racing.
+import { Letters, letterCount } from './Letters';
 
 export function CoupleNamesElementView({ el }: { el: CoupleNamesElement }) {
   const perLetter = el.animation?.type === 'letters';
@@ -66,7 +43,7 @@ export function CoupleNamesElementView({ el }: { el: CoupleNamesElement }) {
         {perLetter ? (
           // Continue the count past the first name plus the connector, so the
           // second name starts arriving only once the first has finished.
-          <Letters text={el.second} from={el.first.replace(/ /g, '').length + 2} />
+          <Letters text={el.second} from={letterCount(el.first) + 2} />
         ) : (
           el.second
         )}

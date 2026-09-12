@@ -34,8 +34,11 @@ export function HubSheetDesign({ open, onClose, editHref }: Props) {
         </div>
       }
     >
+      {/* Every other string in this sheet went through `t()`; this one was
+          typed straight into the JSX, so a Kazakh host opened «Безендіру» and
+          read a Russian sentence in the middle of it. */}
       <p style={{ fontSize: 13, color: 'var(--hub-text-muted)' }}>
-        Цвета, шрифты, декор, порядок блоков и точные позиции — там.
+        {t('invitation.hub.designSheet.body')}
       </p>
     </HubSheet>
   );

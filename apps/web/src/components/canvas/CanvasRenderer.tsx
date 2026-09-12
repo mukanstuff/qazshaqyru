@@ -24,7 +24,13 @@ import { ensureDocumentFonts } from './elements/fontStack';
 import { TextElementView } from './elements/TextElementView';
 import { HeadingElementView } from './elements/HeadingElementView';
 import { EditableTextView } from './elements/EditableTextView';
-import { ImageElementView, OYU_CLIP_ID, OYU_CLIP_PATH } from './elements/ImageElementView';
+import {
+  ImageElementView,
+  OYU_CLIP_ID,
+  OYU_CLIP_PATH,
+  EDGE_CLIP_IDS,
+  EDGE_CLIP_PATHS,
+} from './elements/ImageElementView';
 import { ButtonElementView } from './elements/ButtonElementView';
 import { ShapeElementView } from './elements/ShapeElementView';
 import { DividerElementView } from './elements/DividerElementView';
@@ -153,6 +159,11 @@ function OyuClipDefs() {
         <clipPath id={OYU_CLIP_ID} clipPathUnits="objectBoundingBox">
           <path d={OYU_CLIP_PATH} />
         </clipPath>
+        {(Object.keys(EDGE_CLIP_IDS) as Array<keyof typeof EDGE_CLIP_IDS>).map((key) => (
+          <clipPath key={key} id={EDGE_CLIP_IDS[key]} clipPathUnits="objectBoundingBox">
+            <path d={EDGE_CLIP_PATHS[key]} />
+          </clipPath>
+        ))}
       </defs>
     </svg>
   );
@@ -643,14 +654,32 @@ export function bgToCss(doc: InvitationCanvasDocument): CSSProperties {
     return { background: `linear-gradient(${angle}deg, ${from}, ${to})` };
   }
   if (b.type === 'image' && b.imageSrc) {
+    /*
+     * `repeat` is not a `background-size`.
+     *
+     * The value was written straight into `background-size`, where it is
+     * invalid, so the whole declaration was dropped and the tile fell back to
+     * `auto` — its own 1024px square, anchored centre, repeating in both
+     * directions on a 390px page. That leaves a vertical seam a third of the
+     * way in and a horizontal one every 1024px, which is what the faint
+     * rectangles behind the ornaments were. A ground tiles at the page width:
+     * one seam direction, at a pitch small enough to read as grain.
+     */
+    const repeating = b.backgroundSize === 'repeat';
     return {
       backgroundImage: `url(${b.imageSrc})`,
-      backgroundSize: b.backgroundSize || 'cover',
-      backgroundPosition: 'center',
+      backgroundSize: repeating ? '100% auto' : b.backgroundSize || 'cover',
+      backgroundRepeat: repeating ? 'repeat' : 'no-repeat',
+      backgroundPosition: repeating ? 'top center' : 'center',
       backgroundColor: b.color,
     };
   }
   if (b.type === 'video') {
+    // Dead on purpose. `backgroundSchema` carries a `videoSrc` and nothing
+    // has ever read it — a CSS background cannot play a video, so honouring
+    // this would mean mounting a <video> behind the stage. Clips belong to
+    // the `video-bg` element, which is a real layer with position, opacity
+    // and an overlay. This branch only keeps the flat colour underneath.
     return { background: b.color || '#000' };
   }
   return { background: '#fff8f1' };
@@ -697,7 +726,10 @@ function renderElement(
     }
   }
   switch (el.type) {
-    case 'text': return <TextElementView el={el} />;
+    case 'text':
+      // Design-space pixel width, so a curved line can lay out its arc in the
+      // same units fontSize is written in.
+      return <TextElementView el={el} boxWidth={(el.w / 100) * ctx.width} />;
     case 'heading': return <HeadingElementView el={el} />;
     case 'image': return <ImageElementView el={el} />;
     case 'button': return <ButtonElementView el={el} locale={ctx.locale} shareUrl={ctx.shareUrl} stopPropagation={ctx.stopNativeActions} />;
@@ -715,7 +747,7 @@ function renderElement(
     case 'program': return <ProgramElementView el={el} />;
     case 'ornament': return <OrnamentElementView el={el} />;
     case 'lottie': return <LottieElementView el={el} />;
-    case 'video-bg': return <VideoBgElementView el={el} />;
+    case 'video-bg': return <VideoBgElementView el={el} mode={ctx.mode === 'editor' ? 'editor' : 'guest'} />;
     default:
       return null;
   }

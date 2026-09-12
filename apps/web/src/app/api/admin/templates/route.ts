@@ -12,6 +12,7 @@ import {
 } from '@/lib/shared/api';
 import { createEmptyDocument } from '@/lib/canvas/mutations';
 import { nanoid } from 'nanoid';
+import { PLACEHOLDER_PREVIEW } from '@/lib/templates/placeholder-preview';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest) {
         nameKz: parsed.data.nameKz || parsed.data.nameRu,
         category: parsed.data.category,
         priceKzt: parsed.data.priceKzt,
-        previewImageUrl: '/assets/placeholder.jpg',
+        previewImageUrl: PLACEHOLDER_PREVIEW,
         isActive: true,
         isFeatured: false,
         sortOrder: 100,

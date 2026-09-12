@@ -10,6 +10,7 @@ import {
   RATE_LIMITS,
 } from '@/lib/shared/api';
 import { nanoid } from 'nanoid';
+import { PLACEHOLDER_PREVIEW } from '@/lib/templates/placeholder-preview';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest, { params }: RouteCtx) {
         nameKz: `${source.nameKz || source.nameRu} (көшірмесі)`,
         category: source.category,
         priceKzt: source.priceKzt,
-        previewImageUrl: source.previewImageUrl || '/assets/placeholder.jpg',
+        previewImageUrl: source.previewImageUrl || PLACEHOLDER_PREVIEW,
         // Cloned inactive so an admin can review/edit before it reaches the catalog.
         isActive: false,
         isFeatured: false,

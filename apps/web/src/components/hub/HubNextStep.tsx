@@ -2,7 +2,6 @@
 
 import { ArrowRight } from 'lucide-react';
 import { useI18n } from '@/i18n';
-import { formatKztWithSign } from '@/lib/shared/format-price';
 import { isGuestPending, type HubGuest } from '@/components/hub/useHubGuests';
 
 /**
@@ -28,15 +27,6 @@ type Step = {
 
 interface Props {
   status: 'draft' | 'published' | 'archived';
-  /**
-   * What publishing costs, in tenge, or null when the invitation is already
-   * paid for.
-   *
-   * Shown on the button itself. The competitor writes "Жариялау · 3990 ₸" in
-   * its dashboard, and it is simply better: the owner learns the price of the
-   * action before committing to it instead of discovering it one screen later.
-   */
-  publishPriceKzt?: number | null;
   guests: HubGuest[];
   guestCount: number;
   onPublish: () => void;
@@ -47,7 +37,6 @@ interface Props {
 
 export function HubNextStep({
   status,
-  publishPriceKzt = null,
   guests,
   guestCount,
   onPublish,
@@ -65,9 +54,15 @@ export function HubNextStep({
       return {
         title: k('publishTitle'),
         desc: k('publishDesc'),
-        cta: publishPriceKzt
-          ? `${k('publishCta')} · ${formatKztWithSign(publishPriceKzt)}`
-          : k('publishCta'),
+        /*
+         * The step, without the price.
+         *
+         * The button read "К публикации · 4 990 ₸" and it was the second of
+         * three requests for the same money on one screen: the hero button
+         * above and the lock card below both say "Оплатить · 4 990 ₸". This
+         * block explains what to do next; it is not the place to negotiate.
+         */
+        cta: k('publishCta'),
         onClick: onPublish,
       };
     }

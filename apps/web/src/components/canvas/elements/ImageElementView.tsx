@@ -61,6 +61,32 @@ export const OYU_CLIP_PATH =
   'C0.335 0.055 0.40 0.008 0.5 0 Z';
 
 /**
+ * Shaped bottom edges.
+ *
+ * Bounding-box units, like the ornament clip above: one definition serves every
+ * photo whatever its size.
+ *
+ * A torn-paper edge lived here and was removed. It is the device both reference
+ * services use, but rendered as a vector path it has no fibre, no thickness and
+ * no shadow from a curled edge — it reads as a jagged cut-out impersonating
+ * paper. These two are shapes rather than impersonations, which is the whole
+ * difference.
+ */
+export const EDGE_CLIP_IDS = {
+  wave: 'qs-edge-wave',
+  arc: 'qs-edge-arc',
+} as const;
+
+export const EDGE_CLIP_PATHS: Record<keyof typeof EDGE_CLIP_IDS, string> = {
+  wave:
+    'M0 0 H1 V0.90 ' +
+    'C0.833 0.90 0.833 1 0.666 1 ' +
+    'C0.5 1 0.5 0.90 0.333 0.90 ' +
+    'C0.166 0.90 0.166 0.99 0 0.99 Z',
+  arc: 'M0 0 H1 V0.88 C0.72 1 0.28 1 0 0.88 Z',
+};
+
+/**
  * Feathered edges as a mask, so what fades is opacity and not a colour painted
  * over the picture — the same illustration then sits on any ground.
  */
@@ -101,7 +127,14 @@ export function ImageElementView({ el }: { el: ImageElement }) {
     position: 'relative',
     overflow: 'hidden',
     borderRadius: maskRadius(el),
-    clipPath: el.maskShape === 'oyu' ? 'url(#' + OYU_CLIP_ID + ')' : undefined,
+    // A silhouette wins over an edge: `oyu` already decides every edge the
+    // picture has, so honouring both would clip the ornament's foot off.
+    clipPath:
+      el.maskShape === 'oyu'
+        ? 'url(#' + OYU_CLIP_ID + ')'
+        : el.edgeShape
+          ? 'url(#' + EDGE_CLIP_IDS[el.edgeShape] + ')'
+          : undefined,
     // Both masks intersect where both are present, so a feathered edge can be
     // combined with a silhouette.
     maskImage: fade,
@@ -113,6 +146,7 @@ export function ImageElementView({ el }: { el: ImageElement }) {
     boxShadow: el.shadow
       ? `${el.shadow.x}px ${el.shadow.y}px ${el.shadow.blur}px ${el.shadow.color}`
       : undefined,
+    opacity: el.opacity,
     aspectRatio: typeof el.h !== 'number' ? '16/9' : undefined,
   };
 
@@ -122,6 +156,27 @@ export function ImageElementView({ el }: { el: ImageElement }) {
     objectFit: el.objectFit,
     display: 'block',
   };
+
+  /**
+   * Tiling.
+   *
+   * A printed border has to run the height of a page, and one image stretched
+   * to that height is not a border, it is a smear. `background-repeat` is the
+   * only thing that tiles, so a tiled element is painted rather than loaded as
+   * a picture — which is why these two values are shared with the tinted
+   * branch below, and why `oyu-band-x10.png` (the same tile pre-rendered ten
+   * times into a second file) can stop existing.
+   */
+  const tileRepeat =
+    el.tile === 'y'
+      ? 'repeat-y'
+      : el.tile === 'x'
+        ? 'repeat-x'
+        : el.tile === 'both'
+          ? 'repeat'
+          : undefined;
+  const tileSize =
+    el.tile === 'y' ? '100% auto' : el.tile === 'x' ? 'auto 100%' : el.tile === 'both' ? 'auto' : undefined;
 
   const isRemote = /^https?:\/\//.test(el.src);
   const isSvg = el.src.endsWith('.svg');
@@ -136,19 +191,60 @@ export function ImageElementView({ el }: { el: ImageElement }) {
       <div
         style={{
           ...wrapStyle,
+          /*
+           * No clip on a masked box.
+           *
+           * `overflow: hidden` comes from the shared wrapper style, where it
+           * exists to crop a photograph to its frame. A tinted ornament has no
+           * photograph to crop — the mask already decides every pixel — and the
+           * clip rectangle anti-aliases against whatever is behind it. On a
+           * rotated ornament that showed up as a hairline diamond around every
+           * medallion on the page, visible at 1x on the paper ground.
+           */
+          overflow: 'visible',
           backgroundColor: el.tint,
           maskImage: `url("${el.src}")`,
           WebkitMaskImage: `url("${el.src}")`,
-          maskRepeat: 'no-repeat',
-          WebkitMaskRepeat: 'no-repeat',
-          maskPosition: 'center',
-          WebkitMaskPosition: 'center',
-          maskSize: el.objectFit === 'cover' ? 'cover' : 'contain',
-          WebkitMaskSize: el.objectFit === 'cover' ? 'cover' : 'contain',
+          maskRepeat: tileRepeat ?? 'no-repeat',
+          WebkitMaskRepeat: tileRepeat ?? 'no-repeat',
+          maskPosition: el.tile ? 'top center' : 'center',
+          WebkitMaskPosition: el.tile ? 'top center' : 'center',
+          /*
+           * A gutter, not `contain`.
+           *
+           * `contain` sizes the mask so it touches the box on two sides. The
+           * tint is painted as a background across that whole box, and where
+           * the mask meets the edge the compositor has no transparent texel to
+           * blend towards — so a hairline of the tint colour is left on the
+           * box outline. Rotate the ornament and that hairline becomes a
+           * clearly visible diamond on the page, which is what every medallion
+           * in the first build of «Інжу» was sitting inside. 94% leaves a
+           * margin the sampler can fall to, and costs three per cent of the
+           * ornament's drawn size.
+           */
+          maskSize: tileSize ?? (el.objectFit === 'cover' ? 'cover' : '94%'),
+          WebkitMaskSize: tileSize ?? (el.objectFit === 'cover' ? 'cover' : '94%'),
           // `maskFade` already spent maskImage on a gradient; the two cannot
           // both own the property, and the silhouette is the one that matters.
           maskComposite: undefined,
           WebkitMaskComposite: undefined,
+        }}
+        role={el.alt ? 'img' : 'presentation'}
+        aria-label={el.alt || undefined}
+      />
+    );
+  }
+
+  // Untinted but tiled: painted the same way, keeping the file's own colour.
+  if (el.tile) {
+    return (
+      <div
+        style={{
+          ...wrapStyle,
+          backgroundImage: `url("${el.src}")`,
+          backgroundRepeat: tileRepeat,
+          backgroundSize: tileSize,
+          backgroundPosition: 'top center',
         }}
         role={el.alt ? 'img' : 'presentation'}
         aria-label={el.alt || undefined}

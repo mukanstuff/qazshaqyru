@@ -18,6 +18,19 @@ import type { FontFamily } from '@/lib/canvas/types';
  *  Marck and Unbounded used to be here; their woff2 files were deleted
  *  because neither face can render Kazakh (see KAZAKH_SUBSTITUTE below). */
 const SELF_HOSTED = new Set<FontFamily>([
+  'Oranienbaum',
+  'Monolog',
+  'Corinthia',
+  'Copperplate',
+  'Andantino',
+  'Lavanderia',
+  'DomainDisplay',
+  'CeraBlack',
+  'Shelley',
+  'Monumenta',
+  'Romul',
+  'Ametist',
+  'GoodVibes',
   'Montserrat',
   'Cormorant',
   'Cormorant Garamond',
@@ -117,6 +130,20 @@ export const KAZAKH_INCAPABLE_FAMILIES = Object.keys(KAZAKH_SUBSTITUTE) as FontF
 /** Heuristic fallback stacks for each family, so text renders even before
  *  the Google webfont arrives. */
 const FALLBACK: Record<FontFamily, string> = {
+  // Self-hosted, owner-licensed
+  Oranienbaum: 'Georgia, serif',
+  Copperplate: 'Georgia, serif',
+  Andantino: 'cursive',
+  Lavanderia: 'cursive',
+  DomainDisplay: 'Georgia, serif',
+  CeraBlack: 'system-ui, sans-serif',
+  Shelley: 'cursive',
+  Monumenta: 'Georgia, serif',
+  Romul: 'Georgia, serif',
+  Ametist: 'cursive',
+  GoodVibes: 'cursive',
+  Monolog: 'system-ui, sans-serif',
+  Corinthia: 'cursive',
   // Self-hosted (will be KZ-prefixed below)
   Montserrat: 'system-ui, sans-serif',
   Cormorant: 'Georgia, serif',
@@ -162,6 +189,19 @@ export function fontStack(family: FontFamily): string {
   const fallback = FALLBACK[family] ?? 'system-ui, sans-serif';
   if (family === 'system') return fallback;
   if (SELF_HOSTED.has(family)) {
+    if (family === 'Oranienbaum') return `'KZ Oranienbaum', ${fallback}`;
+    if (family === 'Copperplate') return `'KZ Copperplate', ${fallback}`;
+    if (family === 'Andantino') return `'KZ Andantino', ${fallback}`;
+    if (family === 'Lavanderia') return `'KZ Lavanderia', ${fallback}`;
+    if (family === 'DomainDisplay') return `'KZ Domain', ${fallback}`;
+    if (family === 'CeraBlack') return `'KZ Cera Black', ${fallback}`;
+    if (family === 'Shelley') return `'KZ Shelley', ${fallback}`;
+    if (family === 'Monumenta') return `'KZ Monumenta', ${fallback}`;
+    if (family === 'Romul') return `'KZ Romul', ${fallback}`;
+    if (family === 'Ametist') return `'KZ Ametist', ${fallback}`;
+    if (family === 'GoodVibes') return `'KZ GoodVibes', ${fallback}`;
+    if (family === 'Monolog') return `'KZ Monolog', ${fallback}`;
+    if (family === 'Corinthia') return `'KZ Corinthia', ${fallback}`;
     if (family === 'Montserrat') return `'KZ Montserrat', 'Montserrat', ${fallback}`;
     if (family === 'Cormorant' || family === 'Cormorant Garamond') {
       return `'KZ Cormorant', 'Cormorant Garamond', ${fallback}`;

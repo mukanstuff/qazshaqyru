@@ -30,7 +30,7 @@ export function RsvpFormSection({
       <Field label={t.color}>
         <SwatchColorPicker value={el.textColor} onChange={(c) => onUpdate({ textColor: c })} />
       </Field>
-      <Field label={t.color + ' (акцент)'}>
+      <Field label={t.colorAccent}>
         <SwatchColorPicker value={el.accentColor} onChange={(c) => onUpdate({ accentColor: c })} />
       </Field>
       <label className="ci-checkbox">
@@ -49,14 +49,10 @@ export function RsvpFormSection({
         />
         {t.askDietary}
       </label>
-      <label className="ci-checkbox">
-        <input
-          type="checkbox"
-          checked={!!el.askChildren}
-          onChange={(e) => onUpdate({ askChildren: e.target.checked })}
-        />
-        {t.askChildren}
-      </label>
+      {/* «Спросить детей» is gone from here. Nothing consumed `askChildren`:
+          the guest form never drew a children field and /api/rsvp/open has no
+          column for one, so the checkbox saved a value that no page ever read.
+          The other two now work — see RsvpFormElementView. */}
       <Field label={t.whatsappRsvp}>
         <input
           type="tel"

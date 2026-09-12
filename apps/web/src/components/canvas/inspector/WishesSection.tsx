@@ -30,7 +30,7 @@ export function WishesSection({
       <Field label={t.color}>
         <SwatchColorPicker value={el.textColor} onChange={(c) => onUpdate({ textColor: c })} />
       </Field>
-      <Field label={t.color + ' (акцент)'}>
+      <Field label={t.colorAccent}>
         <SwatchColorPicker value={el.accentColor} onChange={(c) => onUpdate({ accentColor: c })} />
       </Field>
       <Field label={t.reactions}>

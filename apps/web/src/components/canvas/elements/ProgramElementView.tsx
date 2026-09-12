@@ -59,7 +59,10 @@ export function ProgramElementView({ el }: { el: ProgramElement }) {
                 textAlign: 'right',
                 fontSize: 14,
                 fontWeight: 700,
-                color: accentColor,
+                // Four templates set `timeColor` on this element and this view
+                // ignored it, so the hour always came out in the accent even
+                // where the design had chosen a separate ink for it.
+                color: el.timeColor || accentColor,
               }}
             >
               {item.time}

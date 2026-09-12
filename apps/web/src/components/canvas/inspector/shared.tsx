@@ -6,6 +6,9 @@ import type { FontFamily } from '@/lib/canvas/types';
 // See KAZAKH_SUBSTITUTE in elements/fontStack.ts for the verification method
 // and for the six families excluded here because they fail it.
 export const FONT_OPTIONS: FontFamily[] = [
+  // Self-hosted
+  'Oranienbaum', 'Monolog', 'Corinthia', 'Copperplate', 'Andantino', 'Lavanderia', 'DomainDisplay', 'CeraBlack',
+  'Shelley', 'Monumenta', 'Romul', 'Ametist', 'GoodVibes',
   // Sans
   'Inter', 'Montserrat', 'Nunito', 'Oswald',
   'Raleway', 'Comfortaa', 'system',
@@ -46,6 +49,12 @@ export const T = {
     size: 'Размер',
     weight: 'Насыщенность',
     color: 'Цвет',
+    /* Seven inspector fields built their label as `t.color + ' (акцент)'`, so a
+       Kazakh editor read «Түс (акцент)». The qualifier belongs in the
+       dictionary like every other word. */
+    colorAccent: 'Цвет акцента',
+    colorConnector: 'Цвет коннектора',
+    colorOverlay: 'Цвет затемнения',
     align: 'Выравнивание',
     lineH: 'Межстрочный',
     spacing: 'Буквенный интервал',
@@ -63,7 +72,6 @@ export const T = {
     borderRadius: 'Скругление',
     opacity: 'Прозрачность',
     bgColor: 'Цвет фона',
-    link: 'Ссылка',
     x: 'X',
     y: 'Y',
     w: 'Ширина',
@@ -86,14 +94,10 @@ export const T = {
     reactions: 'Реакции (эмодзи)',
     map: 'Карта',
     address: 'Адрес',
-    lat: 'Широта',
-    lng: 'Долгота',
-    zoom: 'Масштаб',
     buttonLabel: 'Текст кнопки',
     music: 'Музыка',
     audioSrc: 'Источник аудио',
     musicAutoplay: 'Автоплей (без звука)',
-    trackList: 'Список треков',
     gift: 'Подарки',
     kaspiPhone: 'Телефон Kaspi',
     kaspiCard: 'Карта Kaspi',
@@ -160,6 +164,9 @@ export const T = {
     size: 'Өлшем',
     weight: 'Қалыңдық',
     color: 'Түс',
+    colorAccent: 'Акцент түсі',
+    colorConnector: 'Байланыстырушы түсі',
+    colorOverlay: 'Күңгірттеу түсі',
     align: 'Туралау',
     lineH: 'Жол арасы',
     spacing: 'Әріп арасы',
@@ -177,7 +184,6 @@ export const T = {
     borderRadius: 'Дөңгелектеу',
     opacity: 'Мөлдірлік',
     bgColor: 'Фон түсі',
-    link: 'Сілтеме',
     x: 'X',
     y: 'Y',
     w: 'Ені',
@@ -200,14 +206,10 @@ export const T = {
     reactions: 'Реакциялар (эмодзи)',
     map: 'Карта',
     address: 'Мекенжай',
-    lat: 'Ендік',
-    lng: 'Бойлық',
-    zoom: 'Масштаб',
     buttonLabel: 'Батырма мәтіні',
     music: 'Музыка',
     audioSrc: 'Аудио көзі',
     musicAutoplay: 'Автоплей (дыбыссыз)',
-    trackList: 'Тректер тізімі',
     gift: 'Сыйлықтар',
     kaspiPhone: 'Kaspi телефон',
     kaspiCard: 'Kaspi карта',

@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import type { HeadingElement } from '@/lib/canvas/types';
 import { textStyle } from './TextElementView';
+import { Letters } from './Letters';
 
 export function HeadingElementView({ el }: { el: HeadingElement }) {
   // Use the actual semantic tag. Default 'h1' per types.ts. This was
@@ -8,5 +9,13 @@ export function HeadingElementView({ el }: { el: HeadingElement }) {
   // navigation for guest pages. Fixed 2026-08-09.
   const Tag = (el.as || 'h1') as 'h1' | 'h2' | 'h3';
   const style: CSSProperties = textStyle(el);
+  // See TextElementView: `letters` is inert without the per-letter spans.
+  if (el.animation?.type === 'letters') {
+    return (
+      <Tag style={style}>
+        <Letters text={el.text} />
+      </Tag>
+    );
+  }
   return <Tag style={style}>{el.text}</Tag>;
 }

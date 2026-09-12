@@ -12,6 +12,7 @@ import Image from 'next/image';
 import prisma from '@/lib/shared/db';
 import { cn } from '@/lib/shared/utils';
 import { formatKzt } from '@/lib/shared/format-price';
+import { resolvePreviewSrc } from '@/lib/templates/resolve-preview-src';
 
 type AdminTemplateRow = {
   id: string;
@@ -66,7 +67,7 @@ export default async function AdminTemplatesPage() {
                 <div className="flex items-center gap-3">
                   <div className="relative h-12 w-10 shrink-0 overflow-hidden rounded-md border border-us-border bg-us-accent/5">
                     <Image
-                      src={t.previewImageUrl}
+                      src={resolvePreviewSrc(t.previewImageUrl)}
                       alt={t.nameRu}
                       width={40}
                       height={48}

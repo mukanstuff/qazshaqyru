@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -8,7 +9,7 @@ import { LogoMark } from '@/components/shared/ornaments';
 import { PaymentPendingBanner } from '@/components/dashboard/PaymentPendingBanner';
 import { InvitationRowActions } from '@/components/dashboard/InvitationRowActions';
 import { SiteHeader } from '@/components/shared/SiteHeader';
-import { SiteCompactFooter } from '@/components/shared/SiteCompactFooter';
+import { CabinetFooter } from '@/components/shared/CabinetFooter';
 import { GuestAnalyticsBar } from '@/components/dashboard/GuestAnalyticsBar';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,20 @@ import { resolvePaidTemplateOrder, resolvePublicationPriceKzt } from '@/lib/invi
 import { getI18n } from '@/i18n/server';
 
 export const dynamic = 'force-dynamic';
+
+/*
+ * The cabinet's own tab title.
+ *
+ * None of the signed-in pages declared metadata, so the browser tab on
+ * /dashboard, /settings and the hub all read the marketing title of the whole
+ * site: "Той мен үйлену тойына онлайн шақыру — қонақ жауаптары мен отырғызу".
+ * Three identical tabs, none of them naming the page. `noIndex` states what is
+ * already true of a page behind a session.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t('dashboard.title'), robots: { index: false, follow: false } };
+}
 
 interface Props {
   searchParams: Promise<{ payment?: string; q?: string; sort?: string; filter?: string }>;
@@ -274,7 +289,12 @@ export default async function DashboardPage({ searchParams }: Props) {
                       {/* The hub shows the design; the list did not, so several
                           invitations were told apart by title alone. */}
                       {inv.template?.previewImageUrl ? (
-                        <div className="hidden h-20 w-[3.75rem] shrink-0 overflow-hidden rounded-lg border border-us-border/60 bg-us-ivory sm:block">
+                        // Visible on the phone too. The thumbnail was added
+                        // because invitations were told apart by title alone,
+                        // then hidden below `sm` — on the one device where
+                        // every card is full width and two drafts of the same
+                        // wedding look identical.
+                        <div className="h-20 w-[3.75rem] shrink-0 overflow-hidden rounded-lg border border-us-border/60 bg-us-ivory">
                           <Image
                             src={inv.template.previewImageUrl}
                             alt=""
@@ -342,7 +362,7 @@ export default async function DashboardPage({ searchParams }: Props) {
           </div>
         )}
       </main>
-      <SiteCompactFooter />
+      <CabinetFooter />
     </div>
   );
 }

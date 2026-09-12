@@ -31,7 +31,7 @@ export function VideoBgSection({
           placeholder="https://…jpg"
         />
       </Field>
-      <Field label={t.color + ' (overlay)'}>
+      <Field label={t.colorOverlay}>
         <SwatchColorPicker value={el.overlayColor || '#000000'} onChange={(c) => onUpdate({ overlayColor: c })} />
       </Field>
       <Field label={t.opacity}>

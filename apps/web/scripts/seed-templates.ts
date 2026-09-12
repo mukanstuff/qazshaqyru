@@ -39,10 +39,37 @@ import {
   paintedDivider,
   paintedHero,
   rsvp,
+  skeletonSections,
+  skinToTheme,
   steppeHero,
+  syrClosing,
+  syrDress,
+  syrFrieze,
+  syrHero,
+  syrInvite,
+  syrLocation,
+  syrOlen,
+  syrProgram,
+  syrRsvp,
+  syrStory,
+  syrWhen,
+  syrWishes,
+  injuArch,
+  injuBand,
+  injuClosing,
+  injuMedallion,
+  injuGreeting,
+  injuHero,
+  injuHosts,
+  injuLocation,
+  injuRsvp,
+  injuWhen,
+  injuWishes,
   type SectionEntry,
   type TemplateTheme,
 } from '../src/lib/canvas/template-kit';
+import { WEDDING_COPY, WEDDING_SKELETON } from '../src/lib/canvas/template-kit/skeleton';
+import { SKINS } from '../src/lib/canvas/template-kit/skins';
 
 const prisma = new PrismaClient();
 
@@ -56,8 +83,24 @@ interface Recipe {
   descriptionRu: string;
   descriptionKz: string;
   priceKzt: number;
+  /**
+   * Prisma enum `TemplateCategory`. Defaults to `wedding` because every
+   * recipe before «Сырмақ» was a wedding, and the seed hardcoded it — which
+   * is why the catalogue had five wedding templates and nothing in any other
+   * category, while the landing page advertised six occasions.
+   */
+  category?: 'wedding' | 'toy' | 'betashar' | 'kyz_uzatu' | 'sundet_toy' | 'tusau_keser' | 'birthday' | 'anniversary' | 'corporate' | 'other';
   sortOrder: number;
   theme: TemplateTheme;
+  /** Open behind a sealed envelope — see ComposeOptions.envelope. */
+  envelope?: boolean;
+  /** The page scrolls itself until touched — see ComposeOptions.autoScroll. */
+  autoScroll?: { enabled: boolean; speed?: 'slow' | 'normal' | 'fast' };
+  /**
+   * How the ground asset is laid down. A paper texture must repeat: one
+   * square scan stretched over a 5000px document is a smear with no fibre.
+   */
+  groundSize?: 'cover' | 'repeat';
   assets: Record<string, string>;
   sections: SectionEntry[];
 }
@@ -135,7 +178,110 @@ const AK_OTAU_THEME: TemplateTheme = {
   script: 'EB Garamond',
 };
 
+/**
+ * Undyed wool, madder and ochre — read off a photograph of a real syrmaq
+ * felt carpet rather than borrowed from European bridal stationery.
+ *
+ * The catalogue had five cream-and-gold themes and nothing else, and so does
+ * every reference card in the ұзату category. The point of difference here is
+ * that the palette and the ornament come from the same source: the colours are
+ * sampled from the carpet the ою itself is cut from. There is no gold.
+ */
+const SYRMAQ_THEME: TemplateTheme = {
+  paper: '#EDE6D8',
+  ink: '#2A211A',
+  accent: '#9A3B34',
+  muted: '#8A7A63',
+  onPhoto: '#F5EFE2',
+  accentDeep: '#B07C3E',
+  display: 'Oranienbaum',
+  body: 'Monolog',
+  script: 'Corinthia',
+};
+
+/**
+ * «Інжу» — the high-key register, measured rather than guessed.
+ *
+ * Eight live best-sellers were screenshotted before this palette was chosen:
+ * four of the eight paint the page flat `#ffffff`, the others `#f9faf3` and
+ * `#f5f5f5`, and the wedding category has no dark variant at all. Warm
+ * off-white paper, one warm brown ink, one brass gold. The greeting panel is
+ * white at 62% over the paper, which is how their panels separate from the
+ * ground without introducing a colour.
+ *
+ * Type roles are the pair both services actually set: Shelley for the names,
+ * Monumenta for section headings, Romul for everything read as text.
+ */
+const INJU_THEME: TemplateTheme = {
+  paper: '#F6F1E8',
+  ink: '#3A2A1C',
+  accent: '#C9A45F',
+  muted: '#9A8B76',
+  onPhoto: '#FFFFFF',
+  accentDeep: '#A8853F',
+  display: 'Monumenta',
+  body: 'Romul',
+  script: 'Shelley',
+};
+
 const RECIPES: Recipe[] = [
+  {
+    slug: 'inju',
+    nameRu: 'Інжу',
+    nameKz: 'Інжу',
+    descriptionRu:
+      'Шёлк и жемчуг во всю ширину, арка на смещённом кадре, қошқар мүйіз в пяти масштабах. Высокий ключ, тёплый белый.',
+    descriptionKz:
+      'Бүкіл енді алатын жібек пен інжу, жылжытылған кадрдағы арка, бес өлшемдегі қошқар мүйіз. Ашық, жылы ақ түс.',
+    priceKzt: 4990,
+    sortOrder: 0,
+    theme: INJU_THEME,
+    envelope: true,
+    autoScroll: { enabled: true, speed: 'slow' },
+    groundSize: 'repeat',
+    assets: { ground: '/assets/templates/inju/paper-ground.webp' },
+    sections: [
+      { key: 'hero', build: injuHero() },
+      { key: 'band', build: injuBand() },
+      { key: 'greeting', build: injuGreeting() },
+      { key: 'arch', build: injuArch() },
+      { key: 'hosts', build: injuHosts() },
+      { key: 'when', build: injuWhen({ targetIso: ISO }) },
+      { key: 'medallion', build: injuMedallion() },
+      { key: 'location', build: injuLocation() },
+      { key: 'rsvp', build: injuRsvp() },
+      { key: 'wishes', build: injuWishes() },
+      { key: 'closing', build: injuClosing() },
+      { key: 'music', build: floatingMusic({ variant: 'dial' }) },
+    ],
+  },
+  {
+    slug: 'syrmaq',
+    category: 'kyz_uzatu',
+    nameRu: 'Сырмақ',
+    nameKz: 'Сырмақ',
+    descriptionRu: 'Қыз ұзату в палитре войлочного ковра: небелёная шерсть, марена, охра. Крупный ою, смещённая колонка, без золота.',
+    descriptionKz: 'Сырмақ түстеріндегі қыз ұзату: ақ жүн, қызыл, сары. Ірі ою, жылжытылған баған, алтынсыз.',
+    priceKzt: 4990,
+    sortOrder: 1,
+    theme: SYRMAQ_THEME,
+    assets: {},
+    sections: [
+      { key: 'hero', build: syrHero() },
+      { key: 'frieze', build: syrFrieze() },
+      { key: 'invite', build: syrInvite() },
+      { key: 'olen', build: syrOlen() },
+      { key: 'story', build: syrStory() },
+      { key: 'when', build: syrWhen({ targetIso: ISO }) },
+      { key: 'program', build: syrProgram() },
+      { key: 'dress', build: syrDress() },
+      { key: 'frieze2', build: syrFrieze(46) },
+      { key: 'location', build: syrLocation() },
+      { key: 'rsvp', build: syrRsvp() },
+      { key: 'wishes', build: syrWishes() },
+      { key: 'closing', build: syrClosing() },
+    ],
+  },
   {
     slug: 'ak-otau',
     nameRu: 'Ақ отау',
@@ -260,11 +406,67 @@ const RECIPES: Recipe[] = [
 ];
 
 async function main() {
+  // Skins first. These are the templates that go through one skeleton and
+  // one layout engine; the RECIPES below are the older hand-placed ones,
+  // kept only until they are ported or retired.
+  for (const skin of SKINS) {
+    const { document } = buildTemplate({
+      theme: skinToTheme(skin),
+      sections: skeletonSections(WEDDING_SKELETON, WEDDING_COPY, skin),
+      envelope: skin.envelope,
+      // The page's own paper, tiled under every section. Without it the ground
+      // is the palette's flat `page` colour, which is what a printed
+      // invitation is precisely not.
+      assets: skin.assets.paper ? { ground: skin.assets.paper } : {},
+      autoScroll: skin.autoScroll,
+      groundSize: skin.assets.paper ? 'repeat' : 'cover',
+      locale: 'kz',
+    });
+
+    await prisma.template.upsert({
+      where: { slug: skin.slug },
+      create: {
+        slug: skin.slug,
+        nameRu: skin.nameRu,
+        nameKz: skin.nameKz,
+        descriptionRu: skin.descriptionRu,
+        descriptionKz: skin.descriptionKz,
+        category: 'wedding' as never,
+        previewImageUrl: `/assets/previews/${skin.slug}.webp`,
+        priceKzt: skin.priceKzt,
+        sortOrder: skin.sortOrder,
+        isActive: skin.active !== false,
+        isCanvasTemplate: true,
+        canvas: document as unknown as object,
+      },
+      update: {
+        nameRu: skin.nameRu,
+        nameKz: skin.nameKz,
+        descriptionRu: skin.descriptionRu,
+        descriptionKz: skin.descriptionKz,
+        category: 'wedding' as never,
+        priceKzt: skin.priceKzt,
+        sortOrder: skin.sortOrder,
+        isActive: skin.active !== false,
+        isCanvasTemplate: true,
+        canvas: document as unknown as object,
+      },
+    });
+
+    console.log(
+      `${skin.slug.padEnd(12)} ${document.elements.length} elements, ${document.height}px  ` +
+        `[skin${skin.active === false ? ', hidden' : ''}]`,
+    );
+  }
+
   for (const r of RECIPES) {
     const { document } = buildTemplate({
       theme: r.theme,
       sections: r.sections,
       assets: r.assets,
+      envelope: r.envelope,
+      autoScroll: r.autoScroll,
+      groundSize: r.groundSize,
       locale: 'kz',
     });
 
@@ -276,7 +478,7 @@ async function main() {
         nameKz: r.nameKz,
         descriptionRu: r.descriptionRu,
         descriptionKz: r.descriptionKz,
-        category: 'wedding',
+        category: (r.category ?? 'wedding') as never,
         previewImageUrl: `/assets/previews/${r.slug}.webp`,
         priceKzt: r.priceKzt,
         sortOrder: r.sortOrder,
@@ -285,6 +487,7 @@ async function main() {
         canvas: document as unknown as object,
       },
       update: {
+        category: (r.category ?? 'wedding') as never,
         nameRu: r.nameRu,
         nameKz: r.nameKz,
         descriptionRu: r.descriptionRu,

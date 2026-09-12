@@ -98,6 +98,8 @@ export const placeholderKeySchema = z.enum([
 // Playfair Display, Inter, PT Serif, ...). Found 2026-08-26 while building
 // a template that used a non-original-5 font.
 const fontFamilySchema = z.enum([
+  'Oranienbaum', 'Monolog', 'Corinthia', 'Copperplate', 'Andantino', 'Lavanderia', 'DomainDisplay', 'CeraBlack',
+  'Shelley', 'Monumenta', 'Romul', 'Ametist', 'GoodVibes',
   'Montserrat', 'Cormorant', 'Marck', 'Unbounded', 'system',
   'Playfair Display', 'Great Vibes', 'Lora', 'EB Garamond', 'Cormorant Garamond',
   'Prata', 'Forum', 'Tenor Sans', 'Manrope', 'Inter', 'Raleway', 'Nunito',
@@ -161,6 +163,13 @@ const textPropsSchema = z.object({
   italic: z.boolean().default(false),
   uppercase: z.boolean().default(false),
   textShadow: textShadowSchema.optional(),
+  curve: z
+    .object({
+      sweepDeg: z.number().min(1).max(360),
+      flip: z.boolean().optional(),
+      radiusPct: z.number().min(20).max(140).optional(),
+    })
+    .optional(),
 });
 
 const safeUrl = z
@@ -217,8 +226,10 @@ const imageElementSchema = baseElementSchema.extend({
   src: mediaSrc,
   alt: z.string().max(200).optional(),
   objectFit: z.enum(['cover', 'contain', 'fill']).default('cover'),
+  tile: z.enum(['x', 'y', 'both']).optional(),
   borderRadius: z.number().min(0).max(500).default(0),
   maskShape: z.enum(['rect', 'arch', 'circle', 'oval', 'oyu']).optional(),
+  edgeShape: z.enum(['wave', 'arc']).optional(),
   maskFade: z
     .object({
       top: z.number().min(0).max(100).optional(),
@@ -246,6 +257,7 @@ const imageElementSchema = baseElementSchema.extend({
       angle: z.number().min(0).max(360).default(180),
     })
     .optional(),
+  opacity: z.number().min(0).max(1).optional(),
   tint: safeColor.optional(),
   linkHref: safeUrl.optional(),
 });
@@ -278,6 +290,7 @@ const shapeElementSchema = baseElementSchema.extend({
   type: z.literal('shape'),
   shape: z.enum(['rect', 'circle', 'line', 'star', 'arrow']).default('rect'),
   fill: safeColor.optional(),
+  radius: z.number().min(0).max(500).optional(),
   stroke: safeColor.optional(),
   strokeWidth: z.number().min(0).max(50).optional(),
   opacity: z.number().min(0).max(1).optional(),
@@ -345,6 +358,7 @@ const rsvpFormElementSchema = baseElementSchema.extend({
   textColor: safeColor.default('#1a1a1a'),
   accentColor: safeColor.default('#6b1d3a'),
   askPlusOne: z.boolean().default(true),
+  askPhone: z.boolean().default(true),
   askDietary: z.boolean().default(true),
   askChildren: z.boolean().default(true),
 });
@@ -382,10 +396,10 @@ const programElementSchema = baseElementSchema.extend({
 const mapElementSchema = baseElementSchema.extend({
   type: z.literal('map'),
   address: z.string().max(200).optional(),
-  lat: z.number().min(-90).max(90).optional(),
-  lng: z.number().min(-180).max(180).optional(),
   markerTitle: z.string().optional(),
-  zoom: z.number().min(1).max(20).default(14),
+  // No lat/lng/zoom. The map view builds its embed from the 2GIS or Maps link
+  // pasted into `address` and never read a coordinate or a zoom level, while
+  // the inspector collected all three.
   showStaticOnly: z.boolean().default(false),
   buttonLabel: z.string().optional(),
   accentColor: safeColor.default('#6b1d3a'),
@@ -397,15 +411,14 @@ const musicElementSchema = baseElementSchema.extend({
   title: z.string().optional(),
   autoPlayMuted: z.boolean().default(true),
   accentColor: safeColor.default('#6b1d3a'),
-  trackList: z
-    .array(
-      z.object({
-        id: z.string(),
-        title: z.string(),
-        src: z.string(),
-      })
-    )
-    .optional(),
+  /**
+   * How the control is drawn. 'pill' is the existing chrome; 'dial' is a
+   * circular play button with the label set on a ring around it, which is what
+   * the reference services float over their invitations.
+   */
+  variant: z.enum(['pill', 'dial']).optional(),
+  // No trackList. The player holds one `audioSrc` and there is no next-track
+  // control anywhere in the product, so a saved playlist never played.
 });
 
 const giftElementSchema = baseElementSchema.extend({
@@ -442,6 +455,7 @@ const videoBgElementSchema = baseElementSchema.extend({
   posterSrc: mediaSrc.optional(),
   overlayColor: safeColor.optional(),
   opacity: z.number().min(0).max(1).default(0.6),
+  loop: z.boolean().optional(),
 });
 
 const ornamentElementSchema = baseElementSchema.extend({
@@ -523,6 +537,17 @@ const coreDocumentObject = z.object({
   background: backgroundSchema,
   elements: z.array(canvasElementSchema).default([]),
   envelopeEnabled: z.boolean().optional(),
+  // A filmed envelope opening, played once on tap. `mediaSrc` already
+  // rejects data:/blob:/script: and accepts paths under /assets, so no new
+  // validator is needed for the clip.
+  envelope: z
+    .object({
+      videoSrc: mediaSrc.optional(),
+      posterSrc: mediaSrc.optional(),
+      focus: z.string().max(40).optional(),
+      accent: safeColor.optional(),
+    })
+    .optional(),
   autoScroll: z
     .object({
       enabled: z.boolean(),
@@ -563,6 +588,14 @@ export const canvasDocumentPatchSchema = z
     elements: z.array(canvasElementSchema).optional(),
     mobile: z.unknown().optional(),
     envelopeEnabled: z.boolean().optional(),
+    envelope: z
+      .object({
+        videoSrc: mediaSrc.optional(),
+        posterSrc: mediaSrc.optional(),
+        focus: z.string().max(40).optional(),
+        accent: safeColor.optional(),
+      })
+      .optional(),
     autoScroll: z
       .object({
         enabled: z.boolean(),

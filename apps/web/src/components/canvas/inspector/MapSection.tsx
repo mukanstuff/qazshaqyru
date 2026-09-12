@@ -20,34 +20,11 @@ export function MapSection({
           className={inputCls}
         />
       </Field>
-      <Field label={t.lat}>
-        <input
-          type="number"
-          step="0.0001"
-          value={el.lat ?? ''}
-          onChange={(e) => onUpdate({ lat: e.target.value ? Number(e.target.value) : undefined })}
-          className={inputCls}
-        />
-      </Field>
-      <Field label={t.lng}>
-        <input
-          type="number"
-          step="0.0001"
-          value={el.lng ?? ''}
-          onChange={(e) => onUpdate({ lng: e.target.value ? Number(e.target.value) : undefined })}
-          className={inputCls}
-        />
-      </Field>
-      <Field label={t.zoom}>
-        <input
-          type="number"
-          min={1}
-          max={20}
-          value={el.zoom ?? 14}
-          onChange={(e) => onUpdate({ zoom: Number(e.target.value) })}
-          className={inputCls}
-        />
-      </Field>
+      {/* Latitude, longitude and zoom are gone. The map view builds everything
+          from the address field — it parses the 2GIS or Maps link the host
+          pastes there and embeds it — and never read a coordinate or a zoom
+          level. Three numeric fields that changed nothing on the page, on a
+          screen where the host is already hunting for the one that does. */}
       <Field label={t.buttonLabel}>
         <input
           type="text"

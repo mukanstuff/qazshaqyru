@@ -58,7 +58,7 @@ export function CoupleNamesSection({
       <Field label={t.color}>
         <SwatchColorPicker value={el.color} onChange={(c) => onUpdate({ color: c })} />
       </Field>
-      <Field label={t.color + ' (коннектор)'}>
+      <Field label={t.colorConnector}>
         <SwatchColorPicker value={el.connectorColor || '#c9a961'} onChange={(c) => onUpdate({ connectorColor: c })} />
       </Field>
     </Section>

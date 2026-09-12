@@ -4,6 +4,7 @@ import { getCurrentSession } from '@/lib/shared/api';
 import { createEmptyDocument } from '@/lib/canvas/mutations';
 import { nanoid } from 'nanoid';
 import { TemplateBuilderClient } from '@/components/admin/TemplateBuilderClient';
+import { PLACEHOLDER_PREVIEW } from '@/lib/templates/placeholder-preview';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,7 +38,7 @@ export default async function AdminTemplateBuilderPage({ searchParams }: Props) 
         // 2026-07-30: admin default only. Real price lives on Template.priceKzt.
         // See docs/PRODUCT_MODEL_AND_RULES.md — pay once = full access.
         priceKzt: 3990,
-        previewImageUrl: '/assets/placeholder.jpg',
+        previewImageUrl: PLACEHOLDER_PREVIEW,
         // Starts hidden from the public catalog — /templates filters on
         // isActive, so a template created with this true went live the
         // instant this request finished, blank canvas and all, before the

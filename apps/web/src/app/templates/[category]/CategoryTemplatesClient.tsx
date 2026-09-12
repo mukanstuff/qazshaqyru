@@ -56,6 +56,17 @@ export function CategoryTemplatesClient({
 
   return (
     <PublicShell isLoggedIn={isLoggedIn}>
+      {/* The category page had no heading element at all: it opened straight
+          on the filter bar, so the document had no `h1` and a screen reader
+          landed on a search field with nothing naming the page. */}
+      <section className="border-b border-us-border/60 bg-[#fcfcfb]">
+        <div className="us-container py-5">
+          <h1 className="font-display text-2xl leading-tight text-us-ink md:text-3xl">
+            {categoryLabel}
+          </h1>
+        </div>
+      </section>
+
       <TemplatesFilterBar
         categories={[
           { key: 'all', label: t('templatesPage.allTemplates') },

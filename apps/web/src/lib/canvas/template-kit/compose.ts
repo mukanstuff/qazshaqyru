@@ -20,6 +20,35 @@ export interface ComposeOptions {
   width?: number;
   /** Extra breathing room inserted between sections, in px. */
   gap?: number;
+  /**
+   * Open behind a sealed envelope the guest taps to reveal the invitation.
+   *
+   * `EnvelopeGate` has existed on the guest page all along and no template
+   * ever set the flag, so the feature shipped dead. It is worth switching on:
+   * the best-selling wedding template at shaqyru24 opens exactly this way,
+   * and this screen is the frame that gets screenshotted into the WhatsApp
+   * group.
+   */
+  envelope?: boolean | { videoSrc?: string; posterSrc?: string; focus?: string; accent?: string };
+
+  /**
+   * The page scrolls itself, slowly, until the guest touches it.
+   *
+   * Fully implemented on the guest page (`CanvasGuestPage`, `useAutoScroll`)
+   * and offered as a switch in the editor, and not one template has ever set
+   * it — so the feature has shipped dead since it was written. toi runs it on
+   * every card (`__TOI_AUTOSCROLL_SPEED = 60`).
+   */
+  autoScroll?: { enabled: boolean; speed?: 'slow' | 'normal' | 'fast' };
+
+  /**
+   * How the painted ground is laid down.
+   *
+   * `cover` stretches one copy over the whole document, which is right for a
+   * painting and wrong for a material: a square paper texture pulled over
+   * 6000px is a smear with no fibre left in it. A texture wants `repeat`.
+   */
+  groundSize?: 'cover' | 'repeat';
 }
 
 export interface ComposeResult {
@@ -29,7 +58,19 @@ export interface ComposeResult {
 }
 
 export function composeTemplate(opts: ComposeOptions): ComposeResult {
-  const { theme, sections, assets = {}, locale = 'kz', width = 390, gap = 0 } = opts;
+  const {
+    theme,
+    sections,
+    assets = {},
+    locale = 'kz',
+    width = 390,
+    gap = 0,
+    envelope = false,
+    autoScroll,
+    groundSize = 'cover',
+  } = opts;
+  const envelopeOn = envelope !== false && envelope !== undefined;
+  const envelopeMedia = typeof envelope === 'object' ? envelope : undefined;
 
   const ctx: SectionContext = { theme, assets, locale, width };
 
@@ -103,6 +144,9 @@ export function composeTemplate(opts: ComposeOptions): ComposeResult {
       // Templates are authored in a language; carry it so the renderer's own
       // labels agree with the words the sections already put on the canvas.
       locale,
+      ...(envelopeOn ? { envelopeEnabled: true } : {}),
+      ...(envelopeMedia ? { envelope: envelopeMedia } : {}),
+      ...(autoScroll ? { autoScroll } : {}),
       // The painted ground runs behind the whole document, not just the hero.
       // Confining it to the opening screen made the style fall off a cliff at
       // the first section break: a composed card followed by a plain page.
@@ -111,7 +155,7 @@ export function composeTemplate(opts: ComposeOptions): ComposeResult {
             type: 'image',
             color: theme.paper,
             imageSrc: assets.ground,
-            backgroundSize: 'cover',
+            backgroundSize: groundSize,
           }
         : { type: 'solid', color: theme.paper, backgroundSize: 'cover' },
       elements,

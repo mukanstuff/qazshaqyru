@@ -22,15 +22,10 @@ export function ImageSection({ el, onUpdate, t }: { el: ImageElement; onUpdate: 
           className={numCls}
         />
       </Field>
-      <Field label={t.link}>
-        <input
-          type="text"
-          value={el.linkHref || ''}
-          placeholder="https://…"
-          onChange={(e) => onUpdate({ linkHref: e.target.value || undefined } as Partial<ImageElement>)}
-          className={inputCls}
-        />
-      </Field>
+      {/* The image link is gone. `linkHref` was written here and read nowhere:
+          no renderer wrapped the picture in an anchor, so a host could type a
+          URL, save it, and the guest page would ignore it for ever. A picture
+          that has to lead somewhere is a `button` element, which works. */}
     </Section>
   );
 }

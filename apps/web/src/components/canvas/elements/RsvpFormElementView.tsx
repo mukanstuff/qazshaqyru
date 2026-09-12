@@ -32,6 +32,7 @@ const LABELS = {
     success: '✓ Рахмет! Ваш ответ сохранён.',
     namePlaceholder: 'Ваше имя',
     phonePlaceholder: 'Номер телефона (+7...)',
+    dietaryPlaceholder: 'Пожелания по еде (необязательно)',
     attending: 'Приду',
     attendingPlusOne: 'Приду с гостем',
     notAttending: 'Не смогу',
@@ -57,6 +58,7 @@ const LABELS = {
     success: '✓ Рахмет! Жауабыңыз сақталды.',
     namePlaceholder: 'Атыңыз',
     phonePlaceholder: 'Телефон нөмірі (+7...)',
+    dietaryPlaceholder: 'Тамаққа қатысты тілек (міндетті емес)',
     attending: 'Келемін',
     attendingPlusOne: 'Серіктесіммен келемін',
     notAttending: 'Келе алмаймын',
@@ -119,6 +121,7 @@ export function RsvpFormElementView({
   // ── Open-RSVP (no token): ask for name + phone ──────────────────────────
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [dietary, setDietary] = useState('');
 
   // ── Token mode: resolve guest identity first ────────────────────────────
   const [guestState, setGuestState] = useState<
@@ -135,12 +138,13 @@ export function RsvpFormElementView({
    * Whether to offer "I'll come with a companion".
    *
    * Token mode: only when the owner's guest list says this guest has one.
-   * Everywhere else (open RSVP, and the editor preview): always, because
-   * nobody has decided for them.
+   * Everywhere else: whatever the host set in the inspector. That checkbox
+   * existed and was saved on the element, and this view ignored it — so a
+   * host who turned the companion question off still got '+1' answers.
    */
   const showPlusOneChoice = isTokenMode
     ? !guestState.loading && guestState.error === null && guestState.hasPlusOne
-    : true;
+    : el.askPlusOne !== false;
 
   useEffect(() => {
     if (!isTokenMode || !guestToken) return;
@@ -233,6 +237,7 @@ export function RsvpFormElementView({
           slug,
           name: name.trim(),
           phone: phone.trim(),
+          dietaryRestrictions: dietary.trim() || undefined,
           // Was `status === 'attending_plus_one' ? 'attending' : status` — the
           // form showed "Приду с гостем" and then threw the companion away on
           // the way to the server, so the guest count the venue gets was short
@@ -258,6 +263,9 @@ export function RsvpFormElementView({
   const textColor = el.textColor || '#2c1810';
   const btnColor = el.accentColor || '#6b1d3a';
   const btnTextColor = '#ffffff';
+  // Input and option surfaces. Derived from the ink so the form sits inside
+  // the template's palette; a literal white was correct only on white pages.
+  const fieldBg = withAlpha(textColor, 0.035);
 
   // A template that sets a transparent background wants the form to sit *on*
   // the page, not float above it as a card. The shadow and the hairline are
@@ -305,11 +313,21 @@ export function RsvpFormElementView({
           {t.greeting.replace('{name}', guestState.guestName)}
         </div>
       ) : null}
-      <div style={{ fontSize: 13, opacity: 0.8, marginBottom: 16, textAlign: 'center' }}>
-        {isTokenMode && !guestState.loading && guestState.error === null && guestState.alreadyResponded
-          ? t.alreadyResponded
-          : t.subtitle}
-      </div>
+      {/*
+        `title: ''` is how a template says "I write my own heading for this
+        block". The widget honoured that for the title and then printed its own
+        subtitle anyway, so «Інжу» stacked four lines over one form: the
+        section head, the section lead, the widget title and the widget
+        subtitle. The exception is the "you already answered" notice, which is
+        state the template cannot know about.
+      */}
+      {el.title !== '' || (isTokenMode && guestState.loading === false && guestState.error === null && guestState.alreadyResponded) ? (
+        <div style={{ fontSize: 13, opacity: 0.8, marginBottom: 16, textAlign: 'center' }}>
+          {isTokenMode && !guestState.loading && guestState.error === null && guestState.alreadyResponded
+            ? t.alreadyResponded
+            : t.subtitle}
+        </div>
+      ) : null}
 
       {personalLinkOnly ? (
         // This branch explains why there is no form, which makes it a notice,
@@ -342,7 +360,7 @@ export function RsvpFormElementView({
                   padding: '0 20px',
                   borderRadius: 999,
                   border: `1.5px solid ${fieldBorder}`,
-                  background: 'rgba(255,255,255,0.72)',
+                  background: fieldBg,
                   fontFamily,
                   fontSize: 16,
                   color: textColor,
@@ -352,6 +370,21 @@ export function RsvpFormElementView({
                   boxSizing: 'border-box',
                 }}
               />
+              {/*
+                The phone is not optional on this path, whatever `askPhone`
+                says.
+
+                Open RSVP identifies a guest by their number: /api/rsvp/open
+                validates it, dedupes on it, and the owner's reminders are sent
+                to it. The endpoint rejects a request without one. Meanwhile the
+                template kit sets `askPhone: false` on every RSVP block it
+                builds, so the field was not drawn — and the submit handler
+                below still demanded a non-empty phone. A guest typed their
+                name, pressed «Жіберу» and got "fill in name and phone" with no
+                phone field on the screen, for ever. `askPhone` is honoured
+                where it is meaningful: on a personal link the guest is already
+                identified and no fields are drawn at all.
+              */}
               <input
                 type="tel"
                 placeholder={t.phonePlaceholder}
@@ -362,7 +395,7 @@ export function RsvpFormElementView({
                   padding: '0 20px',
                   borderRadius: 999,
                   border: `1.5px solid ${fieldBorder}`,
-                  background: 'rgba(255,255,255,0.72)',
+                  background: fieldBg,
                   fontFamily,
                   fontSize: 16,
                   color: textColor,
@@ -372,83 +405,112 @@ export function RsvpFormElementView({
                   boxSizing: 'border-box',
                 }}
               />
+              {el.askDietary ? (
+                <input
+                  type="text"
+                  placeholder={t.dietaryPlaceholder}
+                  value={dietary}
+                  onChange={(e) => setDietary(e.target.value)}
+                  style={{
+                    height: 52,
+                    padding: '0 20px',
+                    borderRadius: 999,
+                    border: `1.5px solid ${fieldBorder}`,
+                    background: fieldBg,
+                    fontFamily,
+                    fontSize: 16,
+                    color: textColor,
+                    textAlign: 'center',
+                    outline: 'none',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              ) : null}
             </>
           )}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              onClick={() => setStatus('attending')}
-              style={{
-                flex: 1,
-                minHeight: 52,
-                padding: '0 10px',
-                borderRadius: 999,
-                border: status === 'attending' ? `2px solid ${btnColor}` : `1px solid ${fieldBorder}`,
-                backgroundColor: status === 'attending' ? withAlpha(btnColor, 0.08) : 'transparent',
-                fontFamily,
-                fontSize: 15,
-                color: textColor,
-                fontWeight: status === 'attending' ? 600 : 400,
-                cursor: 'pointer',
-                transition: 'background .18s ease, border-color .18s ease',
-              }}
-            >
-              {t.attending}
-            </button>
-            {/*
-              Who gets to say "with a companion".
+          {/*
+            Attendance options, stacked full width.
 
-              With a personal link, the owner already decided: the button shows
-              only for guests they marked as bringing someone. Answering from
-              the public page there is no such decision on file, so hiding the
-              button meant a couple could only register as one person — and the
-              server, which accepts a plus-one from open RSVP, never heard about
-              the second. Under-counting a banquet is worse than over-counting:
-              the owner can edit a guest, but nobody can seat a person the venue
-              was never told about.
-            */}
-            {showPlusOneChoice ? (
-              <button
-                type="button"
-                onClick={() => setStatus('attending_plus_one')}
-                style={{
-                  flex: 1,
-                  minHeight: 52,
-                  padding: '0 10px',
-                  borderRadius: 999,
-                  border: status === 'attending_plus_one' ? `2px solid ${btnColor}` : `1px solid ${fieldBorder}`,
-                  backgroundColor: status === 'attending_plus_one' ? withAlpha(btnColor, 0.08) : 'transparent',
-                  fontFamily,
-                  fontSize: 15,
-                  color: textColor,
-                  fontWeight: status === 'attending_plus_one' ? 600 : 400,
-                  cursor: 'pointer',
-                  transition: 'background .18s ease, border-color .18s ease',
-                }}
-              >
-                {t.attendingPlusOne}
-              </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={() => setStatus('not_attending')}
-              style={{
-                flex: 1,
-                minHeight: 52,
-                padding: '0 10px',
-                borderRadius: 999,
-                border: status === 'not_attending' ? `2px solid ${btnColor}` : `1px solid ${fieldBorder}`,
-                backgroundColor: status === 'not_attending' ? withAlpha(btnColor, 0.08) : 'transparent',
-                fontFamily,
-                fontSize: 15,
-                color: textColor,
-                fontWeight: status === 'not_attending' ? 600 : 400,
-                cursor: 'pointer',
-                transition: 'background .18s ease, border-color .18s ease',
-              }}
-            >
-              {t.notAttending}
-            </button>
+            They used to sit in a wrapping flex row: three pills sharing 330px,
+            each `flex: 1`, each holding a Kazakh phrase up to 26 characters.
+            «Серіктесіммен келемін» does not fit in 110px, so the row wrapped
+            mid-label and the three options overlapped each other — which is
+            what shipped, and what the owner saw. A vertical stack cannot
+            overflow no matter how long the translation is, and it is also the
+            shape every reference invitation uses for this question.
+
+            The three buttons were also three copies of the same twenty style
+            properties, so a change to one silently drifted from the others.
+            One array, one renderer.
+          */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {(
+              [
+                ['attending', t.attending],
+                ...(showPlusOneChoice
+                  ? ([['attending_plus_one', t.attendingPlusOne]] as const)
+                  : []),
+                ['not_attending', t.notAttending],
+              ] as ReadonlyArray<readonly [typeof status, string]>
+            ).map(([value, labelText]) => {
+              const on = status === value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setStatus(value)}
+                  aria-pressed={on}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    width: '100%',
+                    minHeight: 54,
+                    padding: '0 20px',
+                    borderRadius: 999,
+                    border: `1px solid ${on ? btnColor : fieldBorder}`,
+                    backgroundColor: on ? withAlpha(btnColor, 0.07) : fieldBg,
+                    fontFamily,
+                    fontSize: 15,
+                    color: textColor,
+                    fontWeight: on ? 600 : 400,
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    transition: 'background .18s ease, border-color .18s ease',
+                  }}
+                >
+                  {/* A real radio mark: the previous version signalled the
+                      choice with a 2px border and an 8% tint, which on a cream
+                      page is close to invisible. */}
+                  <span
+                    aria-hidden
+                    style={{
+                      flex: '0 0 auto',
+                      width: 18,
+                      height: 18,
+                      borderRadius: 999,
+                      border: `1.5px solid ${on ? btnColor : fieldBorder}`,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {on ? (
+                      <span
+                        style={{
+                          width: 9,
+                          height: 9,
+                          borderRadius: 999,
+                          backgroundColor: btnColor,
+                        }}
+                      />
+                    ) : null}
+                  </span>
+                  <span>{labelText}</span>
+                </button>
+              );
+            })}
           </div>
           {error && <div style={{ color: '#b42318', fontSize: 12 }}>{error}</div>}
           <button

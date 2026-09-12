@@ -49,7 +49,7 @@ export function CountdownSection({
       <Field label={t.color}>
         <SwatchColorPicker value={el.color} onChange={(c) => onUpdate({ color: c })} />
       </Field>
-      <Field label={t.color + ' (акцент)'}>
+      <Field label={t.colorAccent}>
         <SwatchColorPicker value={el.accentColor || '#c9a961'} onChange={(c) => onUpdate({ accentColor: c })} />
       </Field>
       <label className="ci-checkbox">

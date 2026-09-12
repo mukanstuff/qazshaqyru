@@ -29,7 +29,8 @@
     "previews": "tsx scripts/make-previews.ts",
     "assets:expand": "node scripts/expand-templates.mjs",
     "assets:flagship": "node scripts/generate-flagship-assets.mjs",
-    "assets:seed-wedding-luxury": "node scripts/seed-wedding-luxury-placeholders.mjs"
+    "assets:seed-wedding-luxury": "node scripts/seed-wedding-luxury-placeholders.mjs",
+    "check:template": "tsx scripts/self-check-template.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1077.0",
@@ -74,6 +75,7 @@
     "jsdom": "^29.1.1",
     "postcss": "^8.4.38",
     "prisma": "^5.22.0",
+    "subset-font": "^2.7.0",
     "tailwindcss": "^3.4.0",
     "tsx": "^4.19.0",
     "typescript": "^5.4.0",

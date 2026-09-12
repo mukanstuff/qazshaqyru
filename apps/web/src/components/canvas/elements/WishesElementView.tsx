@@ -58,7 +58,12 @@ interface Props {
 
 const LABELS = {
   ru: {
-    subtitle: 'Оставьте тёплое пожелание молодожёнам',
+    /* Was «…молодожёнам». This block ships on every template, and six of the
+       ten event types have no newlyweds in them: a сүндет той, a тұсаукесер,
+       a мерейтой and a birthday all asked guests to congratulate a couple who
+       does not exist. The host's own heading above the block says whose
+       celebration it is. */
+    subtitle: 'Оставьте тёплое пожелание хозяевам торжества',
     open: 'Оставить пожелание',
     name: 'Ваше имя',
     text: 'Ваше пожелание…',
@@ -69,7 +74,7 @@ const LABELS = {
     thanks: 'Спасибо! Ваше пожелание сохранено.',
   },
   kz: {
-    subtitle: 'Жас жұбайларға жылы тілегіңізді қалдырыңыз',
+    subtitle: 'Той иелеріне жылы тілегіңізді қалдырыңыз',
     open: 'Тілек қалдыру',
     name: 'Атыңыз',
     text: 'Тілегіңіз…',
@@ -121,8 +126,8 @@ export function WishesElementView({ el, slug, mode = 'guest', locale = 'kz' }: P
         authorName: locale === 'kz' ? 'Айжан және Арман' : 'Айжан и Арман',
         text:
           locale === 'kz'
-            ? 'Бақытты болыңыздар! Шаңырақтарың берік, ырыздықтарың мол болсын!'
-            : 'Совет да любовь! Пусть ваш дом всегда будет полон радости.',
+            ? 'Құтты болсын! Ырысты, берекелі болыңыздар!'
+            : 'Поздравляем! Пусть ваш дом всегда будет полон радости.',
         createdAt: new Date().toISOString(),
         reactions: { heart: 3, celebrate: 1 },
       },
@@ -131,8 +136,23 @@ export function WishesElementView({ el, slug, mode = 'guest', locale = 'kz' }: P
   );
 
   useEffect(() => {
-    if (mode !== 'guest' || !slug) {
+    /*
+     * The sample wish is editor-only.
+     *
+     * It exists so the host can see the block with something in it while
+     * designing. It was showing on the published page too, because the guard
+     * was "not guest OR no slug" and the catalogue preview satisfies neither
+     * cleanly — so a real guest could open a real invitation and read a
+     * congratulation from a couple who do not exist. Fabricated content on a
+     * live page is exactly what the owner has rejected before. The empty state
+     * below already says the right thing: be the first to leave a wish.
+     */
+    if (mode === 'editor') {
       setWishes(sample);
+      return;
+    }
+    if (!slug) {
+      setWishes([]);
       return;
     }
     let alive = true;

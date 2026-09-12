@@ -6,12 +6,21 @@ import { LocaleLink } from '@/components/seo/LocaleLink';
 import { useI18n } from '@/i18n';
 import { Button } from '@/components/ui/button';
 import { formatKzt } from '@/lib/shared/format-price';
+import { PLAN_CATALOG } from '@/lib/entitlements/plan-catalog';
 
 interface PricingPageContentProps {
   minTemplatePriceKzt: number;
 }
 
-/** Full pricing page — two cards: one invitation (from {MIN} ₸) + agency (20 000 ₸/мес). */
+/**
+ * Full pricing page — two cards: one invitation (from the cheapest active
+ * template) and Agency.
+ *
+ * Both numbers are read, not typed. The Agency price used to be the literal
+ * "20 000" in the markup while `PLAN_CATALOG.agency.priceKzt` was the value
+ * actually charged, and the owner has not settled prices yet — so the page and
+ * the checkout were one edit away from disagreeing about what a customer owes.
+ */
 export function PricingPageContent({ minTemplatePriceKzt }: PricingPageContentProps) {
   const { t, locale } = useI18n();
   const formattedMin = formatKzt(minTemplatePriceKzt);
@@ -28,9 +37,17 @@ export function PricingPageContent({ minTemplatePriceKzt }: PricingPageContentPr
           <p className="text-xs font-semibold uppercase tracking-widest text-us-ink-muted">
             {locale === 'kz' ? 'Бір шақыру' : 'Одно приглашение'}
           </p>
+          {/* «от» was typed in Russian and printed in the Kazakh session too,
+              inside the largest number on the page. */}
           <div className="mt-1 font-display text-4xl text-us-ink">
-            <span className="text-us-accent">от {formattedMin}</span>
-            <span className="ml-1 text-lg text-us-ink-muted">₸</span>
+            <span className="text-us-accent">
+              {locale === 'kz' ? `${formattedMin} ₸-ден` : `от ${formattedMin}`}
+            </span>
+            {locale === 'kz' ? (
+              <span className="ml-1 text-lg text-us-ink-muted">бастап</span>
+            ) : (
+              <span className="ml-1 text-lg text-us-ink-muted">₸</span>
+            )}
           </div>
           <p className="mt-2 text-sm text-us-ink-muted">
             {locale === 'kz'
@@ -79,8 +96,10 @@ export function PricingPageContent({ minTemplatePriceKzt }: PricingPageContentPr
             {locale === 'kz' ? 'Агенттіктерге' : 'Для агентств'}
           </p>
           <div className="mt-1 font-display text-4xl">
-            20 000
-            <span className="ml-1 text-lg text-white/70">₸/мес</span>
+            {formatKzt(PLAN_CATALOG.agency.priceKzt)}
+            <span className="ml-1 text-lg text-white/70">
+              {locale === 'kz' ? '₸/ай' : '₸/мес'}
+            </span>
           </div>
           <p className="mt-2 text-sm text-white/80">
             {locale === 'kz'

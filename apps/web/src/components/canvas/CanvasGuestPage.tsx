@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { CanvasRenderer } from './CanvasRenderer';
 import { EnvelopeGate } from './EnvelopeGate';
 import { useAutoScroll } from './useAutoScroll';
@@ -13,6 +13,19 @@ import { GuestActionBar } from '@/components/canvas/GuestActionBar';
 interface Props {
   slug: string;
   shareUrl: string;
+  /**
+   * The canvas document, already fetched by the parent.
+   *
+   * This component used to GET /api/invitations/public/<slug>/canvas itself,
+   * which the parent had just finished doing to decide whether to mount it at
+   * all — so every guest visit fetched the same document twice, and that
+   * handler runs the invitation query plus up to two template queries each
+   * time. One load, passed down.
+   */
+  canvas: unknown;
+  /** Whether the viewer owns this invitation — only they can act on the watermark. */
+  isOwner?: boolean;
+  invitationId?: string | null;
   /** When true (from paid template order), never show watermark */
   fullAccess?: boolean;
   /** Free-tier publish (unpaid): show the "remove watermark" banner. */
@@ -23,10 +36,6 @@ interface Props {
   /** False when this invitation only accepts answers via personal links. */
   openRsvp?: boolean;
 }
-
-type State =
-  | { loading: true; doc: null; error: null }
-  | { loading: false; doc: InvitationCanvasDocument | null; error: string | null };
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -50,63 +59,18 @@ type State =
 export function CanvasGuestPage({
   slug,
   shareUrl,
+  canvas,
+  isOwner = false,
+  invitationId = null,
   fullAccess = false,
   showWatermark = false,
   guestToken = null,
   openRsvp = true,
 }: Props) {
-  const [state, setState] = useState<State>({ loading: true, doc: null, error: null });
-  // Only the owner can actually do anything about the watermark — a guest
-  // clicking it used to land on their own dashboard with a dead `?pay=`
-  // param that nothing read, for an invitation that isn't even theirs.
-  const [owner, setOwner] = useState<{ isOwner: boolean; invitationId: string | null }>({
-    isOwner: false,
-    invitationId: null,
-  });
-
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const res = await fetch(`/api/invitations/public/${encodeURIComponent(slug)}/canvas`, {
-          credentials: 'same-origin',
-        });
-        if (!res.ok) {
-          if (alive) setState({ loading: false, doc: null, error: 'load_failed' });
-          return;
-        }
-        const data = await res.json();
-        if (!data.canvas) {
-          if (alive) setState({ loading: false, doc: null, error: 'no_canvas' });
-          return;
-        }
-        const doc = parseCanvasOrEmpty(data.canvas);
-        if (alive) {
-          setState({ loading: false, doc, error: null });
-          setOwner({ isOwner: !!data.isOwner, invitationId: typeof data.id === 'string' ? data.id : null });
-          // View tracking lives solely in public-invitation-client's mount
-          // effect (POST /api/invitations/public/{slug}/view) — it fires
-          // once regardless of which renderer (canvas or legacy) ends up
-          // mounting. This used to *also* POST /api/invitations/{id}/event
-          // here, so every real visit was counted twice before either the
-          // owner-exclusion or the per-visitor dedup even had a chance to
-          // matter.
-        }
-      } catch (e) {
-        if (alive) setState({ loading: false, doc: null, error: 'load_failed' });
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [slug]);
-
   const [envelopeOpen, setEnvelopeOpen] = useState(false);
 
-  const doc = state.doc;
   const docWithDefaults = useMemo(() => {
-    if (doc) return doc;
-    if (state.loading) return null;
+    if (canvas) return parseCanvasOrEmpty(canvas);
 
     // 2026-07-30 PRODUCT RULE (PRODUCT_MODEL_AND_RULES.md):
     // For fullAccess (paid template order) we MUST render canvas.
@@ -114,38 +78,17 @@ export function CanvasGuestPage({
     // data inconsistency — the public canvas route + ensureCanvasDocument
     // should have seeded it. We still render a converted doc (never legacy page).
     // Legacy section-engine is unreachable for paid/fullAccess invites.
-    if (fullAccess) {
-      // paid → canvas always
-      return convertLegacyToCanvas({}); // bridge only; should be seeded
-    }
-
-    // Non-paid / legacy rows only: fall back for ancient data.
-    // Parent (public-invitation-client) already decided NOT to mount CanvasGuestPage
-    // when !hasCanvas && !fullAccess.
+    //
+    // Non-paid / legacy rows only: the parent already decided NOT to mount this
+    // component when there is neither a canvas nor full access.
     return convertLegacyToCanvas({});
-  }, [doc, state.loading, fullAccess]);
+  }, [canvas]);
 
   const autoScrollActive =
     !!docWithDefaults?.autoScroll?.enabled &&
     (!docWithDefaults?.envelopeEnabled || envelopeOpen);
   useAutoScroll(autoScrollActive, docWithDefaults?.autoScroll?.speed);
 
-  if (state.loading) {
-    // No text. The invitation's own language is not known until its document
-    // arrives, and this screen was showing a hardcoded Russian "Загрузка…" to
-    // every guest of every Kazakh invitation. A spinner says the same thing in
-    // no language at all.
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-us-ivory">
-        <span
-          className="h-7 w-7 animate-spin rounded-full border-2 border-us-border border-t-us-accent"
-          role="status"
-          aria-label="…"
-        />
-      </div>
-    );
-  }
-  if (state.error === 'no_canvas') return null;
   if (!docWithDefaults) return null;
 
   if (docWithDefaults.envelopeEnabled && !envelopeOpen) {
@@ -194,7 +137,7 @@ export function CanvasGuestPage({
       <PublicPublishWatermark
         show={showWatermark}
         locale={docWithDefaults.locale ?? 'ru'}
-        removeHref={owner.isOwner && owner.invitationId ? `/invitations/${owner.invitationId}` : undefined}
+        removeHref={isOwner && invitationId ? `/invitations/${invitationId}` : undefined}
       />
     </div>
   );

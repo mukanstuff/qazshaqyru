@@ -124,6 +124,7 @@ export function TemplatesClient({ templates, isLoggedIn = false }: Props) {
           category — a filter that cannot filter anything is just noise. */}
       <TemplatesPageHero
         variant="compact"
+        heading={t('templatesPage.title')}
         breadcrumb={[{ label: t('templatesPage.compactBreadcrumb'), href: '/' }]}
         current={t('templatesPage.compactBreadcrumbCurrent')}
         stats={[

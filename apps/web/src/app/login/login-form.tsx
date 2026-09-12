@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { PublicShell } from '@/components/shared/PublicShell';
 import { GoogleLoginButton } from '@/components/auth/GoogleLoginButton';
 import { PhoneLoginForm } from '@/components/auth/PhoneLoginForm';
@@ -51,9 +51,12 @@ export default function LoginForm({ redirectTo, googleErrorCode, googleEnabled }
 
             <Card className={panelClassName}>
               <CardHeader className="space-y-3 border-b border-us-border/70 bg-gradient-to-br from-us-accent/8 via-us-surface to-us-surface text-center">
-                <CardTitle className="font-display text-2xl">
+                {/* The page's own name, so the entry point to the whole cabinet
+                    has an `h1`. `CardTitle` renders an `h3`, and it was the only
+                    heading on the document. */}
+                <h1 className="font-display text-2xl font-semibold leading-tight tracking-tight">
                   {t('auth.loginTitleV2')}
-                </CardTitle>
+                </h1>
                 <CardDescription>
                   {t('auth.loginSubtitleV2')}
                 </CardDescription>

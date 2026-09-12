@@ -9,12 +9,12 @@ import { useAuth } from '@/hooks/use-auth';
 import { SiteHeader } from '@/components/shared/SiteHeader';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/toaster';
 import { cn } from '@/lib/shared/utils';
 import { PasswordCard } from './PasswordCard';
-import { SiteCompactFooter } from '@/components/shared/SiteCompactFooter';
+import { CabinetFooter } from '@/components/shared/CabinetFooter';
 
 const selectClassName = cn(
   'flex h-10 w-full rounded-md border border-us-border bg-us-surface px-3 py-2 font-body text-sm text-us-ink shadow-us-sm transition-colors',
@@ -122,7 +122,12 @@ export default function SettingsPage() {
 
           <Card className="overflow-hidden border-us-border/80 shadow-us-md">
             <CardHeader className="border-b border-us-border/70 bg-gradient-to-br from-us-accent/8 via-us-surface to-us-surface">
-              <CardTitle className="font-display text-2xl">{t('settings.title')}</CardTitle>
+              {/* The page's own name, so it is the page's `h1`. `CardTitle` is
+                  an `h3`, and it was the only heading here — the document had
+                  no `h1` at all. */}
+              <h1 className="font-display text-2xl font-semibold leading-tight tracking-tight">
+                {t('settings.title')}
+              </h1>
             </CardHeader>
             <CardContent className="pt-6">
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -178,7 +183,7 @@ export default function SettingsPage() {
       </div>
       {/* Settings was the one signed-in page with no footer, so the site chrome
           changed shape depending on which page you were on. */}
-      <SiteCompactFooter />
+      <CabinetFooter />
     </div>
   );
 }
