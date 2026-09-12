@@ -65,6 +65,16 @@ import {
   injuRsvp,
   injuWhen,
   injuWishes,
+  saukeleBand,
+  saukeleClosing,
+  saukeleGreeting,
+  saukeleHero,
+  saukeleHosts,
+  saukeleLocation,
+  saukeleObject,
+  saukeleRsvp,
+  saukeleWhen,
+  saukeleWishes,
   type SectionEntry,
   type TemplateTheme,
 } from '../src/lib/canvas/template-kit';
@@ -92,8 +102,14 @@ interface Recipe {
   category?: 'wedding' | 'toy' | 'betashar' | 'kyz_uzatu' | 'sundet_toy' | 'tusau_keser' | 'birthday' | 'anniversary' | 'corporate' | 'other';
   sortOrder: number;
   theme: TemplateTheme;
-  /** Open behind a sealed envelope — see ComposeOptions.envelope. */
-  envelope?: boolean;
+  /**
+   * Open behind a sealed envelope — see ComposeOptions.envelope.
+   *
+   * Object form carries the clip. It was boolean only, so a template could
+   * switch the gate on but never hand it a video, and the envelope film shot
+   * for «Сәукеле» sat in the assets folder unreferenced.
+   */
+  envelope?: boolean | { videoSrc?: string; posterSrc?: string; focus?: string; accent?: string };
   /** The page scrolls itself until touched — see ComposeOptions.autoScroll. */
   autoScroll?: { enabled: boolean; speed?: 'slow' | 'normal' | 'fast' };
   /**
@@ -200,6 +216,28 @@ const SYRMAQ_THEME: TemplateTheme = {
 };
 
 /**
+ * «Сәукеле» — қыз ұзату, вторая в этой категории.
+ *
+ * Светлый бумажный регистр, как измерено для ұзату. Палитра снята с зергерлік:
+ * приглушённая бирюза-феруза, какой её ставят в казахское серебро, и
+ * оксидированное серебро в `accentDeep` — оно несёт весь орнамент и подписи.
+ * В каталоге это первый холодный шаблон: пять старых кремово-золотые, «Інжу»
+ * золотой, «Сырмақ» красно-коричневый. Золота здесь нет ни грамма, и это
+ * единственное, чем он расходится с «Сырмақ» на уровне палитры, а не скелета.
+ */
+const SAUKELE_THEME: TemplateTheme = {
+  paper: '#F4F1EA',
+  ink: '#2B2E33',
+  accent: '#5E8B8C',
+  muted: '#8D8B84',
+  onPhoto: '#F7F4EE',
+  accentDeep: '#8A8F96',
+  display: 'DomainDisplay',
+  body: 'Monolog',
+  script: 'Shelley',
+};
+
+/**
  * «Інжу» — the high-key register, measured rather than guessed.
  *
  * Eight live best-sellers were screenshotted before this palette was chosen:
@@ -280,6 +318,40 @@ const RECIPES: Recipe[] = [
       { key: 'rsvp', build: syrRsvp() },
       { key: 'wishes', build: syrWishes() },
       { key: 'closing', build: syrClosing() },
+    ],
+  },
+  {
+    slug: 'saukele',
+    category: 'kyz_uzatu',
+    nameRu: 'Сәукеле',
+    nameKz: 'Сәукеле',
+    descriptionRu:
+      'Қыз ұзату в серебре и бирюзе. Видео в герое, сәукеле в арке со смещением, ою в четырёх ролях. Высокий ключ, без золота.',
+    descriptionKz:
+      'Күміс пен феруза түсіндегі қыз ұзату. Геройда бейне, аркадағы сәукеле, төрт рөлдегі ою. Ашық түс, алтынсыз.',
+    priceKzt: 4990,
+    sortOrder: 0,
+    theme: SAUKELE_THEME,
+    envelope: {
+      videoSrc: '/assets/templates/saukele/envelope.webm',
+      posterSrc: '/assets/templates/saukele/envelope-poster.webp',
+      accent: SAUKELE_THEME.accent,
+    },
+    autoScroll: { enabled: true, speed: 'slow' },
+    groundSize: 'repeat',
+    assets: { ground: '/assets/templates/saukele/ground-silk.webp' },
+    sections: [
+      { key: 'hero', build: saukeleHero() },
+      { key: 'band', build: saukeleBand() },
+      { key: 'greeting', build: saukeleGreeting() },
+      { key: 'saukele', build: saukeleObject() },
+      { key: 'hosts', build: saukeleHosts() },
+      { key: 'when', build: saukeleWhen({ targetIso: ISO }) },
+      { key: 'location', build: saukeleLocation() },
+      { key: 'rsvp', build: saukeleRsvp() },
+      { key: 'wishes', build: saukeleWishes() },
+      { key: 'closing', build: saukeleClosing() },
+      { key: 'music', build: floatingMusic({ variant: 'dial' }) },
     ],
   },
   {

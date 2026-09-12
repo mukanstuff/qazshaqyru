@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { MapElement } from '@/lib/canvas/types';
+import { fontStack } from './fontStack';
 import { canEmbedMap, to2GisEmbedUrl, parseMapUrl } from '@/lib/shared/map-url';
 
 interface Props {
@@ -35,8 +36,12 @@ export function MapElementView({ el, locale = 'ru' }: Props) {
   const embeddable = canEmbedMap(rawUrl);
   const embedUrl = to2GisEmbedUrl(rawUrl);
   const accent = el.accentColor || '#6b1d3a';
+  const ink = el.textColor || '#2c1810';
+  const card = el.bgColor || '#ffffff';
 
-  const fontFamily = 'Montserrat, system-ui, sans-serif';
+  const fontFamily = el.fontFamily
+    ? fontStack(el.fontFamily)
+    : 'Montserrat, system-ui, sans-serif';
   const borderRadius = 12;
 
   return (
@@ -47,22 +52,27 @@ export function MapElementView({ el, locale = 'ru' }: Props) {
         overflow: 'hidden',
         border: `1px solid color-mix(in srgb, ${accent} 15%, transparent)`,
         boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
-        backgroundColor: '#ffffff',
+        backgroundColor: card,
         width: '100%',
+        // Fill the declared element box instead of growing past it. The card is
+        // header + map well + footer, and the well used to take el.h on its
+        // own, so a 250px element painted a 354px card — 34px of it on top of
+        // the next section's panel.
+        height: '100%',
         display: 'flex',
         flexDirection: 'column',
       }}
     >
       <div style={{ padding: 12, borderBottom: '1px solid rgba(0,0,0,0.06)', textAlign: 'center' }}>
-        <div style={{ fontWeight: 700, fontSize: 14, color: '#2c1810' }}>
+        <div style={{ fontWeight: 700, fontSize: 14, color: ink }}>
           {el.markerTitle || t.venueFallback}
         </div>
         {el.address && (
-          <div style={{ fontSize: 12, color: '#6b5a52', marginTop: 2 }}>{el.address}</div>
+          <div style={{ fontSize: 12, color: ink, opacity: 0.66, marginTop: 2 }}>{el.address}</div>
         )}
       </div>
 
-      <div style={{ position: 'relative', width: '100%', height: typeof el.h === 'number' ? el.h : 220, backgroundColor: '#f2ece9' }}>
+      <div style={{ position: 'relative', width: '100%', flex: 1, minHeight: 0, backgroundColor: `color-mix(in srgb, ${ink} 7%, ${card})` }}>
         {embeddable && embedUrl && (interactive || !el.showStaticOnly) ? (
           <iframe
             src={embedUrl}
@@ -84,8 +94,11 @@ export function MapElementView({ el, locale = 'ru' }: Props) {
               boxSizing: 'border-box',
             }}
           >
-            <span style={{ fontSize: 32 }}>📍</span>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#2c1810' }}>
+            <svg width="26" height="32" viewBox="0 0 24 30" aria-hidden style={{ display: 'block' }}>
+              <path d="M12 0C5.9 0 1 4.9 1 11c0 7.8 9.6 18.2 10 18.6.3.3.7.3 1 0 .4-.4 10-10.8 10-18.6 0-6.1-4.9-11-10-11Z" fill={accent} />
+              <circle cx="12" cy="11" r="4" fill={card} />
+            </svg>
+            <div style={{ fontSize: 13, fontWeight: 600, color: ink }}>
               {el.address || t.addressFallback}
             </div>
             {embeddable && embedUrl && (
@@ -110,7 +123,7 @@ export function MapElementView({ el, locale = 'ru' }: Props) {
         )}
       </div>
 
-      <div style={{ padding: 10, textAlign: 'center', backgroundColor: '#faf6f3' }}>
+      <div style={{ padding: 10, textAlign: 'center', backgroundColor: `color-mix(in srgb, ${ink} 4%, ${card})` }}>
         <a
           href={parsedUrl}
           target="_blank"
@@ -120,7 +133,7 @@ export function MapElementView({ el, locale = 'ru' }: Props) {
             padding: '8px 16px',
             borderRadius: 8,
             backgroundColor: accent,
-            color: '#ffffff',
+            color: card,
             fontSize: 13,
             fontWeight: 600,
             textDecoration: 'none',

@@ -112,6 +112,19 @@ export {
   injuWishes,
 } from './inju-builders';
 
+export {
+  saukeleBand,
+  saukeleClosing,
+  saukeleGreeting,
+  saukeleHero,
+  saukeleHosts,
+  saukeleLocation,
+  saukeleObject,
+  saukeleRsvp,
+  saukeleWhen,
+  saukeleWishes,
+} from './saukele-builders';
+
 export { WEDDING_SKELETON, WEDDING_COPY, type Block, type BlockKind, type Bilingual, type SkeletonCopy } from './skeleton';
 export type { Skin, SkinPalette, SkinFonts, SkinAssets, SkinDecor } from './skin';
 export { skeletonSections, skinToTheme } from './layout';
@@ -146,6 +159,29 @@ export function buildTemplate(opts: ComposeOptions): BuildTemplateResult {
     throw new TemplateValidationError(
       'Template recipe produced a document the canvas schema rejects',
       parsed.error.issues
+    );
+  }
+
+  // A prop the element schema does not know is silently deleted by Zod, and
+  // the element then renders on its schema defaults. Nothing catches it:
+  // `ElementSpec.props` is loosely typed so tsc is happy, and the parse
+  // succeeds so the seed reports the template as built. «Сәукеле» shipped its
+  // countdown in wine #6b1d3a and Cormorant this way — the recipe had said
+  // `textColor` and `timeColor`, and the schema calls them `color` and
+  // `accentColor`. Compare the key sets and refuse the build instead.
+  const dropped: string[] = [];
+  const parsedElements = (parsed.data as { elements: Record<string, unknown>[] }).elements;
+  composed.document.elements.forEach((raw, i) => {
+    const kept = new Set(Object.keys(parsedElements[i] ?? {}));
+    for (const key of Object.keys(raw)) {
+      if (!kept.has(key)) dropped.push(`${(raw as { id?: string }).id ?? i} (${raw.type}): ${key}`);
+    }
+  });
+  if (dropped.length) {
+    throw new TemplateValidationError(
+      `Template recipe sets ${dropped.length} prop(s) the element schema does not have; ` +
+        `they would be dropped and the element would render on defaults:\n  ${dropped.join('\n  ')}`,
+      []
     );
   }
 

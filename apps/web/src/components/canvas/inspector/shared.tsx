@@ -1,13 +1,18 @@
 import type { FontFamily } from '@/lib/canvas/types';
+import { KAZAKH_INCAPABLE_FAMILIES } from '../elements/fontStack';
 
 // Kazakh-verified fonts only. "Supports Cyrillic" is NOT sufficient: Ә Ғ Қ Ң
 // Ө Ұ Ү Һ live outside the base `cyrillic` subset, and a font missing them
 // renders Kazakh words half in the chosen face and half in a system fallback.
 // See KAZAKH_SUBSTITUTE in elements/fontStack.ts for the verification method
-// and for the six families excluded here because they fail it.
-export const FONT_OPTIONS: FontFamily[] = [
+// and for the families excluded because they fail it.
+//
+// The exclusion is applied by filtering rather than by hand: this list was
+// hand-kept and drifted — Copperplate stayed in it after it was found to draw
+// Қ as К, and a template picked it.
+const CATALOGUE: FontFamily[] = [
   // Self-hosted
-  'Oranienbaum', 'Monolog', 'Corinthia', 'Copperplate', 'Andantino', 'Lavanderia', 'DomainDisplay', 'CeraBlack',
+  'Oranienbaum', 'Monolog', 'Corinthia', 'Andantino', 'Lavanderia', 'DomainDisplay', 'CeraBlack',
   'Shelley', 'Monumenta', 'Romul', 'Ametist', 'GoodVibes',
   // Sans
   'Inter', 'Montserrat', 'Nunito', 'Oswald',
@@ -20,6 +25,10 @@ export const FONT_OPTIONS: FontFamily[] = [
   // Script / display
   'Pacifico',
 ];
+
+export const FONT_OPTIONS: FontFamily[] = CATALOGUE.filter(
+  (f) => !KAZAKH_INCAPABLE_FAMILIES.includes(f),
+);
 
 export function FontSelect({
   value,

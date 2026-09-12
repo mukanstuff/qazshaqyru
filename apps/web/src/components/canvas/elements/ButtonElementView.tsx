@@ -26,7 +26,9 @@ export function ButtonElementView({
     fontSize: el.fontSize,
     fontWeight: el.fontWeight,
     borderRadius: el.borderRadius,
-    border: 'none',
+    // An outline button is the pairing of a transparent fill with this rule.
+    // Hardcoding `none` here is what made the map button render as loose text.
+    border: el.borderColor ? `${el.borderWidth ?? 1}px solid ${el.borderColor}` : 'none',
     cursor: 'pointer',
     textAlign: 'center',
     boxShadow: el.shadow

@@ -10,6 +10,11 @@ export function ShapeElementView({ el }: { el: ShapeElement }) {
     opacity: el.opacity ?? 1,
     boxSizing: 'border-box',
     borderRadius: el.radius ? el.radius : undefined,
+    // The panels in the catalogue are shapes, not images, and a panel without
+    // a shadow reads as a colour change rather than a surface lying on paper.
+    boxShadow: el.shadow
+      ? `${el.shadow.x}px ${el.shadow.y}px ${el.shadow.blur}px ${el.shadow.color}`
+      : undefined,
   };
   if (el.shape === 'circle') {
     return <div style={{ ...base, borderRadius: '50%' }} />;

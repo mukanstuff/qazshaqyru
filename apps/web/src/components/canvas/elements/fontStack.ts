@@ -88,6 +88,14 @@ const GOOGLE_FONT_API: Partial<Record<FontFamily, string>> = {
  * Google Fonts subset list alone: `Unbounded` advertises a `cyrillic-ext`
  * subset but the file contains no Kazakh glyphs.
  *
+ * The width test is necessary but NOT sufficient, which is how `Copperplate`
+ * survived here until 2026-09-12. A font can carry a Қ that is simply drawn
+ * as К: the advance width matches, nothing falls back, and the page spells
+ * Kazakh words wrong in a way only a reader notices. The stronger test is
+ * geometric — render Қ and К to a canvas at 80px and compare the lowest row
+ * of ink. Every usable face in this repo puts Қ 8–26px below К at that size;
+ * `KZ Copperplate` puts it 2px below, i.e. nothing. Same for Ң against Н.
+ *
  * Leaving such a font in place produces the worst possible result — a single
  * word rendered half in the chosen face and half in a system fallback. So we
  * substitute the whole family instead, keeping the typographic category
@@ -122,6 +130,11 @@ export const KAZAKH_SUBSTITUTE: Partial<Record<FontFamily, KazakhSubstitute>> = 
   // guest page keeps rendering names without a round-trip to Google.
   Marck: { family: 'KZ Script', googleParam: null, fallback: 'cursive' },
   'Great Vibes': { family: 'KZ Script', googleParam: null, fallback: 'cursive' },
+  // Copperplate is the one that fails the geometric test rather than the width
+  // test: it has Қ and Ң, but flattened to К and Н. Montserrat is the nearest
+  // genus (engraved gothic → geometric sans) among the self-hosted faces that
+  // pass, and unlike Monumenta and Romul it has real lower case.
+  Copperplate: { family: 'KZ Montserrat', googleParam: null, fallback: 'system-ui, sans-serif' },
 };
 
 /** Families that cannot render Kazakh and must never appear in a picker. */

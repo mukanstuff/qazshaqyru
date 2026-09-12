@@ -549,6 +549,17 @@ export interface ButtonElement extends BaseElement {
   borderRadius: number;
   paddingX?: number;
   paddingY?: number;
+  /**
+   * Outline button — a transparent fill with a hairline rule around it.
+   *
+   * The generic «Открыть карту» builder has asked for one since it was
+   * written, pairing `bgColor: 'transparent'` with a border the schema did not
+   * have. Zod dropped it and the view hardcoded `border: 'none'`, so what
+   * shipped was a label floating on the paper with nothing around it and no
+   * indication it could be tapped.
+   */
+  borderColor?: string;
+  borderWidth?: number;
   shadow?: { x: number; y: number; blur: number; color: string };
 }
 
@@ -571,6 +582,15 @@ export interface ShapeElement extends BaseElement {
   stroke?: string;
   strokeWidth?: number;
   opacity?: number;
+  /**
+   * Drop shadow, same shape as the one on image and text.
+   *
+   * «Інжу» asked for one on its greeting and RSVP panels from the day it was
+   * written; the prop existed nowhere, Zod dropped it, and the panels have
+   * been sitting flat on the paper ever since. A panel with no shadow does not
+   * read as a surface above the page, which is the whole point of the device.
+   */
+  shadow?: { x: number; y: number; blur: number; color: string };
 }
 
 export interface DividerElement extends BaseElement {
@@ -704,6 +724,16 @@ export interface MapElement extends BaseElement {
   showStaticOnly?: boolean;
   buttonLabel?: string;
   accentColor?: string;
+  /**
+   * The block used to paint itself: white card, brown #2c1810 heading, beige
+   * #f2ece9 well, #faf6f3 footer, Montserrat, and a red 📍. Every template got
+   * the same one, so on the silver «Сәукеле» page the only warm brown and the
+   * only red on the whole document were both inside the map. Defaults below
+   * keep the old look for anything that does not pass these.
+   */
+  textColor?: string;
+  bgColor?: string;
+  fontFamily?: FontFamily;
 }
 
 export interface MusicPlayerElement extends BaseElement {

@@ -283,6 +283,8 @@ const buttonElementSchema = baseElementSchema.extend({
   borderRadius: z.number().min(0).max(999).default(999),
   paddingX: z.number().min(0).max(200).optional(),
   paddingY: z.number().min(0).max(100).optional(),
+  borderColor: safeColor.optional(),
+  borderWidth: z.number().min(0).max(12).optional(),
   shadow: shadowSchema.optional(),
 });
 
@@ -294,6 +296,7 @@ const shapeElementSchema = baseElementSchema.extend({
   stroke: safeColor.optional(),
   strokeWidth: z.number().min(0).max(50).optional(),
   opacity: z.number().min(0).max(1).optional(),
+  shadow: shadowSchema.optional(),
 });
 
 const dividerElementSchema = baseElementSchema.extend({
@@ -403,6 +406,9 @@ const mapElementSchema = baseElementSchema.extend({
   showStaticOnly: z.boolean().default(false),
   buttonLabel: z.string().optional(),
   accentColor: safeColor.default('#6b1d3a'),
+  textColor: safeColor.optional(),
+  bgColor: safeColor.optional(),
+  fontFamily: fontFamilySchema.optional(),
 });
 
 const musicElementSchema = baseElementSchema.extend({
