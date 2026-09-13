@@ -10,9 +10,12 @@
 
 Что учтено из прошлых шаблонов, чтобы не платить второй раз:
 
-- орнамент описан конструкцией — толстый ровный штрих, рог кончается спиралью,
-  запрет лилий, листьев и стрел. Приписка «сохрани аутентичный вид» не работала
-  ни разу, поэтому её нет;
+- орнамент описан через единицу қошқар мүйіз — пара рогов от общего стебля,
+  голова барана анфас — с запретом вертушки, одиночных крючков, лилий и стрел,
+  и с принятым медальоном «Тақия» как образцом. Первый заход с фразой «каждый
+  рог кончается спиралью» дал два дубля мимо, разбор ниже в разделе
+  «Орнамент, второй заход». Приписка «сохрани аутентичный вид» не работала ни
+  разу, поэтому её нет;
 - пара в ролике **стоит**, а не идёт. У «Тақия» мальчик шёл к арке, и на стыке
   петли он прыгал обратно к краю кадра;
 - пустая полоса неба под имена задана в промпте долей высоты кадра, а не словом
@@ -23,6 +26,33 @@
 
 ---
 
+## Орнамент, второй заход
+
+Первые два дубля медальона мимо, оба, и это промпт, а не случайность. Слева
+пришла розетка из восьми одиночных крючков, справа — вертушка с четырьмя
+закрученными лучами. Казахского в обоих нет: у қошқар мүйіз рога идут **парой**,
+расходясь от общего стебля, как голова барана анфас, а не по одному.
+
+Что сломал я сам. Промпт медальона «Тақия», который сел с первого раза,
+говорил «четыре пары рогов». Я «улучшил» его: добавил «каждый рог кончается
+спиралью» и «белые просветы шириной со штрих». Первая фраза отвязала спираль
+от пары — отсюда крючки и вертушка. Вторая дала тонкие ровные линии вместо
+мясистых форм. Рабочий промпт нельзя докручивать словами, которые не
+проверены: каждое слово модель исполняет буквально.
+
+Как теперь:
+
+- **единица орнамента определена прямо:** короткий стебель, который
+  раздваивается на два толстых рога, закрученных в разные стороны — голова
+  барана анфас;
+- **запрещена вертушка и одиночный крючок** — это ровно то, что пришло;
+- **если генератор принимает картинку**, приложить принятый медальон «Тақия»
+  (`apps/web/public/assets/templates/taqiya/_src/oyu-medallion.jpg`) и
+  попросить тот же штрих. Картинка держит стиль надёжнее любого описания;
+- **запасной путь:** если и второй заход мимо, ставим медальон «Тақия» в
+  зелёно-золотом тинте. Форма та же, но в другом цвете и на другой странице
+  повтор одного медальона не бросится в глаза.
+
 ## 1. `oyu-medallion` — медальон, 1:1
 
 Пять ролей плюс бусины на линии программы, поэтому силуэт должен читаться и на
@@ -30,18 +60,26 @@
 
 ```
 Kazakh oyu-ornek (ою-өрнек) ornament, a single circular medallion, traditional
-Kazakh felt-applique motif. Pure black silhouette on a pure white background,
-flat, no gradients, no shading, no colour, no texture. Four pairs of thick
-qoshqar muyiz ram's horn scrolls curling outward from a small central rhombus,
-in strict four-fold mirror symmetry, enclosed by a thin solid ring and an outer
-ring of evenly spaced round dots. Every stroke is the same thick width, and the
-white gaps between the black shapes are about as wide as the shapes themselves,
-like a pattern cut from two layers of felt. Each horn ends in a round spiral.
-Rounded fleshy curves, not thin Celtic interlace, nothing weaves over or under
-anything else. No leaves, no lilies, no fleur-de-lis, no arrowheads. Absolutely
-no border, no frame, no outer rectangle, no signature, no text, no watermark.
-Square 1:1, the medallion centred with a wide white margin on all sides.
+Kazakh felt-applique motif, in the same style and stroke weight as the attached
+reference image. Pure black silhouette on a pure white background, flat line
+art, no gradients, no shading, no colour, no texture.
+
+The building block is the qoshqar muyiz, the ram's horn: a short stem that
+splits into two thick horns curling away from each other and down into
+spirals, like a ram's head seen from the front. Four of these ram's horn units
+point outward along the vertical and horizontal axes, their stems meeting
+around a small central rhombus, and four smaller ram's horn units sit on the
+diagonals between them. Strict mirror symmetry across both the vertical and the
+horizontal axis. Enclosed by a thin ring of evenly spaced round dots.
+
+Rounded fleshy curves, not thin Celtic interlace, not a pinwheel, not a swirl,
+no single hooks, nothing weaves over or under anything else. Generous white
+space between the units. Absolutely no border, no frame, no outer rectangle, no
+signature, no text, no watermark. Square 1:1 composition, the medallion centred
+with a wide white margin on all sides.
 ```
+
+Без приложенной картинки убрать первую фразу про reference.
 
 ## 2. `oyu-band` — бордюр, 6:1
 
@@ -49,33 +87,43 @@ Square 1:1, the medallion centred with a wide white margin on all sides.
 два сросшихся тоже переживём.
 
 ```
-Kazakh oyu-ornek (ою-өрнек) ornament, a horizontal border band made of ONE
-single row of repeating motifs, traditional Kazakh felt-applique motif. Pure
-black silhouette on a pure white background, flat, no gradients, no shading, no
-colour, no texture. Each repeat is a pair of thick qoshqar muyiz ram's horn
-scrolls facing each other around a small upright rhombus, all repeats identical
-and evenly spaced, joined edge to edge so the band continues in both
-directions. Every stroke the same thick width, each horn ending in a round
-spiral. Rounded fleshy curves, not Celtic interlace, nothing weaves over or
-under anything else. No leaves, no lilies, no arrowheads. Exactly one row, not
-two rows, not mirrored top and bottom. Wide white space above and below.
-Absolutely no border, no frame, no outer rectangle, no text, no watermark. Very
-wide 6:1 landscape composition.
+Kazakh oyu-ornek (ою-өрнек) ornament, a horizontal border band, traditional
+Kazakh felt-applique motif, in the same style and stroke weight as the attached
+reference image. Pure black silhouette on a pure white background, flat line
+art, no gradients, no shading, no colour, no texture.
+
+The band is one row of identical qoshqar muyiz ram's horn units: each unit is a
+short upright stem that splits into two thick horns curling away from each
+other and down into spirals, like a ram's head seen from the front. The units
+stand side by side, evenly spaced, with a small rhombus between neighbours, and
+the row continues off both side edges.
+
+Rounded fleshy curves, not Celtic interlace, not a wave of single hooks, nothing
+weaves over or under anything else. Exactly one row, not two rows, not mirrored
+top and bottom. Wide white space above and below. Absolutely no border, no
+frame, no outer rectangle, no text, no watermark. Very wide 6:1 landscape
+composition.
 ```
 
 ## 3. `oyu-corner` — угол, 1:1
 
 ```
 Kazakh oyu-ornek (ою-өрнек) ornament, a corner piece for the top left corner of
-a page, traditional Kazakh felt-applique motif. Pure black silhouette on a pure
-white background, flat, no gradients, no shading, no colour, no texture. Thick
-qoshqar muyiz ram's horn scrolls grow along the top edge and down the left edge
-from a denser cluster in the very corner, thinning into small round spirals as
-they move away from it. Every stroke the same thick width. Rounded fleshy
-curves, not Celtic interlace, nothing weaves over or under anything else. No
-leaves, no lilies, no fleur-de-lis, no flowers, no cross in the centre. The
-bottom right two thirds of the square is completely empty white. Absolutely no
-border, no frame, no outer rectangle, no text, no watermark. Square 1:1.
+a page, traditional Kazakh felt-applique motif, in the same style and stroke
+weight as the attached reference image. Pure black silhouette on a pure white
+background, flat line art, no gradients, no shading, no colour, no texture.
+
+In the very corner sits one large qoshqar muyiz ram's horn unit — a short stem
+splitting into two thick horns curling away from each other into spirals — set
+diagonally so it faces into the page. From it, a chain of smaller ram's horn
+units runs along the top edge and down the left edge, getting smaller as it
+moves away from the corner.
+
+Rounded fleshy curves, not Celtic interlace, not a pinwheel, nothing weaves
+over or under anything else. No leaves, no lilies, no fleur-de-lis, no flowers,
+no cross. The bottom right two thirds of the square is completely empty white.
+Absolutely no border, no frame, no outer rectangle, no text, no watermark.
+Square 1:1.
 ```
 
 Лилии и крест в центре пришли в первом углу «Тақия»; запрет назван прямо.
