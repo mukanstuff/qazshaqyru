@@ -139,6 +139,19 @@ export {
   taqiyaWishes,
 } from './taqiya-builders';
 
+export {
+  zhuparClosing,
+  zhuparDress,
+  zhuparGreeting,
+  zhuparHero,
+  zhuparHosts,
+  zhuparLocation,
+  zhuparProgram,
+  zhuparRsvp,
+  zhuparWhen,
+  zhuparWishes,
+} from './zhupar-builders';
+
 export { WEDDING_SKELETON, WEDDING_COPY, type Block, type BlockKind, type Bilingual, type SkeletonCopy } from './skeleton';
 export type { Skin, SkinPalette, SkinFonts, SkinAssets, SkinDecor } from './skin';
 export { skeletonSections, skinToTheme } from './layout';

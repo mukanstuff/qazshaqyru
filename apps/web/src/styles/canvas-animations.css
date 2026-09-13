@@ -385,3 +385,22 @@
 @media (prefers-reduced-motion: reduce) {
   svg[style*='canvas-music-dial'] { animation: none !important; }
 }
+
+/* The heart mark on a calendar day beats, slowly. Scale only, about its own
+   centre, so the day number inside it does not move. */
+.canvas-mark-pulse {
+  transform-origin: 50% 55%;
+  animation: canvas-mark-pulse 2.6s ease-in-out infinite;
+}
+
+@keyframes canvas-mark-pulse {
+  0%, 100% { transform: scale(1); }
+  14% { transform: scale(1.09); }
+  28% { transform: scale(1); }
+  42% { transform: scale(1.06); }
+  56% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas-mark-pulse { animation: none !important; transform: none !important; }
+}

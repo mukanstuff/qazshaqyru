@@ -99,6 +99,7 @@ function FilmedGate({
   accent,
   font,
   layout = 'bottom',
+  ink,
   onOpen,
   onFinished,
   onUnavailable,
@@ -112,6 +113,7 @@ function FilmedGate({
   accent: string;
   font: string;
   layout?: 'bottom' | 'split';
+  ink?: string;
   onOpen: () => void;
   onFinished: () => void;
   onUnavailable: () => void;
@@ -251,7 +253,7 @@ function FilmedGate({
             gap: 10,
             padding: '0 24px',
             textAlign: 'center',
-            color: accent,
+            color: ink ?? accent,
             opacity: playing ? 0 : 1,
             transition: 'opacity 380ms ease',
             pointerEvents: 'none',
@@ -366,6 +368,9 @@ export function EnvelopeGate({ document: doc, onOpen, onFinished }: Props) {
       doc.elements.find((el) => el.placeholderKey === 'groomName') ??
       doc.elements.find((el) => el.placeholderKey === 'brideName') ??
       doc.elements.find((el) => el.placeholderKey === 'heroTitle') ??
+      // «Жұпар» tags the pair as one line, `coupleNames`; without this its
+      // gate set «Айдар & Айсұлу» in Georgia instead of the script.
+      doc.elements.find((el) => el.placeholderKey === 'coupleNames') ??
       doc.elements.find((el) => el.type === 'heading');
     const accent =
       doc.envelope?.accent ||
@@ -437,6 +442,7 @@ export function EnvelopeGate({ document: doc, onOpen, onFinished }: Props) {
         accent={design.accent}
         font={design.font}
         layout={doc.envelope?.layout}
+        ink={doc.envelope?.ink}
         onOpen={onOpen}
         onFinished={onFinished}
         onUnavailable={() => setFilmUnavailable(true)}

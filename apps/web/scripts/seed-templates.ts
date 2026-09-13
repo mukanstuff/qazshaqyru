@@ -86,6 +86,16 @@ import {
   taqiyaRsvp,
   taqiyaWhen,
   taqiyaWishes,
+  zhuparClosing,
+  zhuparDress,
+  zhuparGreeting,
+  zhuparHero,
+  zhuparHosts,
+  zhuparLocation,
+  zhuparProgram,
+  zhuparRsvp,
+  zhuparWhen,
+  zhuparWishes,
   type SectionEntry,
   type TemplateTheme,
 } from '../src/lib/canvas/template-kit';
@@ -120,7 +130,7 @@ interface Recipe {
    * switch the gate on but never hand it a video, and the envelope film shot
    * for «Сәукеле» sat in the assets folder unreferenced.
    */
-  envelope?: boolean | { videoSrc?: string; posterSrc?: string; focus?: string; accent?: string; layout?: 'bottom' | 'split' };
+  envelope?: boolean | { videoSrc?: string; posterSrc?: string; focus?: string; accent?: string; layout?: 'bottom' | 'split'; ink?: string };
   /** The page scrolls itself until touched — see ComposeOptions.autoScroll. */
   autoScroll?: { enabled: boolean; speed?: 'slow' | 'normal' | 'fast' };
   /**
@@ -294,6 +304,25 @@ const TAQIYA_THEME: TemplateTheme = {
   script: 'Andantino',
 };
 
+/**
+ * «Жұпар» — үйлену тойы in eucalyptus and ivory.
+ *
+ * Light register. Paper is the ground's own mean colour after the pipeline
+ * tones it; olive ink; eucalyptus for controls; gold only in the ornament.
+ * No other template in the catalogue is green.
+ */
+const ZHUPAR_THEME: TemplateTheme = {
+  paper: '#F1F0EB',
+  ink: '#2F3B2F',
+  accent: '#6F8466',
+  muted: '#66725F',
+  onPhoto: '#FFFFFF',
+  accentDeep: '#A8925A',
+  display: 'Cormorant',
+  body: 'Monolog',
+  script: 'Lavanderia',
+};
+
 const RECIPES: Recipe[] = [
   {
     slug: 'inju',
@@ -419,6 +448,42 @@ const RECIPES: Recipe[] = [
       { key: 'rsvp', build: taqiyaRsvp() },
       { key: 'wishes', build: taqiyaWishes() },
       { key: 'closing', build: taqiyaClosing() },
+      { key: 'music', build: floatingMusic({ variant: 'dial' }) },
+    ],
+  },
+  {
+    slug: 'zhupar',
+    category: 'wedding',
+    nameRu: 'Жұпар',
+    nameKz: 'Жұпар',
+    descriptionRu:
+      'Үйлену тойы в эвкалипте и слоновой кости. Акварельный ролик, программа дня с иконками, дресс-код, конверт с карточкой.',
+    descriptionKz:
+      'Эвкалипт пен піл сүйегі түсіндегі үйлену тойы. Акварель бейне, иконкалы той бағдарламасы, дресс-код, карточкалы хатқалта.',
+    priceKzt: 4990,
+    sortOrder: 0,
+    theme: ZHUPAR_THEME,
+    envelope: {
+      videoSrc: '/assets/templates/zhupar/envelope.webm',
+      posterSrc: '/assets/templates/zhupar/envelope-poster.webp',
+      accent: ZHUPAR_THEME.accent,
+      ink: ZHUPAR_THEME.ink,
+      layout: 'split',
+    },
+    autoScroll: { enabled: true, speed: 'slow' },
+    groundSize: 'repeat',
+    assets: { ground: '/assets/templates/zhupar/ground-paper.webp' },
+    sections: [
+      { key: 'hero', build: zhuparHero() },
+      { key: 'greeting', build: zhuparGreeting() },
+      { key: 'hosts', build: zhuparHosts() },
+      { key: 'program', build: zhuparProgram() },
+      { key: 'when', build: zhuparWhen({ targetIso: ISO }) },
+      { key: 'dress', build: zhuparDress() },
+      { key: 'location', build: zhuparLocation() },
+      { key: 'rsvp', build: zhuparRsvp() },
+      { key: 'wishes', build: zhuparWishes() },
+      { key: 'closing', build: zhuparClosing() },
       { key: 'music', build: floatingMusic({ variant: 'dial' }) },
     ],
   },

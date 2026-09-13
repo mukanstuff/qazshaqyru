@@ -394,6 +394,15 @@ const programElementSchema = baseElementSchema.extend({
   textColor: safeColor.default('#1a1a1a'),
   accentColor: safeColor.default('#c9a961'),
   timeColor: safeColor.optional(),
+  variant: z.enum(['list', 'rail']).optional(),
+  fontSize: z.number().min(10).max(40).optional(),
+  iconSize: z.number().min(0).max(120).optional(),
+  iconColor: safeColor.optional(),
+  markerSrc: mediaSrc.optional(),
+  markerSize: z.number().min(4).max(40).optional(),
+  markerColor: safeColor.optional(),
+  lineColor: safeColor.optional(),
+  rowGap: z.number().min(0).max(80).optional(),
 });
 
 const mapElementSchema = baseElementSchema.extend({
@@ -561,6 +570,7 @@ const coreDocumentObject = z.object({
       focus: z.string().max(40).optional(),
       accent: safeColor.optional(),
       layout: z.enum(['bottom', 'split']).optional(),
+      ink: safeColor.optional(),
     })
     .optional(),
   autoScroll: z
@@ -610,6 +620,7 @@ export const canvasDocumentPatchSchema = z
         focus: z.string().max(40).optional(),
         accent: safeColor.optional(),
         layout: z.enum(['bottom', 'split']).optional(),
+      ink: safeColor.optional(),
       })
       .optional(),
     autoScroll: z

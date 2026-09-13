@@ -119,6 +119,10 @@ export function CalendarElementView({ el, locale = 'kz' }: Props) {
                 <svg
                   viewBox="0 0 24 24"
                   aria-hidden="true"
+                  // A heart that beats slowly, as shaqyru24's calendar mark does
+                  // (`shqHeartCycle`). No template used the heart until «Жұпар», so
+                  // nothing already published changes.
+                  className="canvas-mark-pulse"
                   style={{
                     position: 'absolute',
                     inset: '-18%',

@@ -270,6 +270,13 @@ export interface InvitationCanvasDocument {
      */
     layout?: 'bottom' | 'split';
     /**
+     * Colour of the name and date in the `split` layout. Falls back to
+     * `accent`. Separate because a button colour is not a text colour:
+     * «Жұпар»'s eucalyptus button measured 2.2:1 as type on its envelope's
+     * grey margin, where the olive ink reads at 6.4:1.
+     */
+    ink?: string;
+    /**
      * The colour of the button, and of anything else the gate paints.
      *
      * Explicit, because the alternative is guessing and guessing broke: the
@@ -729,6 +736,23 @@ export interface ProgramElement extends BaseElement {
   textColor: string;
   accentColor: string;
   timeColor?: string;
+  /**
+   * `list` (default) is the original time-dot-title row. `rail` is the layout
+   * toi's newest wedding cards use: an icon, a thin rail with a mark, then the
+   * time over the label. The sizes, icons and marker below apply to `rail`.
+   */
+  variant?: 'list' | 'rail';
+  /** Label size in px; the time and description are set a step smaller. */
+  fontSize?: number;
+  /** Icon box in px. 0 or absent: no icon column. Icons come from `items[].icon`. */
+  iconSize?: number;
+  iconColor?: string;
+  /** Artwork for the mark on the rail, painted through its alpha. */
+  markerSrc?: string;
+  markerSize?: number;
+  markerColor?: string;
+  lineColor?: string;
+  rowGap?: number;
 }
 
 export interface MapElement extends BaseElement {

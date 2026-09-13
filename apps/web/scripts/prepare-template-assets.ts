@@ -356,7 +356,7 @@ async function main() {
       }
       const raw = { width: info.width, height: info.height, channels: ch } as const;
       const mirrored = await sharp(data, { raw }).flip().raw().toBuffer();
-      await sharp({ create: { width: info.width, height: info.height * 2, channels: ch, background: '#ffffff' } })
+      await sharp({ create: { width: info.width, height: info.height * 2, channels: ch as 3 | 4, background: '#ffffff' } })
         .composite([
           { input: data, raw, top: 0, left: 0 },
           { input: mirrored, raw, top: info.height, left: 0 },
