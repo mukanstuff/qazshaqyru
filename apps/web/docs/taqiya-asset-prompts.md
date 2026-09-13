@@ -72,9 +72,78 @@ composition.
 |---|---|
 | `oyu-medallion` | принят, в `_src`, прогнан |
 | `oyu-band` | принят в двух рядах, прогнан |
-| `oyu-corner` | принят, прогнан; самый слабый из трёх — лилии в центре |
+| `oyu-corner` | заменяется вторым углом: штрих 4,8% от мотива против 3,0% у первого, без лилий |
 | `oyu-arrow` | снят, роль берёт малый медальон |
-| остальное | ждёт генерации |
+| `hero` | **вариант Б, конь.** Тихое поле под текст 160 px против 80 у варианта А; первый и последний кадр SSIM 0,816 против 0,770 у принятого героя «Сәукеле» |
+| `hero-taqiya` | принят без оговорок |
+| `story-shapan` | принят; в верхних ~40 px кадра подбородок — срезать верх исходника при сборке, овал его не спрячет |
+| `ground-linen` | принят |
+| `story-dastarkhan` | **перегенерировать:** шесть конфет в цветных печатных фантиках и узнаваемый бренд в хрустальной вазе — ровно то «без элитности», что владелец запретил |
+| `envelope` | **перегенерировать:** конверт занимает 44% высоты кадра, сверху и снизу серый фон; печать трескается на клапане, а под ней оказывается вторая, целая |
+
+## Второй круг
+
+### 8б. `story-dastarkhan`
+
+```
+Photorealistic horizontal photograph, 3:2, shot straight down from above. A
+festive Kazakh dastarkhan on a crisp white tablecloth: fine white porcelain
+bowls with thin gold rims holding golden baursak, white kurt, dried apricots
+and raisins; a low crystal dish of sweets wrapped in plain matte gold foil; a
+light scattering of shashu — small gold coins and sweets in the same plain gold
+foil — across the cloth; a narrow runner of navy velvet embroidered with gold
+oyu-ornek along one edge. Everything is arranged in the lower two thirds of the
+frame. The upper third is plain white tablecloth with nothing on it.
+
+Bright, high-key, soft even daylight, shadows almost absent, highlights running
+up into white. Palette white, ivory, warm gold, deep navy, touches of apricot.
+Elegant and restrained, a luxury restaurant setting, not a home kitchen.
+
+Every wrapper is plain gold foil with no printing. No brand-name confectionery,
+no logos on any food, no multicoloured wrappers. No people, no hands, no faces.
+No plastic, no paper napkins, no clutter. No studio equipment visible. No text,
+no watermark, no border.
+```
+
+Конфеты описаны обёрткой, а не словом «sweets»: на слово модель приносит
+супермаркет — пёстрые фантики и узнаваемую марку.
+
+### 10б. `envelope`
+
+```
+Four seconds, vertical 9:16, no audio. Locked-off camera, no zoom, no pan, no
+push-in, no tilt, no handheld drift.
+
+Photorealistic extreme close-up of the back of a closed envelope in thick
+textured pale powder-blue paper. The camera is so close that the edges of the
+envelope lie outside the frame on all four sides: the whole frame is paper and
+nothing around it is visible. The pointed back flap comes down from the top of
+the frame to a point just below the centre. Exactly one round wax seal in warm
+gold sits on that point, holding the flap shut, stamped with a flat Kazakh
+qoshqar muyiz ram's horn scroll ornament, not an animal head.
+
+For the first half second nothing moves. Then the seal splits cleanly into two
+halves along a vertical line; the upper half stays on the flap and the lower
+half stays on the envelope. The flap slowly lifts upward and out of the top of
+the frame, revealing the ivory inside of the envelope. There is only ever one
+seal in the frame. Nothing comes out.
+
+Soft, bright, even light, shadows almost absent, fine paper grain visible.
+
+No hands, no fingers, no people, no table, no background, no envelope edges
+visible. No text, no letters, no logo, no watermark, no border.
+```
+
+Что изменилось против первого: «заполняет кадр» заменено на «края конверта за
+пределами кадра со всех сторон», потому что первое модель выполнила как
+горизонтальный конверт поперёк вертикального кадра. Про печать сказано, куда
+уходит каждая половина, и что она в кадре одна: без этого модель сломала одну
+печать и тут же нарисовала под ней вторую. Оттиск назван «плоским орнаментом,
+не головой животного» — в первом дубле пришла буквальная голова барана.
+
+Резать кадр под конверт вместо перегенерации нельзя: чтобы полоса в 44% высоты
+заняла экран телефона, ролик пришлось бы растянуть в 2,3 раза, и это та самая
+мыльная картинка, которую владелец назвал низким качеством на «Сәукеле».
 
 ## 3. `oyu-corner` — угол, 1:1
 
