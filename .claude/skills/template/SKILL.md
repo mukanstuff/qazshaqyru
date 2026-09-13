@@ -53,8 +53,16 @@ Start the dev server with the preview tool, never with Bash.
   recoloured and composited freely. SVG or CSS pretending to be an ornament is
   not.
 - **No faces in template photography**, even though competitors use them.
-- **No steppe, yurts, horses, kumys.** National content lives in ornament and
-  costume. Customers are in Almaty and Astana.
+- **Steppe, horses and yurts only in the "VIP" register.** This was a subject
+  ban until the owner corrected it on 2026-09-13: «я не запрещал коней, степи,
+  юрты… должна быть и "вип казашность" (как у других сервисов)». What he rejects
+  is the poor ethnographic rendering earlier agents produced — bare steppe, a
+  kelin in a plain robe, a boxy building alone on nothing. What is fine is what
+  toi ships in сүндет той: a white horse in gold-embroidered tack, snow-capped
+  mountains, a pristine ornamented yurt, light polished watercolour. Customers
+  are in Almaty and Astana and buy ceremony, not ethnography.
+- **No dark templates.** The dark jewel register is measured in the docs as a
+  competitor fact, not offered as an option.
 - **No fabricated content on a guest page** — no invented reviews, wishes or
   metrics.
 - **A screenshot is the only proof.** Typecheck and tests pass on visibly broken
