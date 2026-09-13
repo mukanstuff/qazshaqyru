@@ -78,8 +78,48 @@ const HEAD_LINE = 50;
 
 const silver = (ctx: SectionContext) => ctx.theme.accentDeep ?? ctx.theme.muted;
 
+/**
+ * What lifts type off pale footage.
+ *
+ * Measured on toi's ұзату heroes, live: the eyebrow carries
+ * `0 2px 6px rgba(255,255,255,.6)` and the name `0 3px 10px rgba(255,255,255,.7)`
+ * — a white glow, not a dark scrim. Not one of their hero sections paints an
+ * overlay over the artwork at all; the type is dark and saturated and the
+ * picture is left alone.
+ *
+ * Measured on ours before this existed: against the frame under it, the date in
+ * silver ran 1.14:1 at worst and 3.2:1 at best — the same lightness as the
+ * dress behind it. Contrast alone does not explain it either: the caption was
+ * already ink at 5.1:1 and still read badly, because 15px of letterspaced
+ * capitals over folds and a ribbon is fighting texture, not tone. The glow is
+ * what answers that.
+ */
+const GLOW = { x: 0, y: 2, blur: 9, color: 'rgba(255,255,255,0.8)' } as const;
+
+/**
+ * The same device for small type, tighter.
+ *
+ * A 9px blur builds a halo around a 53px name and nothing at all around a
+ * letterspaced caption whose strokes are one pixel wide — measured, the
+ * caption's contrast against its immediate surroundings did not move (3.36:1
+ * at the tenth percentile, before and after). Half the blur at nearly full
+ * opacity sits close enough to the stroke to separate it.
+ *
+ * Their captions are also simply bigger: toi sets the hero eyebrow at 26-32px
+ * against our 15. Hence the hero one goes to 18 as well — the glow cannot make
+ * up for type that is half the size it should be.
+ */
+const GLOW_TIGHT = { x: 0, y: 1, blur: 4, color: 'rgba(255,255,255,0.95)' } as const;
+
 /** Letterspaced capitals. Domain sets them narrow, which suits the silver. */
-function cap(ctx: SectionContext, copy: Copy, y: number, color?: string): ElementSpec {
+function cap(
+  ctx: SectionContext,
+  copy: Copy,
+  y: number,
+  color?: string,
+  onPhoto = false,
+  size: number = T.cap,
+): ElementSpec {
   return {
     type: 'text',
     props: {
@@ -89,12 +129,13 @@ function cap(ctx: SectionContext, copy: Copy, y: number, color?: string): Elemen
       h: 'auto',
       text: t(copy, ctx),
       fontFamily: 'DomainDisplay',
-      fontSize: T.cap,
+      fontSize: size,
       fontWeight: 400,
       color: color ?? silver(ctx),
       textAlign: 'center',
       lineHeight: 1.4,
       letterSpacing: 3.4,
+      ...(onPhoto ? { textShadow: GLOW_TIGHT } : {}),
     },
     animate: { type: 'fade', duration: 2.4 },
   };
@@ -323,7 +364,17 @@ export function saukeleHero(options: { bride?: string } = {}): SectionBuilder {
         },
       },
       corner(ctx, 8, { side: 'right', w: 30, opacity: 0.5 }),
-      cap(ctx, { kz: 'ҚЫЗ ҰЗАТУ ТОЙЫНА ШАҚЫРУ', ru: 'ПРИГЛАШЕНИЕ НА ҚЫЗ ҰЗАТУ' }, 452, ctx.theme.ink),
+      /*
+       * Short, and bigger than the other eyebrows.
+       *
+       * toi's hero eyebrow is two words at 26-32px; ours was a whole sentence
+       * at 15, and the sentence is the reason it could not be read — measured
+       * at 18px it runs 352px against a 312px column and wraps onto the name.
+       * The invitation is already extended in the greeting two screens down
+       * («Қызымыз Аружанды ұзату тойымызға шақырамыз»), so the hero only has
+       * to name the occasion.
+       */
+      cap(ctx, { kz: 'ҚЫЗ ҰЗАТУ ТОЙЫ', ru: 'ҚЫЗ ҰЗАТУ' }, 452, ctx.theme.ink, true, T.small),
       {
         type: 'text',
         props: {
@@ -339,6 +390,7 @@ export function saukeleHero(options: { bride?: string } = {}): SectionBuilder {
           textAlign: 'center',
           lineHeight: 1.05,
           letterSpacing: 1.5,
+          textShadow: GLOW,
           placeholderKey: 'brideName',
           editableByEndUser: true,
           editableProperties: ['text', 'color', 'fontSize'],
@@ -357,10 +409,13 @@ export function saukeleHero(options: { bride?: string } = {}): SectionBuilder {
           fontFamily: 'DomainDisplay',
           fontSize: T.small,
           fontWeight: 400,
-          color: silver(ctx),
+          // Ink, not silver. Measured against the frame behind it, silver ran
+          // 1.14:1 at worst — the date and the dress were the same lightness.
+          color: ctx.theme.ink,
           textAlign: 'center',
           lineHeight: 1.3,
           letterSpacing: 5,
+          textShadow: GLOW_TIGHT,
           placeholderKey: 'eventDate',
           editableByEndUser: true,
           editableProperties: ['text'],
@@ -465,6 +520,7 @@ export function saukeleObject(): SectionBuilder {
           textAlign: 'center',
           lineHeight: 1.1,
           letterSpacing: 0,
+          textShadow: GLOW,
         },
         animate: { type: 'fade', duration: 2.6 },
       },
@@ -479,10 +535,11 @@ export function saukeleObject(): SectionBuilder {
           fontFamily: 'DomainDisplay',
           fontSize: T.cap,
           fontWeight: 400,
-          color: silver(ctx),
+          color: ctx.theme.ink,
           textAlign: 'center',
           lineHeight: 1.4,
           letterSpacing: 3.4,
+          textShadow: GLOW_TIGHT,
         },
         animate: { type: 'fade', duration: 2.4 },
       },
@@ -682,10 +739,14 @@ export function saukeleRsvp(): SectionBuilder {
       {
         type: 'image',
         props: {
-          x: 7,
+          // Top-right of the plate: the hosts block two screens up is hung
+          // left, so the ornament balances it, and the hero's own corner is on
+          // the same side.
+          x: 75,
           y: 27,
           w: 18,
           h: 70,
+          rotation: 90,
           src: A.corner,
           alt: '',
           objectFit: 'contain',
