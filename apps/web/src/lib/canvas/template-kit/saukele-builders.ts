@@ -374,12 +374,30 @@ export function saukeleHero(options: { bride?: string } = {}): SectionBuilder {
        * («Қызымыз Аружанды ұзату тойымызға шақырамыз»), so the hero only has
        * to name the occasion.
        */
-      cap(ctx, { kz: 'ҚЫЗ ҰЗАТУ ТОЙЫ', ru: 'ҚЫЗ ҰЗАТУ' }, 452, ctx.theme.ink, true, T.small),
+      /*
+       * The type lives in the sky, not on the dress.
+       *
+       * Measured across the frame in 20px bands: y 120-275 is empty wash —
+       * fifth-percentile luminance 0.80-0.85 and local texture 0.005-0.011.
+       * Where this block used to sit, y 440-680, the same numbers are 0.41-0.67
+       * and 0.033-0.086: six to fifteen times busier, with real dark pixels in
+       * it. No amount of glow wins that; a glow separates type from a quiet
+       * ground, it cannot separate it from folds and a ribbon.
+       *
+       * It is also how the reference set composes: their heroes keep the top
+       * two thirds deliberately empty and put the subject in the bottom third,
+       * with the names in the empty part (design-vocabulary.md §3.20, §3.22).
+       * Ours has the bride full height, so the free field is the band of sky
+       * between the blossom branches and the arch — 155px, which is exactly
+       * what the eyebrow, the name and the date need.
+       */
+      filigree(ctx, 116, 24, 0.85),
+      cap(ctx, { kz: 'ҚЫЗ ҰЗАТУ ТОЙЫ', ru: 'ҚЫЗ ҰЗАТУ' }, 150, ctx.theme.ink, true, T.small),
       {
         type: 'text',
         props: {
           x: 8,
-          y: 500,
+          y: 184,
           w: 84,
           h: 'auto',
           text: options.bride ?? 'Аружан',
@@ -397,12 +415,11 @@ export function saukeleHero(options: { bride?: string } = {}): SectionBuilder {
         },
         animate: { type: 'letters', duration: 2.8, delay: 0.2 },
       },
-      filigree(ctx, 592, 40, 0.8),
       {
         type: 'text',
         props: {
           x: 15,
-          y: 640,
+          y: 254,
           w: 70,
           h: 'auto',
           text: '15 . 05 . 2027',
