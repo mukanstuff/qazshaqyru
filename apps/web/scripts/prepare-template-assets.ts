@@ -45,6 +45,10 @@ const CUTOUT = /^cut-/;
  *  so a photographic ground lands on the same value and keeps its fibre. */
 const GROUND_TARGET_MEAN = 236;
 
+/** Luma standard deviation a repeating ground is flattened to. At 7 the
+ *  repeat reads down a long page even with seamless joins; at 3 it does not. */
+const GROUND_SIGMA = 3;
+
 /** Long edge per asset role. Photographs never need more than this on a
  *  390px-wide canvas at 3x, and ornaments are line art that stays crisp. */
 const MAX_EDGE: Array<[RegExp, number]> = [
@@ -108,7 +112,15 @@ async function toBlackCutout(input: string, out: string, width: number): Promise
     .toFile(out);
 }
 
-async function toAlphaMask(input: string, out: string, width: number): Promise<void> {
+/**
+ * `tile`: the file repeats horizontally on the page (`tile: 'x'`), so its left
+ * and right edges must stay exactly where the source was cut. The source is cut
+ * to a whole number of pattern periods beforehand; the edge inset and the
+ * transparent gutter below would each put a gap into every repeat. At the
+ * scale «Тақия»'s band tiles at, the 2px gutter alone is 1.3 device pixels of
+ * nothing through every stroke that crosses a seam.
+ */
+async function toAlphaMask(input: string, out: string, width: number, tile = false): Promise<void> {
   const { data, info } = await sharp(input).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   const px = Buffer.alloc(info.width * info.height * 4);
 
@@ -147,9 +159,10 @@ async function toAlphaMask(input: string, out: string, width: number): Promise<v
    * Nothing a model draws that close to the edge is ever the artwork.
    */
   const inset = Math.max(4, Math.round(Math.min(info.width, info.height) * 0.006));
+  const insetX = tile ? 0 : inset;
   for (let y = 0; y < info.height; y++) {
     for (let x = 0; x < info.width; x++) {
-      if (x < inset || y < inset || x >= info.width - inset || y >= info.height - inset) {
+      if (x < insetX || y < inset || x >= info.width - insetX || y >= info.height - inset) {
         px[(y * info.width + x) * 4 + 3] = 0;
       }
     }
@@ -172,9 +185,24 @@ async function toAlphaMask(input: string, out: string, width: number): Promise<v
      * ornament is rotated. A transparent margin gives the sampler somewhere
      * to fall to.
      */
-    .extend({ top: 2, bottom: 2, left: 2, right: 2, background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .extend({ top: 2, bottom: 2, left: tile ? 0 : 2, right: tile ? 0 : 2, background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .png({ compressionLevel: 9 })
     .toFile(out);
+}
+
+/**
+ * Clips and their posters are finished files, not sources.
+ *
+ * Videos are cut and encoded by hand with ffmpeg — the trim points and the CRF
+ * are decisions per clip, see template-playbook.md — and a poster is a frame of
+ * that encode. The adoption loop below used to take them as new sources: on
+ * «Тақия» it moved hero.webm and envelope.webm into _src, re-encoded the
+ * envelope poster from its own lossy output (49KB to 30KB), then threw
+ * "unsupported image format" on the first clip and left every photograph after
+ * it unprocessed.
+ */
+function isFinishedMedia(file: string): boolean {
+  return /.(webm|mp4|mov|m4v)$/i.test(file) || /-poster.[a-z0-9]+$/i.test(file);
 }
 
 async function main() {
@@ -204,6 +232,7 @@ async function main() {
   for (const file of readdirSync(dir)) {
     const full = join(dir, file);
     if (statSync(full).isDirectory()) continue;
+    if (isFinishedMedia(file)) continue;
     const { name } = parse(file);
     if (known.has(name)) continue;
     renameSync(full, join(src, file));
@@ -211,6 +240,7 @@ async function main() {
   }
 
   for (const file of readdirSync(src)) {
+    if (isFinishedMedia(file)) continue;
     const { name } = parse(file);
     const input = join(src, file);
     const before = Math.round(statSync(input).size / 1024);
@@ -225,7 +255,7 @@ async function main() {
 
     if (ORNAMENT.test(name)) {
       const out = join(dir, `${name}.png`);
-      await toAlphaMask(input, out, 1400);
+      await toAlphaMask(input, out, 1400, /-tile$/.test(name));
       const after = Math.round(statSync(out).size / 1024);
       console.log(`${name.padEnd(16)} mask  ${before}KB -> ${after}KB`);
       continue;
@@ -282,11 +312,64 @@ async function main() {
       const { channels } = await sharp(input).stats();
       const mean = (channels[0].mean + channels[1].mean + channels[2].mean) / 3;
       const lift = Math.min(1.35, Math.max(0.85, GROUND_TARGET_MEAN / mean));
-      toned = pipeline.modulate({ saturation: 0.32, brightness: lift });
-      console.log(`${name.padEnd(16)} ground mean ${Math.round(mean)} -> lift x${lift.toFixed(3)}`);
+      /*
+       * Desaturate a warm cast, keep a cool ground's colour.
+       *
+       * 0.32 was calibrated on cream paper that came back yellow, and it is
+       * right for that. «Тақия» asks for a powder-blue linen ground; at 0.32
+       * the source's RGB 188,211,225 turns into a grey the palette never
+       * chose, and the blue page the owner approved would not exist.
+       */
+      const cool = channels[2].mean > channels[0].mean + 6;
+      toned = pipeline.modulate({ saturation: cool ? 0.72 : 0.32, brightness: lift });
+      console.log(`${name.padEnd(16)} ground mean ${Math.round(mean)} -> lift x${lift.toFixed(3)}${cool ? ' (cool, colour kept)' : ''}`);
+
+      /*
+       * Seamless and nearly flat, which «Сәукеле» needed doing by hand.
+       *
+       * `groundSize: 'repeat'` draws the tile at page width, so a 1200x896
+       * scan repeated 19 times down a 5600px document and every join showed
+       * as a horizontal line. Stacking the tile on its own mirror image makes
+       * the bottom row equal the top row, so the join cannot exist. And at a
+       * luma sigma of 7 the repeat still reads even without seams; pulling each
+       * channel towards its own mean to sigma 3 keeps the fibre and the hue.
+       */
+      const { data, info } = await toned.raw().toBuffer({ resolveWithObject: true });
+      const n = info.width * info.height;
+      const ch = info.channels;
+      const means = [0, 0, 0];
+      for (let i = 0; i < n; i++) for (let c = 0; c < 3; c++) means[c] += data[i * ch + c] / n;
+      let lumaMean = 0;
+      let lumaSq = 0;
+      for (let i = 0; i < n; i++) {
+        const l = 0.2126 * data[i * ch] + 0.7152 * data[i * ch + 1] + 0.0722 * data[i * ch + 2];
+        lumaMean += l / n;
+        lumaSq += (l * l) / n;
+      }
+      const sigma = Math.sqrt(Math.max(0, lumaSq - lumaMean * lumaMean));
+      const k = sigma > GROUND_SIGMA ? GROUND_SIGMA / sigma : 1;
+      for (let i = 0; i < n; i++) {
+        for (let c = 0; c < 3; c++) {
+          const o = i * ch + c;
+          data[o] = Math.max(0, Math.min(255, Math.round(means[c] + (data[o] - means[c]) * k)));
+        }
+      }
+      const raw = { width: info.width, height: info.height, channels: ch } as const;
+      const mirrored = await sharp(data, { raw }).flip().raw().toBuffer();
+      await sharp({ create: { width: info.width, height: info.height * 2, channels: ch, background: '#ffffff' } })
+        .composite([
+          { input: data, raw, top: 0, left: 0 },
+          { input: mirrored, raw, top: info.height, left: 0 },
+        ])
+        .webp({ quality: 94 })
+        .toFile(out);
+      console.log(
+        `${name.padEnd(16)} ground sigma ${sigma.toFixed(1)} -> ${(sigma * k).toFixed(1)}, mirrored to ${info.width}x${info.height * 2}, RGB ${means.map((m) => Math.round(m)).join(',')}, ${Math.round(statSync(out).size / 1024)}KB`,
+      );
+      continue;
     }
 
-    await toned.webp({ quality: isGround ? 94 : 82 }).toFile(out);
+    await toned.webp({ quality: 82 }).toFile(out);
     const after = Math.round(statSync(out).size / 1024);
     console.log(`${name.padEnd(16)} photo ${before}KB -> ${after}KB`);
   }

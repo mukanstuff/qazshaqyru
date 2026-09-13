@@ -462,6 +462,14 @@ const videoBgElementSchema = baseElementSchema.extend({
   overlayColor: safeColor.optional(),
   opacity: z.number().min(0).max(1).default(0.6),
   loop: z.boolean().optional(),
+  maskFade: z
+    .object({
+      top: z.number().min(0).max(100).optional(),
+      right: z.number().min(0).max(100).optional(),
+      bottom: z.number().min(0).max(100).optional(),
+      left: z.number().min(0).max(100).optional(),
+    })
+    .optional(),
 });
 
 const ornamentElementSchema = baseElementSchema.extend({
@@ -552,6 +560,7 @@ const coreDocumentObject = z.object({
       posterSrc: mediaSrc.optional(),
       focus: z.string().max(40).optional(),
       accent: safeColor.optional(),
+      layout: z.enum(['bottom', 'split']).optional(),
     })
     .optional(),
   autoScroll: z
@@ -600,6 +609,7 @@ export const canvasDocumentPatchSchema = z
         posterSrc: mediaSrc.optional(),
         focus: z.string().max(40).optional(),
         accent: safeColor.optional(),
+        layout: z.enum(['bottom', 'split']).optional(),
       })
       .optional(),
     autoScroll: z

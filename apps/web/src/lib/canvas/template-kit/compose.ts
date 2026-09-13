@@ -29,7 +29,7 @@ export interface ComposeOptions {
    * and this screen is the frame that gets screenshotted into the WhatsApp
    * group.
    */
-  envelope?: boolean | { videoSrc?: string; posterSrc?: string; focus?: string; accent?: string };
+  envelope?: boolean | { videoSrc?: string; posterSrc?: string; focus?: string; accent?: string; layout?: 'bottom' | 'split' };
 
   /**
    * The page scrolls itself, slowly, until the guest touches it.

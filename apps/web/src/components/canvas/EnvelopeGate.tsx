@@ -98,6 +98,7 @@ function FilmedGate({
   label,
   accent,
   font,
+  layout = 'bottom',
   onOpen,
   onFinished,
   onUnavailable,
@@ -110,6 +111,7 @@ function FilmedGate({
   label: string;
   accent: string;
   font: string;
+  layout?: 'bottom' | 'split';
   onOpen: () => void;
   onFinished: () => void;
   onUnavailable: () => void;
@@ -217,18 +219,52 @@ function FilmedGate({
         }}
       />
       {/* Scrim under the type only — the clip is the point, so it is not
-          dimmed while it plays. */}
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          pointerEvents: 'none',
-          background:
-            'linear-gradient(180deg, rgba(0,0,0,0.18) 0%, transparent 26%, transparent 52%, rgba(0,0,0,0.58) 100%)',
-          opacity: playing ? 0 : 1,
-          transition: 'opacity 500ms ease',
-        }}
-      />
+          dimmed while it plays. Not in `split`: that layout is for a light
+          frame, and a dark gradient over it is the dark register the owner
+          ruled out. */}
+      {layout === 'bottom' ? (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            pointerEvents: 'none',
+            background:
+              'linear-gradient(180deg, rgba(0,0,0,0.18) 0%, transparent 26%, transparent 52%, rgba(0,0,0,0.58) 100%)',
+            opacity: playing ? 0 : 1,
+            transition: 'opacity 500ms ease',
+          }}
+        />
+      ) : null}
+      {layout === 'split' && (names || date) ? (
+        <div
+          style={{
+            position: 'absolute',
+            insetInline: 0,
+            top: 0,
+            // The envelope in the clip this was built for starts at 32% of the
+            // phone's height; the words are centred in the space above it.
+            height: '30%',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 10,
+            padding: '0 24px',
+            textAlign: 'center',
+            color: accent,
+            opacity: playing ? 0 : 1,
+            transition: 'opacity 380ms ease',
+            pointerEvents: 'none',
+          }}
+        >
+          {names ? (
+            <p style={{ margin: 0, fontFamily: font, fontSize: 46, lineHeight: 1.1 }}>{names}</p>
+          ) : null}
+          {date ? (
+            <p style={{ margin: 0, fontSize: 15, letterSpacing: '0.12em', opacity: 0.85 }}>{date}</p>
+          ) : null}
+        </div>
+      ) : null}
       <div
         style={{
           position: 'absolute',
@@ -246,7 +282,7 @@ function FilmedGate({
           pointerEvents: playing ? 'none' : 'auto',
         }}
       >
-        {names ? (
+        {layout === 'bottom' && names ? (
           <p
             style={{
               margin: 0,
@@ -261,7 +297,7 @@ function FilmedGate({
             {names}
           </p>
         ) : null}
-        {date ? (
+        {layout === 'bottom' && date ? (
           <p style={{ margin: 0, fontSize: 15, opacity: 0.85, letterSpacing: '0.08em' }}>{date}</p>
         ) : null}
         <button
@@ -321,9 +357,15 @@ export function EnvelopeGate({ document: doc, onOpen, onFinished }: Props) {
     // happened to be marked up as one — on this template the date, set in the
     // figure face — so the envelope screen and the invitation behind it were
     // in different typography.
+    //
+    // A single name counts too. «Сәукеле» tags its bride as `brideName` and
+    // «Тақия» its boy as `heroTitle`, both on plain text elements, and neither
+    // template has a `heading` — so both gates set the name in Georgia.
     const heading =
       doc.elements.find((el) => el.type === 'couple-names') ??
       doc.elements.find((el) => el.placeholderKey === 'groomName') ??
+      doc.elements.find((el) => el.placeholderKey === 'brideName') ??
+      doc.elements.find((el) => el.placeholderKey === 'heroTitle') ??
       doc.elements.find((el) => el.type === 'heading');
     const accent =
       doc.envelope?.accent ||
@@ -359,6 +401,9 @@ export function EnvelopeGate({ document: doc, onOpen, onFinished }: Props) {
         ? `${taggedGroom} & ${taggedBride}`
         : (first ??
           taggedGroom ??
+          // A ұзату invitation has one name and it is the bride's; without this
+          // the «Сәукеле» gate printed a date and a button and nobody's name.
+          taggedBride ??
           placeholder(doc, 'coupleNames') ??
           placeholder(doc, 'heroTitle'));
   const date = placeholder(doc, 'eventDate');
@@ -391,6 +436,7 @@ export function EnvelopeGate({ document: doc, onOpen, onFinished }: Props) {
         label={t.open}
         accent={design.accent}
         font={design.font}
+        layout={doc.envelope?.layout}
         onOpen={onOpen}
         onFinished={onFinished}
         onUnavailable={() => setFilmUnavailable(true)}

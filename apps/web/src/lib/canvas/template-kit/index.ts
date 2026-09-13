@@ -125,6 +125,20 @@ export {
   saukeleWishes,
 } from './saukele-builders';
 
+export {
+  taqiyaBand,
+  taqiyaClosing,
+  taqiyaDastarkhan,
+  taqiyaGreeting,
+  taqiyaHero,
+  taqiyaHosts,
+  taqiyaLocation,
+  taqiyaObject,
+  taqiyaRsvp,
+  taqiyaWhen,
+  taqiyaWishes,
+} from './taqiya-builders';
+
 export { WEDDING_SKELETON, WEDDING_COPY, type Block, type BlockKind, type Bilingual, type SkeletonCopy } from './skeleton';
 export type { Skin, SkinPalette, SkinFonts, SkinAssets, SkinDecor } from './skin';
 export { skeletonSections, skinToTheme } from './layout';
@@ -169,13 +183,28 @@ export function buildTemplate(opts: ComposeOptions): BuildTemplateResult {
   // countdown in wine #6b1d3a and Cormorant this way — the recipe had said
   // `textColor` and `timeColor`, and the schema calls them `color` and
   // `accentColor`. Compare the key sets and refuse the build instead.
+  //
+  // Nested objects are walked too. The first version compared top-level keys
+  // only, and «Сәукеле»'s hero passed it with `maskFade: { edge: 'bottom',
+  // size: 26 }`: `maskFade` itself is a known key, so nothing was reported,
+  // while its schema takes `top/right/bottom/left` and both inner keys were
+  // stripped. The fade never rendered and the clip ended on a hard edge.
   const dropped: string[] = [];
+  const isPlain = (v: unknown): v is Record<string, unknown> =>
+    typeof v === 'object' && v !== null && !Array.isArray(v);
+  const walk = (raw: Record<string, unknown>, kept: Record<string, unknown>, path: string) => {
+    for (const key of Object.keys(raw)) {
+      if (!(key in kept)) {
+        dropped.push(`${path}: ${key}`);
+      } else if (isPlain(raw[key]) && isPlain(kept[key])) {
+        walk(raw[key] as Record<string, unknown>, kept[key] as Record<string, unknown>, `${path}.${key}`);
+      }
+    }
+  };
   const parsedElements = (parsed.data as { elements: Record<string, unknown>[] }).elements;
   composed.document.elements.forEach((raw, i) => {
-    const kept = new Set(Object.keys(parsedElements[i] ?? {}));
-    for (const key of Object.keys(raw)) {
-      if (!kept.has(key)) dropped.push(`${(raw as { id?: string }).id ?? i} (${raw.type}): ${key}`);
-    }
+    const id = (raw as { id?: string }).id ?? String(i);
+    walk(raw as unknown as Record<string, unknown>, parsedElements[i] ?? {}, `${id} (${raw.type})`);
   });
   if (dropped.length) {
     throw new TemplateValidationError(

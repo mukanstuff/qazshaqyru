@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import type { VideoBgElement } from '@/lib/canvas/types';
+import { fadeMask } from './ImageElementView';
 
 /**
  * A clip used as artwork inside the canvas.
@@ -114,6 +115,7 @@ export function VideoBgElementView({
     );
   }
 
+  const fade = fadeMask(el);
   return (
     <div
       style={{
@@ -121,6 +123,10 @@ export function VideoBgElementView({
         width: '100%',
         height: '100%',
         overflow: 'hidden',
+        maskImage: fade,
+        WebkitMaskImage: fade,
+        maskComposite: fade && fade.includes(',') ? 'intersect' : undefined,
+        WebkitMaskComposite: fade && fade.includes(',') ? 'source-in' : undefined,
       }}
     >
       <video

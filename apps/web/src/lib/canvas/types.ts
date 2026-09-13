@@ -256,6 +256,20 @@ export interface InvitationCanvasDocument {
      */
     focus?: string;
     /**
+     * Where the words go. `bottom` (default) stacks name, date and button at
+     * the foot over a dark scrim.
+     *
+     * `split` puts the name and the date in the gap above the envelope, in the
+     * accent colour and with no scrim, and leaves only the button below. It
+     * exists for a clip whose envelope lies across the middle of the frame:
+     * «Тақия»'s occupies rows 274-645 of an 844px phone, the bottom stack
+     * needs about 200px, and the name ended up sitting on the envelope's edge.
+     * The gaps are light — mean luminance 0.88 above, 0.78 below — so white
+     * type measured 1.1:1 there and navy 7.6:1. The owner, on this clip: the
+     * margins above and below are handy for the inscriptions.
+     */
+    layout?: 'bottom' | 'split';
+    /**
      * The colour of the button, and of anything else the gate paints.
      *
      * Explicit, because the alternative is guessing and guessing broke: the
@@ -787,6 +801,14 @@ export interface VideoBgElement extends BaseElement {
   posterSrc?: string;
   overlayColor?: string;
   opacity?: number;
+  /**
+   * Feathered edges, same as on an image.
+   *
+   * Both heroes that carry a clip lay a still under it and fade the still's
+   * foot into the page — and the clip, drawn on top, had no way to fade, so
+   * the fade was invisible and every hero ended on a hard horizontal edge.
+   */
+  maskFade?: { top?: number; right?: number; bottom?: number; left?: number };
   /**
    * Loop forever, or play once and hold the last frame.
    *

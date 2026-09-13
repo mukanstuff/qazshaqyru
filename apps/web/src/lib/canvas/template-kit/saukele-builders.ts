@@ -313,7 +313,10 @@ function panel(ctx: SectionContext, y: number, h: number, w = 88): ElementSpec {
     },
     // Surfaces never animate: a plate sliding out from under its own text reads
     // as a loading failure. Measured — not one of the 954 reference components
-    // animates a shape.
+    // animates a shape. This comment stood here for a week with no
+    // `animate: false` under it, and the composer animates whatever is not
+    // told otherwise, so both panels had an entrance.
+    animate: false,
   };
 }
 
@@ -343,7 +346,9 @@ export function saukeleHero(options: { bride?: string } = {}): SectionBuilder {
           alt: '',
           objectFit: 'cover',
           borderRadius: 0,
-          maskFade: { edge: 'bottom', size: 26 },
+          // `bottom`, not `{ edge, size }` — the schema has no such keys, Zod
+          // stripped both, and the hero shipped with no fade at all.
+          maskFade: { bottom: 26 },
         },
         animate: { type: 'fade', duration: 2.0 },
       },

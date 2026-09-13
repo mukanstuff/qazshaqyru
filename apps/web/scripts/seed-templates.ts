@@ -75,6 +75,17 @@ import {
   saukeleRsvp,
   saukeleWhen,
   saukeleWishes,
+  taqiyaBand,
+  taqiyaClosing,
+  taqiyaDastarkhan,
+  taqiyaGreeting,
+  taqiyaHero,
+  taqiyaHosts,
+  taqiyaLocation,
+  taqiyaObject,
+  taqiyaRsvp,
+  taqiyaWhen,
+  taqiyaWishes,
   type SectionEntry,
   type TemplateTheme,
 } from '../src/lib/canvas/template-kit';
@@ -109,7 +120,7 @@ interface Recipe {
    * switch the gate on but never hand it a video, and the envelope film shot
    * for «Сәукеле» sat in the assets folder unreferenced.
    */
-  envelope?: boolean | { videoSrc?: string; posterSrc?: string; focus?: string; accent?: string };
+  envelope?: boolean | { videoSrc?: string; posterSrc?: string; focus?: string; accent?: string; layout?: 'bottom' | 'split' };
   /** The page scrolls itself until touched — see ComposeOptions.autoScroll. */
   autoScroll?: { enabled: boolean; speed?: 'slow' | 'normal' | 'fast' };
   /**
@@ -262,6 +273,27 @@ const INJU_THEME: TemplateTheme = {
   script: 'Shelley',
 };
 
+/**
+ * «Тақия» — сүндет той, the first template in the category.
+ *
+ * Light register, as the owner requires everywhere. The paper is the linen
+ * ground's own mean colour after the pipeline tones it, so panels and the map
+ * card sit on the page instead of on a slightly different blue. Deep navy
+ * carries the type and the controls, gold only the ornament: gold text on pale
+ * blue measures around 2:1 and would not be read.
+ */
+const TAQIYA_THEME: TemplateTheme = {
+  paper: '#E2F2FD',
+  ink: '#1D3150',
+  accent: '#2D4C77',
+  muted: '#62748C',
+  onPhoto: '#FFFFFF',
+  accentDeep: '#B08A45',
+  display: 'Cormorant',
+  body: 'Monolog',
+  script: 'Andantino',
+};
+
 const RECIPES: Recipe[] = [
   {
     slug: 'inju',
@@ -351,6 +383,42 @@ const RECIPES: Recipe[] = [
       { key: 'rsvp', build: saukeleRsvp() },
       { key: 'wishes', build: saukeleWishes() },
       { key: 'closing', build: saukeleClosing() },
+      { key: 'music', build: floatingMusic({ variant: 'dial' }) },
+    ],
+  },
+  {
+    slug: 'taqiya',
+    category: 'sundet_toy',
+    nameRu: 'Тақия',
+    nameKz: 'Тақия',
+    descriptionRu:
+      'Сүндет той в синем бархате и золоте. Видео с мальчиком на белом коне, тақия в арке, ою в трёх ролях. Светлый ключ.',
+    descriptionKz:
+      'Көк барқыт пен алтын түсіндегі сүндет той. Ақ боз атқа мінген бала бейнесі, аркадағы тақия, үш рөлдегі ою. Ашық түс.',
+    priceKzt: 3990,
+    sortOrder: 0,
+    theme: TAQIYA_THEME,
+    envelope: {
+      videoSrc: '/assets/templates/taqiya/envelope.webm',
+      posterSrc: '/assets/templates/taqiya/envelope-poster.webp',
+      accent: TAQIYA_THEME.accent,
+      layout: 'split',
+    },
+    autoScroll: { enabled: true, speed: 'slow' },
+    groundSize: 'repeat',
+    assets: { ground: '/assets/templates/taqiya/ground-linen.webp' },
+    sections: [
+      { key: 'hero', build: taqiyaHero() },
+      { key: 'band', build: taqiyaBand() },
+      { key: 'greeting', build: taqiyaGreeting() },
+      { key: 'taqiya', build: taqiyaObject() },
+      { key: 'hosts', build: taqiyaHosts() },
+      { key: 'dastarkhan', build: taqiyaDastarkhan() },
+      { key: 'when', build: taqiyaWhen({ targetIso: ISO }) },
+      { key: 'location', build: taqiyaLocation() },
+      { key: 'rsvp', build: taqiyaRsvp() },
+      { key: 'wishes', build: taqiyaWishes() },
+      { key: 'closing', build: taqiyaClosing() },
       { key: 'music', build: floatingMusic({ variant: 'dial' }) },
     ],
   },

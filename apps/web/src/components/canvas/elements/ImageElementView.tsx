@@ -90,7 +90,7 @@ export const EDGE_CLIP_PATHS: Record<keyof typeof EDGE_CLIP_IDS, string> = {
  * Feathered edges as a mask, so what fades is opacity and not a colour painted
  * over the picture — the same illustration then sits on any ground.
  */
-function fadeMask(el: ImageElement): string | undefined {
+export function fadeMask(el: Pick<ImageElement, 'maskFade'>): string | undefined {
   const f = el.maskFade;
   if (!f) return undefined;
   const layers: string[] = [];
