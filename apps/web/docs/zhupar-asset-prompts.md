@@ -276,6 +276,45 @@ No hands, no fingers, no people, no table, no text, no letters, no logo, no
 watermark, no border.
 ```
 
+## 9б. `envelope.mp4` — второй заход, без печати
+
+Три дубля первого промпта, три раза одно и то же: печать трескается на клапане,
+а под ней появляется вторая, целая. Это уже шестой такой конверт из шести
+(«Тақия» дал тот же дефект), и фраза «there is only ever one seal» не помогла ни
+разу. Причина в самой просьбе: «печать раскалывается на две половины» модель
+исполняет двумя печатями. Плюс владелец: конверт почти не отличается от
+прошлого, а баран на оттиске уже третий раз подряд.
+
+Поэтому ломающегося предмета в кадре больше нет. Клапан просто заправлен, без
+печати, ленты и наклейки; открывается клапан, и из кармана до половины выезжает
+чистая карточка с тонкой золотой рамкой. Веточка эвкалипта лежит на углу и не
+двигается — это цвет шаблона и отличие от двух прошлых конвертов.
+
+```
+Four seconds, vertical 9:16, no audio. Locked-off camera, no zoom, no pan, no
+push-in, no tilt, no handheld drift.
+
+Photorealistic. A closed envelope of thick textured ivory paper lies flat and is
+photographed straight on from above, centred, spanning the full width of the
+frame, with plain soft light warm-grey background above and below it. Its
+pointed back flap is simply tucked in: there is no seal, no wax, no sticker, no
+ribbon and no string anywhere. A single small sprig of fresh eucalyptus lies
+diagonally across the lower left corner of the envelope and stays exactly where
+it is for the whole clip.
+
+For the first half second nothing moves. Then the flap slowly lifts open upward
+and folds back. From inside the envelope a blank ivory card with a thin gold
+border line slides smoothly upward until about half of the card is out of the
+envelope, and stops.
+
+The card is completely blank inside its gold border: no text, no letters, no
+monogram, no pattern. Soft, bright, even light, shadows almost absent, fine
+paper grain visible.
+
+No hands, no fingers, no people, no table, no seal, no text, no letters, no
+logo, no watermark, no border.
+```
+
 ## Статус ассетов
 
 | Файл | Статус |
