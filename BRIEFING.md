@@ -166,6 +166,8 @@ npx tsx scripts/seed-templates.ts
 npx tsx scripts/preview-invitation.ts <slug>
 node scripts/shot-gate.mjs http://localhost:3000/i/preview-<slug> out.png
 npx tsx scripts/self-check-template.ts <slug>
+node scripts/check-legibility.mjs http://localhost:3000/i/preview-<slug>
+node scripts/measure-frame.mjs public/assets/templates/<slug>/hero-poster.webp
 ```
 
 ---

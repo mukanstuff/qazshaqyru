@@ -48,6 +48,8 @@ node scripts/audit-routes.mjs --locale=kz --login=+77015550142 /dashboard
 npx tsx scripts/preview-invitation.ts <template-slug>   # опубликовать превью
 node scripts/shot-gate.mjs <url> out.png                # скриншот со снятым конвертом
 npx tsx scripts/self-check-template.ts <slug>           # численный гейт шаблона
+node scripts/check-legibility.mjs <url>                  # контраст текста на фото
+node scripts/measure-frame.mjs <image>                   # где в кадре тихое поле
 ```
 
 Постгрес в докере слушает **55432**, не 5432: Hyper-V занимает 5432, и если в
