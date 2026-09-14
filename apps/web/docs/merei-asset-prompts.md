@@ -192,8 +192,8 @@ logo, no watermark, no border.
 | `hero` | **принят.** Шёлк и падающая поталь, петля 0,94 по SSIM (у принятого «Сәукеле» 0,77). Шёлк средней яркости, 0,58, при текстуре 0,003–0,005 в полосе y 240–520: гладко, но не светло. Золотая цифра на нём даёт около 2:1 — цифра будет бордо, золото остаётся в потали |
 | `story-emboss` | **принят.** Пары рогов от общего стебля, ромбы, центр чистый — первый ою без правок за три шаблона |
 | `story-hall` | **принят** без оговорок |
-| `story-hands` | **перегенерировать.** Кесе пустая, большой палец правой руки лежит внутри неё — так чашу не держат, отсюда ощущение «что-то не так» |
-| `story-keste` | **перегенерировать.** Сама вышивка роскошная, но узор — сплошная бегущая спираль, а не пары рогов қошқар мүйіз: читается как «золотая вышивка вообще», не как казахская |
+| `story-hands` | **снят, заменяется натюрмортом `story-tray`.** Первый дубль — палец внутри пустой кесе. Второй анатомически верен, но владелец: «выглядит само по себе странно, отчуждённая фотка, будто не вписывается». Согласен, и причина не в руках: полкадра — голая шея и декольте пожилой женщины в обычной кофте, фон бежевой стены. Это единственный кадр шаблона с телом, все остальные — материал и предметы: поталь, шёлк, тиснение, кесте, стол. Фрагмент человека среди материалов выпадает |
+| `story-keste` | **принят со второго промпта.** Пары рогов от общего стебля, ромбы, бисерная кромка; помогло приложенное тиснение как образец |
 | `envelope` | **принят с монтажом.** Лента с 1,25 по 1,9 с глючит — вертикальная лента за один кадр становится горизонтальной. Вырезано: бант держится 0,85 с, растворяется за 0,4 с, дальше чистое открытие клапана. Отдельно ролик был фактически 10 кадров в секунду — 59% кадров дублировали предыдущий; досчитан до 24 |
 
 ## Второй круг
@@ -253,3 +253,29 @@ CGI-looking.
 
 Что поменялось: запрещена ровно та бегущая спираль, что пришла, единица
 описана как в тиснении, которое село, и приложен образец.
+
+## Третий круг
+
+### 4в. `story-tray` — натюрморт вместо рук
+
+Смысл тот же — старшее поколение, чай, серебро, — но предметом, в том же
+регистре, что кесте и тиснение. Секция хозяев, рваный край сверху и снизу.
+
+```
+Photorealistic still life, vertical 3:4, shot straight down from above. On
+soft ivory silk lies a round antique silver tray with a wide engraved Kazakh
+ornament rim. On the tray: a white porcelain kese tea bowl with a thin gold rim
+filled with warm milky tea, a small white bowl of golden baursak, and a wide
+engraved silver Kazakh bracelet (bilezik) lying open beside the kese. A folded
+corner of deep wine-red velvet with a band of gold keste embroidery enters from
+the lower left corner of the frame. Everything is arranged in the lower two
+thirds of the frame; the upper third is plain calm ivory silk.
+
+Bright, high-key, soft even light, shadows almost absent, highlights running up
+into white. Palette ivory, silver, wine red, warm gold. Elegant, restrained,
+luxurious.
+
+No people, no hands, no faces, no bodies. No brand names, no printed patterns
+with letters, no studio equipment visible. No text, no watermark, no border.
+Not CGI-looking.
+```
