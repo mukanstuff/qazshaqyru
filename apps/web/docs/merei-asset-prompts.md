@@ -188,4 +188,68 @@ logo, no watermark, no border.
 
 | Файл | Статус |
 |---|---|
-| все семь | ждут генерации |
+| `cut-gold-leaf` | **принят.** Пять хлопьев разделены чёрным, режутся без пересечений |
+| `hero` | **принят.** Шёлк и падающая поталь, петля 0,94 по SSIM (у принятого «Сәукеле» 0,77). Шёлк средней яркости, 0,58, при текстуре 0,003–0,005 в полосе y 240–520: гладко, но не светло. Золотая цифра на нём даёт около 2:1 — цифра будет бордо, золото остаётся в потали |
+| `story-emboss` | **принят.** Пары рогов от общего стебля, ромбы, центр чистый — первый ою без правок за три шаблона |
+| `story-hall` | **принят** без оговорок |
+| `story-hands` | **перегенерировать.** Кесе пустая, большой палец правой руки лежит внутри неё — так чашу не держат, отсюда ощущение «что-то не так» |
+| `story-keste` | **перегенерировать.** Сама вышивка роскошная, но узор — сплошная бегущая спираль, а не пары рогов қошқар мүйіз: читается как «золотая вышивка вообще», не как казахская |
+| `envelope` | **принят с монтажом.** Лента с 1,25 по 1,9 с глючит — вертикальная лента за один кадр становится горизонтальной. Вырезано: бант держится 0,85 с, растворяется за 0,4 с, дальше чистое открытие клапана. Отдельно ролик был фактически 10 кадров в секунду — 59% кадров дублировали предыдущий; досчитан до 24 |
+
+## Второй круг
+
+### 4б. `story-hands`
+
+```
+Photorealistic vertical photograph, 3:4, taken from the front at chest height.
+An elderly Kazakh woman holds a small white porcelain kese tea bowl with a thin
+gold rim in front of her chest, filled with warm milky tea. Both hands cradle
+the bowl from below and from the sides, fingers together underneath it and
+both thumbs resting on the outside of the rim. No finger or thumb is inside
+the bowl. On her left wrist is a wide silver Kazakh bracelet (bilezik)
+engraved with ornament. She wears a deep wine-red velvet camisole with a thin
+gold trim at the cuffs. The frame is cut just below her chin, so no face, no
+mouth and no chin are visible; only the chest, the forearms, the hands and the
+bowl.
+
+Bright studio, large diffused softbox, soft wrapping light, shadows almost
+absent, highlights running up into white, a plain soft ivory background.
+Palette ivory, deep wine red, silver, warm gold. 85mm, shallow depth of field.
+Natural relaxed hands with five fingers each, anatomically correct.
+
+No face, no mouth, no chin. No studio equipment, no softbox, no light stand,
+no reflector, no tripod visible anywhere in frame. No text, no watermark, no
+border. Not CGI-looking.
+```
+
+Что поменялось: чай в кесе, прямо сказано, где пальцы и что внутри чаши их нет,
+снято спереди, а не сверху — сверху модель положила кесе на колени и сунула
+палец внутрь.
+
+### 5б. `story-keste`
+
+**Приложить образец** — принятое тиснение этого же шаблона
+(`Embossed_ornament_on_watercolour…` из загрузок) или медальон «Тақия».
+
+```
+Photorealistic horizontal close-up photograph, 3:2. Flat deep wine-red velvet
+fills the whole frame, with a wide band of dense raised gold-thread keste
+embroidery running horizontally across the middle from edge to edge. The
+embroidered motif follows the attached reference image: separate qoshqar
+muyiz ram's horn units standing side by side, each a short upright stem that
+splits into two thick horns curling away from each other and down into
+spirals, like a ram's head seen from the front, with a small gold rhombus
+between neighbouring units. The units are separate and clearly readable, not
+a continuous running spiral, not a wave of S-scrolls, not Celtic, not Greek.
+Small gold beads along the upper and lower edge of the band.
+
+Soft even light from the front, the gold thread catching warm highlights, the
+velvet a rich but not black wine red, flat and filling the frame with no
+background visible. Sharp focus across the whole band.
+
+No person, no body, no text, no letters, no watermark, no border. Not
+CGI-looking.
+```
+
+Что поменялось: запрещена ровно та бегущая спираль, что пришла, единица
+описана как в тиснении, которое село, и приложен образец.
