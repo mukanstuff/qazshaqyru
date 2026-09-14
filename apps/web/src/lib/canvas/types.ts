@@ -353,6 +353,9 @@ export type FontFamily =
   // Ametist and GoodVibes the display faces on their best sellers. Kazakh
   // coverage checked by reading each file's cmap, not by trusting its name.
   | 'Shelley'
+  /** The script both reference services set names and section headings in
+   *  after Shelley (toi мерейтой 13 and 14). Kazakh descenders measured. */
+  | 'Balmoral'
   | 'Monumenta'
   | 'Romul'
   | 'Ametist'
@@ -741,7 +744,17 @@ export interface ProgramElement extends BaseElement {
    * toi's newest wedding cards use: an icon, a thin rail with a mark, then the
    * time over the label. The sizes, icons and marker below apply to `rail`.
    */
-  variant?: 'list' | 'rail';
+  variant?: 'list' | 'rail' | 'stack' | 'zigzag';
+  /** Face and size of the time, separately from the label: the time set large in a script is what makes a programme read as designed. */
+  timeFontFamily?: FontFamily;
+  timeSize?: number;
+  /** `zigzag`: height of one entry in px. */
+  rowHeight?: number;
+  /** `zigzag`: real artwork that travels the path as the guest scrolls. */
+  travellerSrc?: string;
+  travellerSize?: number;
+  /** `zigzag`: turn the traveller along the path (default) or keep it upright. */
+  travellerRotate?: boolean;
   /** Label size in px; the time and description are set a step smaller. */
   fontSize?: number;
   /** Icon box in px. 0 or absent: no icon column. Icons come from `items[].icon`. */

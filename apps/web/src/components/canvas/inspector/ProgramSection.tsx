@@ -26,6 +26,20 @@ export function ProgramSection({
   };
   return (
     <Section title={t.program}>
+      {/* The look is the template's, but it is a real choice for the host too:
+          the same items draw as a list, a rail, a centred stack or a zigzag. */}
+      <Field label={t.programLook}>
+        <select
+          value={el.variant ?? 'list'}
+          onChange={(e) => onUpdate({ variant: e.target.value as ProgramElement['variant'] })}
+          className={inputCls}
+        >
+          <option value="stack">{t.programStack}</option>
+          <option value="zigzag">{t.programZigzag}</option>
+          <option value="rail">{t.programRail}</option>
+          <option value="list">{t.programList}</option>
+        </select>
+      </Field>
       <Field label={t.title}>
         <input
           type="text"
@@ -72,6 +86,11 @@ export function ProgramSection({
       <Field label={t.font}>
         <FontSelect value={el.fontFamily} onChange={(v) => onUpdate({ fontFamily: v })} />
       </Field>
+      {el.variant && el.variant !== 'list' ? (
+        <Field label={t.timeFont}>
+          <FontSelect value={el.timeFontFamily ?? el.fontFamily} onChange={(v) => onUpdate({ timeFontFamily: v })} />
+        </Field>
+      ) : null}
       <Field label={t.bgColor}>
         <SwatchColorPicker value={el.bgColor} onChange={(c) => onUpdate({ bgColor: c })} />
       </Field>

@@ -99,7 +99,7 @@ export const placeholderKeySchema = z.enum([
 // a template that used a non-original-5 font.
 const fontFamilySchema = z.enum([
   'Oranienbaum', 'Monolog', 'Corinthia', 'Copperplate', 'Andantino', 'Lavanderia', 'DomainDisplay', 'CeraBlack',
-  'Shelley', 'Monumenta', 'Romul', 'Ametist', 'GoodVibes',
+  'Shelley', 'Balmoral', 'Monumenta', 'Romul', 'Ametist', 'GoodVibes',
   'Montserrat', 'Cormorant', 'Marck', 'Unbounded', 'system',
   'Playfair Display', 'Great Vibes', 'Lora', 'EB Garamond', 'Cormorant Garamond',
   'Prata', 'Forum', 'Tenor Sans', 'Manrope', 'Inter', 'Raleway', 'Nunito',
@@ -394,7 +394,13 @@ const programElementSchema = baseElementSchema.extend({
   textColor: safeColor.default('#1a1a1a'),
   accentColor: safeColor.default('#c9a961'),
   timeColor: safeColor.optional(),
-  variant: z.enum(['list', 'rail']).optional(),
+  variant: z.enum(['list', 'rail', 'stack', 'zigzag']).optional(),
+  timeFontFamily: fontFamilySchema.optional(),
+  timeSize: z.number().min(10).max(80).optional(),
+  rowHeight: z.number().min(60).max(260).optional(),
+  travellerSrc: mediaSrc.optional(),
+  travellerSize: z.number().min(12).max(120).optional(),
+  travellerRotate: z.boolean().optional(),
   fontSize: z.number().min(10).max(40).optional(),
   iconSize: z.number().min(0).max(120).optional(),
   iconColor: safeColor.optional(),

@@ -211,6 +211,7 @@
    display serif, RomulC the all-caps antiqua shaqyru24 sets its values in,
    Ametist and GoodVibes the display faces on their best sellers. */
 @font-face{font-family:'KZ Shelley';font-style:normal;font-weight:400;font-display:swap;src:url('/fonts/web/shelley.woff2') format('woff2')}
+@font-face{font-family:'KZ Balmoral';font-style:normal;font-weight:400;font-display:swap;src:url('/fonts/web/balmoral.woff2') format('woff2')}
 @font-face{font-family:'KZ Monumenta';font-style:normal;font-weight:400;font-display:swap;src:url('/fonts/web/monumenta.woff2') format('woff2')}
 @font-face{font-family:'KZ Romul';font-style:normal;font-weight:400;font-display:swap;src:url('/fonts/web/romul.woff2') format('woff2')}
 @font-face{font-family:'KZ Ametist';font-style:normal;font-weight:400;font-display:swap;src:url('/fonts/web/ametist.woff2') format('woff2')}

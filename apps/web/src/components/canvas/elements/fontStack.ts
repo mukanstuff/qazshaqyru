@@ -27,6 +27,7 @@ const SELF_HOSTED = new Set<FontFamily>([
   'DomainDisplay',
   'CeraBlack',
   'Shelley',
+  'Balmoral',
   'Monumenta',
   'Romul',
   'Ametist',
@@ -151,6 +152,7 @@ const FALLBACK: Record<FontFamily, string> = {
   DomainDisplay: 'Georgia, serif',
   CeraBlack: 'system-ui, sans-serif',
   Shelley: 'cursive',
+  Balmoral: 'cursive',
   Monumenta: 'Georgia, serif',
   Romul: 'Georgia, serif',
   Ametist: 'cursive',
@@ -209,6 +211,7 @@ export function fontStack(family: FontFamily): string {
     if (family === 'DomainDisplay') return `'KZ Domain', ${fallback}`;
     if (family === 'CeraBlack') return `'KZ Cera Black', ${fallback}`;
     if (family === 'Shelley') return `'KZ Shelley', ${fallback}`;
+    if (family === 'Balmoral') return `'KZ Balmoral', ${fallback}`;
     if (family === 'Monumenta') return `'KZ Monumenta', ${fallback}`;
     if (family === 'Romul') return `'KZ Romul', ${fallback}`;
     if (family === 'Ametist') return `'KZ Ametist', ${fallback}`;
