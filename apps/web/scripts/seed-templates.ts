@@ -96,6 +96,16 @@ import {
   zhuparRsvp,
   zhuparWhen,
   zhuparWishes,
+  mereiClosing,
+  mereiGreeting,
+  mereiHero,
+  mereiHosts,
+  mereiKeste,
+  mereiLocation,
+  mereiProgram,
+  mereiRsvp,
+  mereiWhen,
+  mereiWishes,
   type SectionEntry,
   type TemplateTheme,
 } from '../src/lib/canvas/template-kit';
@@ -311,6 +321,27 @@ const TAQIYA_THEME: TemplateTheme = {
  * tones it; olive ink; eucalyptus for controls; gold only in the ornament.
  * No other template in the catalogue is green.
  */
+/**
+ * «Мерей» — мерейтой, the first in the category.
+ *
+ * Light register on the «Жұпар» paper ground. Wine carries every word and
+ * the numeral: gold on this ivory silk measured about 2:1, wine about 8:1.
+ * Gold lives only in the leaf and the embroidery. Oranienbaum for the
+ * numeral because it sets lining figures; Cormorant, the usual display face
+ * here, has old-style ones and its 0 stands 61% as tall as its 6.
+ */
+const MEREI_THEME: TemplateTheme = {
+  paper: '#F1F0EB',
+  ink: '#5A1A26',
+  accent: '#7A2434',
+  muted: '#86655F',
+  onPhoto: '#FFFFFF',
+  accentDeep: '#A8844A',
+  display: 'Oranienbaum',
+  body: 'Monolog',
+  script: 'Shelley',
+};
+
 const ZHUPAR_THEME: TemplateTheme = {
   paper: '#F1F0EB',
   ink: '#2F3B2F',
@@ -448,6 +479,42 @@ const RECIPES: Recipe[] = [
       { key: 'rsvp', build: taqiyaRsvp() },
       { key: 'wishes', build: taqiyaWishes() },
       { key: 'closing', build: taqiyaClosing() },
+      { key: 'music', build: floatingMusic({ variant: 'dial' }) },
+    ],
+  },
+  {
+    slug: 'merei',
+    category: 'anniversary',
+    nameRu: 'Мерей',
+    nameKz: 'Мерей',
+    descriptionRu:
+      'Мерейтой в бордо и сусальном золоте. Огромная цифра возраста, тиснёный ою, вышивка кесте, конверт с лентой.',
+    descriptionKz:
+      'Бордо мен алтын жапырақ түсіндегі мерейтой. Үлкен жас саны, бедерлі ою, кесте, таспалы хатқалта.',
+    priceKzt: 4990,
+    sortOrder: 0,
+    theme: MEREI_THEME,
+    envelope: {
+      videoSrc: '/assets/templates/merei/envelope.webm',
+      posterSrc: '/assets/templates/merei/envelope-poster.webp',
+      accent: MEREI_THEME.accent,
+      ink: MEREI_THEME.ink,
+      layout: 'split',
+    },
+    autoScroll: { enabled: true, speed: 'slow' },
+    groundSize: 'repeat',
+    assets: { ground: '/assets/templates/merei/ground-paper.webp' },
+    sections: [
+      { key: 'hero', build: mereiHero() },
+      { key: 'greeting', build: mereiGreeting() },
+      { key: 'hosts', build: mereiHosts() },
+      { key: 'keste', build: mereiKeste() },
+      { key: 'program', build: mereiProgram() },
+      { key: 'when', build: mereiWhen({ targetIso: ISO }) },
+      { key: 'location', build: mereiLocation() },
+      { key: 'rsvp', build: mereiRsvp() },
+      { key: 'wishes', build: mereiWishes() },
+      { key: 'closing', build: mereiClosing() },
       { key: 'music', build: floatingMusic({ variant: 'dial' }) },
     ],
   },

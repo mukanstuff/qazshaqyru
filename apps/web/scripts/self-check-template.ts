@@ -144,14 +144,27 @@ async function checkOne(tpl: { slug: string; canvas: unknown }): Promise<boolean
   check('C11', 'text over photography', '>=6', `${over}`, over >= 6);
 
   // C12 — cut-out ornaments really carry alpha
+  //
+  // `cut-` files count as well as `oyu-`. The check used to look at `oyu-`
+  // only and require a non-empty set, so a template built without tinted ою —
+  // «Мерей», on the owner's brief — failed it with nothing wrong: its cut-out
+  // decor is photographed gold leaf and a torn paper edge, stored as WebP. The
+  // point of the check is that cut-out decor really carries alpha, whatever it
+  // depicts, so WebP's VP8X alpha flag is read too.
   const dir = join(process.cwd(), 'public', 'assets', 'templates', slug);
-  const orn = [...bySrc.keys()].filter((s) => /oyu-/.test(s));
+  const orn = [...bySrc.keys()].filter((s) => /\/(oyu|cut)-/.test(s));
   let withAlpha = 0;
   for (const s of orn) {
     const f = join(dir, s.split('/').pop() as string);
     if (!existsSync(f)) continue;
     const b = readFileSync(f);
-    if (b.slice(0, 4).toString('latin1') === '\x89PNG' && (b[25] === 6 || b[25] === 4)) withAlpha += 1;
+    const png = b.slice(0, 4).toString('latin1') === '\x89PNG' && (b[25] === 6 || b[25] === 4);
+    const webp =
+      b.slice(0, 4).toString('latin1') === 'RIFF' &&
+      b.slice(8, 12).toString('latin1') === 'WEBP' &&
+      b.slice(12, 16).toString('latin1') === 'VP8X' &&
+      (b[20] & 0x10) !== 0;
+    if (png || webp) withAlpha += 1;
   }
   check('C12', 'ornaments with alpha', '>=50%', orn.length ? `${Math.round((withAlpha / orn.length) * 100)}%` : 'n/a',
     orn.length > 0 && withAlpha / orn.length >= 0.5);

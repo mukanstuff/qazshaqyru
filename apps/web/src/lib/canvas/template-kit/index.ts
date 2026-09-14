@@ -152,6 +152,19 @@ export {
   zhuparWishes,
 } from './zhupar-builders';
 
+export {
+  mereiClosing,
+  mereiGreeting,
+  mereiHero,
+  mereiHosts,
+  mereiKeste,
+  mereiLocation,
+  mereiProgram,
+  mereiRsvp,
+  mereiWhen,
+  mereiWishes,
+} from './merei-builders';
+
 export { WEDDING_SKELETON, WEDDING_COPY, type Block, type BlockKind, type Bilingual, type SkeletonCopy } from './skeleton';
 export type { Skin, SkinPalette, SkinFonts, SkinAssets, SkinDecor } from './skin';
 export { skeletonSections, skinToTheme } from './layout';
