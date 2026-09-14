@@ -157,7 +157,7 @@ export {
   mereiGreeting,
   mereiHero,
   mereiHosts,
-  mereiKeste,
+  mereiCountdown,
   mereiLocation,
   mereiProgram,
   mereiRsvp,

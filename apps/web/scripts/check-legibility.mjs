@@ -113,6 +113,28 @@ const blocks = await page.evaluate(() => {
     if (text.length < 2) continue;
     const r = el.getBoundingClientRect();
     if (r.width < 20 || r.height < 8) continue;
+    /*
+     * Text on its own filled chip is not text on the artwork.
+     *
+     * A button's label sits inside the button's fill, and measuring its white
+     * letters against the silk behind the button reported «Жіберу» at 1.5:1
+     * on a solid wine button. A tight ancestor — no more than four times the
+     * text's area — with an opaque background carries the text itself.
+     */
+    let chip = false;
+    // From the element itself: a <button> is often its own leaf, and its fill can
+    // be a gradient, which lives in background-image, not background-color.
+    for (let a2 = el, depth = 0; a2 && depth < 4; a2 = a2.parentElement, depth++) {
+      if (getComputedStyle(a2).backgroundImage !== 'none' && a2.getBoundingClientRect().height <= r.height * 4) { chip = true; break; }
+      const bg = getComputedStyle(a2).backgroundColor;
+      const m2 = /rgba?\((\d+), ?(\d+), ?(\d+)(?:, ?([\d.]+))?/.exec(bg);
+      const alpha = m2 ? (m2[4] === undefined ? 1 : Number(m2[4])) : 0;
+      const ar = a2.getBoundingClientRect();
+      // Height, not area: a full-width pill button is many times the area of its
+      // label but never more than a few label-heights tall.
+      if (alpha >= 0.85 && ar.height <= r.height * 4) { chip = true; break; }
+    }
+    if (chip) continue;
     const over = art.find(
       (a) =>
         a.r.left < r.right && a.r.right > r.left && a.r.top < r.bottom && a.r.bottom > r.top,

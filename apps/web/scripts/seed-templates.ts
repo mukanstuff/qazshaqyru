@@ -100,7 +100,7 @@ import {
   mereiGreeting,
   mereiHero,
   mereiHosts,
-  mereiKeste,
+  mereiCountdown,
   mereiLocation,
   mereiProgram,
   mereiRsvp,
@@ -337,9 +337,9 @@ const MEREI_THEME: TemplateTheme = {
   muted: '#86655F',
   onPhoto: '#FFFFFF',
   accentDeep: '#A8844A',
-  display: 'Oranienbaum',
-  body: 'Monolog',
-  script: 'Shelley',
+  display: 'Balmoral',
+  body: 'Cormorant',
+  script: 'Balmoral',
 };
 
 const ZHUPAR_THEME: TemplateTheme = {
@@ -508,9 +508,9 @@ const RECIPES: Recipe[] = [
       { key: 'hero', build: mereiHero() },
       { key: 'greeting', build: mereiGreeting() },
       { key: 'hosts', build: mereiHosts() },
-      { key: 'keste', build: mereiKeste() },
       { key: 'program', build: mereiProgram() },
       { key: 'when', build: mereiWhen({ targetIso: ISO }) },
+      { key: 'countdown', build: mereiCountdown({ targetIso: ISO }) },
       { key: 'location', build: mereiLocation() },
       { key: 'rsvp', build: mereiRsvp() },
       { key: 'wishes', build: mereiWishes() },
